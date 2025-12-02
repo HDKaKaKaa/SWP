@@ -21,7 +21,16 @@ const LoginPage = () => {
       });
       login(res.data); // Lưu user vào context
       alert('Đăng nhập thành công!');
-      navigate('/');
+        // --- LOGIC PHÂN QUYỀN ĐIỀU HƯỚNG ---
+        // Giả sử backend trả về: { username: "admin", role: "ADMIN", ... }
+        if (res.data.role === 'ADMIN') {
+            navigate('/admin'); // Vào thẳng Dashboard Admin
+        } else if (res.data.role === 'SHIPPER') {
+            navigate('/shipper'); // (Ví dụ) Trang shipper
+        } else {
+            navigate('/'); // Khách hàng thường thì về trang chủ
+        }
+        // ------------------------------------
     } catch (err) {
       alert('Đăng nhập thất bại: ' + (err.response?.data || 'Lỗi server'));
     }
