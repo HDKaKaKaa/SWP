@@ -24,16 +24,34 @@ const ProfilePage = () => {
 
     // Load thông tin profile khi mở trang
     useEffect(() => {
-        if (!user) {
-            // chưa đăng nhập thì đá về login
+        // Ưu tiên lấy user từ context, nếu chưa có thì đọc thêm từ localStorage
+        let effectiveUser = user;
+        if (!effectiveUser) {
+            const stored = localStorage.getItem('user');
+            if (stored) {
+                try {
+                    effectiveUser = JSON.parse(stored);
+                    // Đồng bộ lại vào context để các chỗ khác dùng
+                    login(effectiveUser);
+                } catch (e) {
+                    console.error('Không parse được user từ localStorage', e);
+                }
+            }
+        }
+
+        // Sau khi kiểm tra mà vẫn không có user => bắt đăng nhập
+        if (!effectiveUser) {
+            setLoading(false);
             navigate('/login');
             return;
         }
 
+        const accountId = effectiveUser.id;
+
         const fetchProfile = async () => {
             try {
                 const res = await axios.get(
-                    `http://localhost:8080/api/customer/profile/${user.id}`
+                    `http://localhost:8080/api/customer/profile/${accountId}`
                 );
                 const data = res.data;
 
@@ -56,7 +74,7 @@ const ProfilePage = () => {
         };
 
         fetchProfile();
-    }, [user, navigate]);
+    }, [user, navigate, login]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
