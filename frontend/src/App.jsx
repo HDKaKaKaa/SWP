@@ -9,6 +9,7 @@ import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import MainLayout from './components/MainLayout';
 import AdminDashboard from './pages/AdminDashboard';
+import ProfilePage from './pages/ProfilePage';
 
 // Tạo nhanh component placeholder để menu admin bấm không bị lỗi
 const RestaurantsPage = () => <h2>Quản lý Nhà hàng</h2>;
@@ -54,6 +55,7 @@ function App() {
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                    <Route path="/profile" element={<ProfilePage />} />
                 </Route>
 
             </Routes>
