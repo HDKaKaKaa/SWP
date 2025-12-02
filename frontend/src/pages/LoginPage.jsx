@@ -59,7 +59,7 @@ const LoginPage = () => {
       >
         <input
           type="text"
-          placeholder="Username"
+          placeholder="Username/Email"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           style={{ padding: '10px' }}
@@ -73,6 +73,18 @@ const LoginPage = () => {
           style={{ padding: '10px' }}
           required
         />
+        <div style={{ textAlign: 'right' }}>
+          <Link
+            to="/forgot-password"
+            style={{
+              color: '#0288d1',
+              textDecoration: 'none',
+              fontSize: '14px',
+            }}
+          >
+            Quên mật khẩu?
+          </Link>
+        </div>
         <button
           type="submit"
           style={{
