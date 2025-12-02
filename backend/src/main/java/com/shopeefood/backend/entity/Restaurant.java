@@ -2,6 +2,8 @@ package com.shopeefood.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -22,4 +24,19 @@ public class Restaurant {
 
     @OneToMany(mappedBy = "restaurant")
     private List<Product> products;
+
+    public enum RestaurantStatus {
+        PENDING,
+        ACTIVE,
+        BLOCKED,
+        REJECTED
+    }
+
+    @Enumerated(EnumType.STRING) // Lưu dưới dạng chuỗi "ACTIVE", "PENDING" vào DB
+    @Column(columnDefinition = "ENUM('PENDING', 'ACTIVE', 'BLOCKED', 'REJECTED')")
+    private RestaurantStatus status;
+    // ----------------------------------
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 }
