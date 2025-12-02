@@ -22,4 +22,11 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Integer>
             "OR p.name LIKE %:keyword% " +
             "OR c.name LIKE %:keyword%")
     List<Restaurant> searchRestaurants(@Param("keyword") String keyword);
+
+    /**
+     * Đếm số nhà hàng đang hoạt động (Status = ACTIVE).
+     * Không đếm các quán đang chờ duyệt (PENDING) hoặc bị khóa (BLOCKED).
+     */
+    @Query("SELECT COUNT(r) FROM Restaurant r WHERE r.status = 'ACTIVE'")
+    Long countActiveRestaurants();
 }
