@@ -6,7 +6,8 @@
 
 /* Bọc nội dung, canh giữa giống LandingPage */
 .detail-wrapper {
-    max-width: 1200px;
+    max-width: 1450px;
+    padding: 0 12px;
     margin: 0 auto;
     display: flex;
     gap: 24px;
@@ -17,7 +18,7 @@
 .panel {
     background-color: #ffffff;
     border-radius: 12px;
-    padding: 20px 24px;
+    padding: 26px 30px;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
 }
 
@@ -53,7 +54,7 @@
 }
 
 .res-name {
-    font-size: 24px;
+    font-size: 28px;
     font-weight: 700;
     margin: 0;
     color: #222;
@@ -61,7 +62,7 @@
 
 .res-address {
     margin: 0;
-    font-size: 14px;
+    font-size: 15px;
     color: #888;
 }
 
@@ -81,14 +82,14 @@
 .menu-title {
     text-align: left;
     margin: 0;
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 600;
     color: #333;
 }
 
 .menu-subtitle {
     margin: 4px 0 0;
-    font-size: 13px;
+    font-size: 15px;
     color: #999;
 }
 
@@ -117,7 +118,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 14px;
+    padding: 18px 20px;
     border-radius: 10px;
     border: 1px solid #f1f1f1;
     background-color: #ffffff;
@@ -133,7 +134,7 @@
 .menu-item-main {
     display: flex;
     align-items: flex-start;
-    gap: 12px;
+    gap: 16px;
     flex: 1;
 }
 
@@ -144,7 +145,7 @@
 .menu-item-name {
     text-align: left;
     margin: 0 0 4px;
-    font-size: 15px;
+    font-size: 17px;
     font-weight: 600;
     color: #222;
 }
@@ -152,14 +153,14 @@
 .menu-item-desc {
     text-align: left;
     margin: 0;
-    font-size: 13px;
+    font-size: 14px;
     color: #8c8c8c;
 }
 
 .menu-item-price {
     text-align: left;
     margin-top: 6px;
-    font-size: 15px;
+    font-size: 17px;
     font-weight: 600;
     color: #ee4d2d;
 }
@@ -168,11 +169,11 @@
 .btn-add {
     border: none;
     outline: none;
-    padding: 6px 14px;
+    padding: 8px 16px;
     border-radius: 999px;
     background: linear-gradient(135deg, #ff7d43, #ee4d2d);
     color: #ffffff;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
@@ -195,7 +196,7 @@
 
 .cart-title {
     margin: 0;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 600;
     color: #333;
 }
@@ -236,6 +237,7 @@
 }
 
 .cart-item-name {
+    font-size: 15px;
     font-weight: 500;
     color: #333;
 }
@@ -247,8 +249,8 @@
 }
 
 .cart-qty-btn {
-    width: 22px;
-    height: 22px;
+    width: 26px;
+    height: 26px;
     border-radius: 50%;
     border: 1px solid #eee;
     background-color: #fafafa;
@@ -256,9 +258,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 13px;
+    font-size: 15px;
     line-height: 1;
-    font-weight: 600;
+    font-weight: 700;
     color: #333;
 }
 
@@ -268,6 +270,7 @@
 }
 
 .cart-item-price {
+    font-size: 16px;
     font-weight: 600;
     color: #ee4d2d;
 }
@@ -283,7 +286,7 @@
 }
 
 .cart-total {
-    font-size: 18px;
+    font-size: 22px;
     font-weight: 700;
     color: #ee4d2d;
 }
@@ -293,11 +296,11 @@
     width: 100%;
     border: none;
     outline: none;
-    padding: 10px 16px;
+    padding: 12px 18px;
     border-radius: 999px;
     background: linear-gradient(135deg, #ff7d43, #ee4d2d);
     color: #ffffff;
-    font-size: 15px;
+    font-size: 17px;
     font-weight: 700;
     cursor: pointer;
     transition: opacity 0.15s ease, transform 0.15s ease;
@@ -317,6 +320,7 @@
 @media (max-width: 900px) {
     .detail-wrapper {
         flex-direction: column;
+        gap: 32px;
     }
 
     .detail-cart {
