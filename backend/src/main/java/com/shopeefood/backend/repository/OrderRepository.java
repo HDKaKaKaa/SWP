@@ -38,7 +38,12 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
             "FROM orders " +
             "WHERE status = 'COMPLETED' AND created_at >= :startDate " +
             "GROUP BY DATE(created_at) " +
-            "ORDER BY DATE(created_at) ASC",
-            nativeQuery = true)
+            "ORDER BY DATE(created_at) ASC", nativeQuery = true)
     List<Object[]> getRevenueLast7DaysRaw(@Param("startDate") LocalDateTime startDate);
+
+    // Lấy tất cả đơn hàng của nhà hàng
+    List<Order> findByRestaurantId(Integer restaurantId);
+
+    // Lấy đơn hàng theo trạng thái (filter)
+    List<Order> findByRestaurantIdAndStatus(Integer restaurantId, String status);
 }
