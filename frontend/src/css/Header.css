@@ -1,32 +1,49 @@
+.header-wrapper {
+  background: white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  height: 64px;
+  display: flex;
+  align-items: center;
+}
+
 .header-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 40px;
-  background-color: white;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  position: sticky;
-  top: 0;
-  z-index: 100;
 }
 
 .header-logo {
-  font-size: 24px;
-  font-weight: bold;
+  font-size: 26px;
+  font-weight: 800;
   color: #ee4d2d;
   cursor: pointer;
+  letter-spacing: -1px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.header-login-btn {
-  padding: 8px 20px;
-  background-color: #ee4d2d;
-  color: white;
-  border: none;
-  border-radius: 5px;
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 15px;
   cursor: pointer;
-  font-weight: bold;
 }
 
-.header-login-btn:hover {
-  background-color: #d73211;
+.user-name {
+  font-weight: 600;
+  color: #333;
+  margin-left: 8px;
+}
+
+.auth-buttons {
+  display: flex;
+  gap: 10px;
 }
