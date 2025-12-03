@@ -1,88 +1,80 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import '../css/LoginPage.css';
+import { Form, Input, Button, message, Typography, Alert } from 'antd';
+import { MailOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+
+const { Title, Paragraph } = Typography;
 
 const ForgotPasswordPage = () => {
-  const [email, setEmail] = useState('');
-  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const onFinish = async (values) => {
+    setLoading(true);
+    setSuccessMsg('');
     try {
       const res = await axios.post(
         'http://localhost:8080/api/auth/forgot-password',
-        { email }
+        {
+          email: values.email,
+        }
       );
-      setMessage(res.data);
+      setSuccessMsg(res.data);
+      message.success('Đã gửi email thành công!');
     } catch (err) {
-      setMessage('Lỗi: ' + (err.response?.data || 'Không thể reset mật khẩu'));
+      message.error(err.response?.data || 'Lỗi hệ thống');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div
-      style={{
-        maxWidth: '400px',
-        margin: '50px auto',
-        padding: '20px',
-        border: '1px solid #ddd',
-        borderRadius: '8px',
-        textAlign: 'center',
-      }}
-    >
-      <h2 style={{ color: '#ee4d2d' }}>Quên mật khẩu?</h2>
-      <p style={{ color: '#666', marginBottom: '20px' }}>
-        Nhập email bạn đã đăng ký để lấy lại mật khẩu.
-      </p>
+    <div className="auth-page-container">
+      <div className="auth-overlay"></div>
+      <div className="auth-card">
+        <Title level={3} className="auth-title">
+          Khôi phục mật khẩu
+        </Title>
+        <Paragraph style={{ textAlign: 'center', marginBottom: 20 }}>
+          Nhập email của bạn, chúng tôi sẽ gửi mật khẩu mới.
+        </Paragraph>
 
-      <form
-        onSubmit={handleSubmit}
-        style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}
-      >
-        <input
-          type="email"
-          placeholder="Nhập email của bạn"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          style={{ padding: '10px' }}
-        />
+        {successMsg && (
+          <Alert
+            message="Thành công"
+            description={successMsg}
+            type="success"
+            showIcon
+            style={{ marginBottom: 20 }}
+          />
+        )}
 
-        <button
-          type="submit"
-          style={{
-            padding: '12px',
-            background: '#ee4d2d',
-            color: 'white',
-            border: 'none',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-          }}
-        >
-          Gửi yêu cầu
-        </button>
-      </form>
+        <Form name="forgot-password" onFinish={onFinish} size="large">
+          <Form.Item
+            name="email"
+            rules={[
+              { type: 'email', message: 'Email không đúng định dạng!' },
+              { required: true, message: 'Vui lòng nhập Email!' },
+            ]}
+          >
+            <Input prefix={<MailOutlined />} placeholder="Nhập email của bạn" />
+          </Form.Item>
 
-      {message && (
-        <div
-          style={{
-            marginTop: '20px',
-            padding: '10px',
-            background: '#e6fffa',
-            color: '#006644',
-            borderRadius: '5px',
-            border: '1px solid #006644',
-          }}
-        >
-          {message}
+          <Form.Item>
+            <Button type="primary" htmlType="submit" block loading={loading}>
+              Gửi yêu cầu
+            </Button>
+          </Form.Item>
+        </Form>
+
+        <div className="auth-footer">
+          <Link to="/login" style={{ color: '#555' }}>
+            <ArrowLeftOutlined /> Quay lại đăng nhập
+          </Link>
         </div>
-      )}
-
-      <p style={{ marginTop: '20px' }}>
-        <Link to="/login" style={{ color: '#0288d1' }}>
-          Quay lại Đăng nhập
-        </Link>
-      </p>
+      </div>
     </div>
   );
 };
