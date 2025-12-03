@@ -1,7 +1,14 @@
 import React, { useContext } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import '../css/Header.css';
+import { Button, Dropdown, Avatar, Space } from 'antd';
+import {
+  UserOutlined,
+  LogoutOutlined,
+  ProfileOutlined,
+  DownOutlined,
+} from '@ant-design/icons';
 
 const Header = () => {
   const { user, logout } = useContext(AuthContext);
@@ -12,39 +19,59 @@ const Header = () => {
     navigate('/login');
   };
 
-  const handleGoProfile = () => {
-      navigate('/profile');
-  };
+  // Menu Dropdown cho User
+  const items = [
+    {
+      key: '1',
+      label: 'Tài khoản của tôi',
+      icon: <ProfileOutlined />,
+      onClick: () => navigate('/profile'),
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: '2',
+      label: 'Đăng xuất',
+      icon: <LogoutOutlined />,
+      danger: true,
+      onClick: handleLogout,
+    },
+  ];
 
   return (
-    <div className="header-container">
-      <div className="header-logo" onClick={() => navigate('/')}>
-        Foorder
-      </div>
-
-      {user ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <span>
-            Xin chào, <b>{user.fullName || user.username}</b>
-          </span>
-          <button
-              onClick={handleGoProfile}
-              style={{ padding: '5px 10px', cursor: 'pointer' }}
-          >
-              Tài khoản
-          </button>
-          <button
-            onClick={handleLogout}
-            style={{ padding: '5px 10px', cursor: 'pointer' }}
-          >
-            Đăng xuất
-          </button>
+    <div className="header-wrapper">
+      <div className="header-container">
+        {/* LOGO */}
+        <div className="header-logo" onClick={() => navigate('/')}>
+          <span style={{ fontSize: '30px' }}>🍲</span> Foorder
         </div>
-      ) : (
-        <Link to="/login">
-          <button className="header-login-btn">Đăng nhập</button>
-        </Link>
-      )}
+
+        {/* USER INFO */}
+        {user ? (
+          <Dropdown menu={{ items }} trigger={['click']}>
+            <div className="user-menu">
+              <Avatar
+                style={{ backgroundColor: '#ee4d2d' }}
+                icon={<UserOutlined />}
+              />
+              <Space className="user-name">
+                {user.fullName || user.username}{' '}
+                <DownOutlined style={{ fontSize: '10px' }} />
+              </Space>
+            </div>
+          </Dropdown>
+        ) : (
+          <div className="auth-buttons">
+            <Button type="text" onClick={() => navigate('/login')}>
+              Đăng nhập
+            </Button>
+            <Button type="primary" onClick={() => navigate('/register')}>
+              Đăng ký
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

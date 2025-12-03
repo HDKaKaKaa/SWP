@@ -11,6 +11,7 @@ import MainLayout from './components/MainLayout';
 import AdminDashboard from './pages/AdminDashboard';
 import ProfilePage from './pages/ProfilePage';
 import AdminUsersPage from './pages/AdminUsersPage';
+import CategoriesPage from './pages/CategoriesPage';
 
 // Tạo nhanh component placeholder để menu admin bấm không bị lỗi
 const RestaurantsPage = () => <h2>Quản lý Nhà hàng</h2>;
