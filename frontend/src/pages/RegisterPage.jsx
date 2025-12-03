@@ -1,206 +1,154 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import '../css/App.css';
+import '../css/LoginPage.css'; // Tái sử dụng style của Login cho đồng bộ
+import { Form, Input, Button, message, Typography } from 'antd';
+import {
+  UserOutlined,
+  LockOutlined,
+  MailOutlined,
+  PhoneOutlined,
+  SmileOutlined,
+} from '@ant-design/icons';
+
+const { Title } = Typography;
 
 const RegisterPage = () => {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    confirmPassword: '',
-    email: '',
-    fullName: '',
-    phone: '',
-  });
-
-  const [errors, setErrors] = useState({});
-
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-    setErrors({ ...errors, [e.target.name]: '' });
-  };
-
-  const validateForm = () => {
-    let newErrors = {};
-
-    // 1. Check Username
-    if (!formData.username.trim())
-      newErrors.username = 'Vui lòng nhập tên đăng nhập';
-
-    // 2. Check Password
-    if (formData.password.length < 6)
-      newErrors.password = 'Mật khẩu phải từ 6 ký tự trở lên';
-
-    // 3. Check Confirm Password
-    if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Mật khẩu nhập lại không khớp';
-    }
-
-    // 4. Check Email (Regex đơn giản)
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email))
-      newErrors.email = 'Email không hợp lệ';
-
-    // 5. Check Phone (Phải là số, 10 ký tự)
-    const phoneRegex = /^[0-9]{10}$/;
-    if (!phoneRegex.test(formData.phone))
-      newErrors.phone = 'Số điện thoại phải có 10 chữ số';
-
-    // 6. Check Fullname
-    if (!formData.fullName.trim()) newErrors.fullName = 'Vui lòng nhập họ tên';
-
-    setErrors(newErrors);
-    // Nếu không có lỗi nào (Object rỗng) thì trả về true
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+  const onFinish = async (values) => {
+    setLoading(true);
     try {
-      const { confirmPassword, ...dataToSend } = formData;
+      // Loại bỏ confirmPassword trước khi gửi lên server
+      const { confirmPassword, ...dataToSend } = values;
 
-      await axios.post('http://localhost:8080/api/auth/register', formData);
-      alert('Đăng ký thành công! Hãy đăng nhập ngay.');
+      const res = await axios.post(
+        'http://localhost:8080/api/auth/register',
+        dataToSend
+      );
+      message.success(res.data);
       navigate('/login');
     } catch (err) {
-      alert('Lỗi: ' + (err.response?.data || 'Đăng ký thất bại'));
+      const errorMsg =
+        err.response?.data?.message || err.response?.data || 'Đăng ký thất bại';
+      message.error(errorMsg);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div
-      style={{
-        maxWidth: '400px',
-        margin: '50px auto',
-        padding: '20px',
-        border: '1px solid #ddd',
-        borderRadius: '8px',
-      }}
-    >
-      <h2 style={{ textAlign: 'center', color: '#ee4d2d' }}>
-        Đăng ký tài khoản
-      </h2>
-      <form
-        onSubmit={handleRegister}
-        style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}
-      >
-        <div>
-          <input
-            name="username"
-            type="text"
-            placeholder="Tên đăng nhập"
-            onChange={handleChange}
-            style={{ width: '100%', padding: '10px' }}
-          />
-          {errors.username && (
-            <span style={{ color: 'red', fontSize: '12px' }}>
-              {errors.username}
-            </span>
-          )}
-        </div>
-
-        <div>
-          <input
-            name="password"
-            type="password"
-            placeholder="Mật khẩu"
-            onChange={handleChange}
-            style={{ width: '100%', padding: '10px' }}
-          />
-          {errors.password && (
-            <span style={{ color: 'red', fontSize: '12px' }}>
-              {errors.password}
-            </span>
-          )}
-        </div>
-
-        <div>
-          <input
-            name="confirmPassword"
-            type="password"
-            placeholder="Nhập lại mật khẩu"
-            onChange={handleChange}
-            style={{ width: '100%', padding: '10px' }}
-          />
-          {errors.confirmPassword && (
-            <span style={{ color: 'red', fontSize: '12px' }}>
-              {errors.confirmPassword}
-            </span>
-          )}
-        </div>
-
-        <div>
-          <input
-            name="fullName"
-            type="text"
-            placeholder="Họ và tên"
-            onChange={handleChange}
-            style={{ width: '100%', padding: '10px' }}
-          />
-          {errors.fullName && (
-            <span style={{ color: 'red', fontSize: '12px' }}>
-              {errors.fullName}
-            </span>
-          )}
-        </div>
-
-        <div>
-          <input
-            name="email"
-            type="text"
-            placeholder="Email"
-            onChange={handleChange}
-            style={{ width: '100%', padding: '10px' }}
-          />
-          {errors.email && (
-            <span style={{ color: 'red', fontSize: '12px' }}>
-              {errors.email}
-            </span>
-          )}
-        </div>
-
-        <div>
-          <input
-            name="phone"
-            type="text"
-            placeholder="Số điện thoại"
-            onChange={handleChange}
-            style={{ width: '100%', padding: '10px' }}
-          />
-          {errors.phone && (
-            <span style={{ color: 'red', fontSize: '12px' }}>
-              {errors.phone}
-            </span>
-          )}
-        </div>
-
-        <button
-          type="submit"
-          style={{
-            padding: '12px',
-            background: '#ee4d2d',
-            color: 'white',
-            border: 'none',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-          }}
+    <div className="auth-page-container">
+      <div className="auth-overlay"></div>
+      <div className="auth-card" style={{ maxWidth: '500px' }}>
+        {' '}
+        {/* Form đăng ký rộng hơn chút */}
+        <Title level={2} className="auth-title">
+          Đăng ký tài khoản
+        </Title>
+        <Form
+          name="register"
+          onFinish={onFinish}
+          size="large"
+          layout="vertical" // Label nằm trên input
+          scrollToFirstError
         >
-          Đăng ký
-        </button>
-      </form>
+          <Form.Item
+            name="username"
+            label="Tên đăng nhập"
+            rules={[{ required: true, message: 'Vui lòng nhập Username!' }]}
+          >
+            <Input prefix={<UserOutlined />} placeholder="Ví dụ: user123" />
+          </Form.Item>
 
-      <p style={{ marginTop: '20px', textAlign: 'center' }}>
-        Đã có tài khoản?{' '}
-        <Link to="/login" style={{ color: '#0288d1' }}>
-          Đăng nhập ngay
-        </Link>
-      </p>
+          <Form.Item
+            name="fullName"
+            label="Họ và tên"
+            rules={[{ required: true, message: 'Vui lòng nhập Họ tên!' }]}
+          >
+            <Input
+              prefix={<SmileOutlined />}
+              placeholder="Ví dụ: Nguyễn Văn A"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[
+              { type: 'email', message: 'Email không hợp lệ!' },
+              { required: true, message: 'Vui lòng nhập Email!' },
+            ]}
+          >
+            <Input prefix={<MailOutlined />} placeholder="user@example.com" />
+          </Form.Item>
+
+          <Form.Item
+            name="phone"
+            label="Số điện thoại"
+            rules={[
+              { required: true, message: 'Vui lòng nhập SĐT!' },
+              {
+                pattern: /^0\d{9}$/,
+                message: 'SĐT phải bắt đầu bằng 0 và có 10 số!',
+              },
+            ]}
+          >
+            <Input
+              prefix={<PhoneOutlined />}
+              placeholder="09xxx..."
+              maxLength={10}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="password"
+            label="Mật khẩu"
+            rules={[
+              { required: true, message: 'Vui lòng nhập mật khẩu!' },
+              { min: 6, message: 'Mật khẩu ít nhất 6 ký tự!' },
+            ]}
+            hasFeedback
+          >
+            <Input.Password prefix={<LockOutlined />} />
+          </Form.Item>
+
+          <Form.Item
+            name="confirmPassword"
+            label="Nhập lại mật khẩu"
+            dependencies={['password']}
+            hasFeedback
+            rules={[
+              { required: true, message: 'Vui lòng xác nhận mật khẩu!' },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue('password') === value) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(
+                    new Error('Mật khẩu nhập lại không khớp!')
+                  );
+                },
+              }),
+            ]}
+          >
+            <Input.Password prefix={<LockOutlined />} />
+          </Form.Item>
+
+          <Form.Item>
+            <Button type="primary" htmlType="submit" block loading={loading}>
+              Đăng ký
+            </Button>
+          </Form.Item>
+        </Form>
+        <div className="auth-footer">
+          Đã có tài khoản?{' '}
+          <Link to="/login" style={{ color: '#ee4d2d', fontWeight: 'bold' }}>
+            Đăng nhập ngay
+          </Link>
+        </div>
+      </div>
     </div>
   );
 };

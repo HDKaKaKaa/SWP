@@ -1,125 +1,98 @@
-import { useState, useContext } from 'react';
+import { useContext, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
-// import { GoogleLogin } from '@react-oauth/google';
-// import { jwtDecode } from 'jwt-decode';
-import '../css/App.css';
+import '../css/LoginPage.css';
+import { Form, Input, Button, message, Typography } from 'antd';
+import { UserOutlined, LockOutlined } from '@ant-design/icons';
+
+const { Title } = Typography;
 
 const LoginPage = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+  const onFinish = async (values) => {
+    setLoading(true);
     try {
       const res = await axios.post('http://localhost:8080/api/auth/login', {
-        username,
-        password,
+        username: values.username,
+        password: values.password,
       });
-      login(res.data); // Lưu user vào context
-      alert('Đăng nhập thành công!');
-        // --- LOGIC PHÂN QUYỀN ĐIỀU HƯỚNG ---
-        // Giả sử backend trả về: { username: "admin", role: "ADMIN", ... }
-        if (res.data.role === 'ADMIN') {
-            navigate('/admin'); // Vào thẳng Dashboard Admin
-        } else if (res.data.role === 'SHIPPER') {
-            navigate('/shipper'); // (Ví dụ) Trang shipper
-        } else {
-            navigate('/'); // Khách hàng thường thì về trang chủ
-        }
-        // ------------------------------------
+
+      login(res.data);
+      message.success('Đăng nhập thành công!');
+
+      // Phân quyền điều hướng
+      if (res.data.role === 'ADMIN') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
     } catch (err) {
-      alert('Đăng nhập thất bại: ' + (err.response?.data || 'Lỗi server'));
+      message.error(err.response?.data || 'Sai tên đăng nhập hoặc mật khẩu!');
+    } finally {
+      setLoading(false);
     }
   };
 
-  //   const handleGoogleSuccess = (credentialResponse) => {
-  //     const decoded = jwtDecode(credentialResponse.credential);
-  //     console.log('Google Info:', decoded);
-  //     // Ở đây bạn nên gọi API backend để lưu user Google vào DB
-  //     // Tạm thời mình giả lập login thành công luôn
-  //     const fakeUser = {
-  //       username: decoded.email,
-  //       fullName: decoded.name,
-  //       role: 'CUSTOMER',
-  //     };
-  //     login(fakeUser);
-  //     navigate('/');
-  //   };
-
   return (
-    <div
-      style={{
-        maxWidth: '400px',
-        margin: '50px auto',
-        padding: '20px',
-        border: '1px solid #ddd',
-        borderRadius: '8px',
-        textAlign: 'center',
-      }}
-    >
-      <h2>Đăng nhập</h2>
-      <form
-        onSubmit={handleLogin}
-        style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}
-      >
-        <input
-          type="text"
-          placeholder="Username/Email"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          style={{ padding: '10px' }}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={{ padding: '10px' }}
-          required
-        />
-        <div style={{ textAlign: 'right' }}>
-          <Link
-            to="/forgot-password"
-            style={{
-              color: '#0288d1',
-              textDecoration: 'none',
-              fontSize: '14px',
-            }}
+    <div className="auth-page-container">
+      <div className="auth-overlay"></div>
+      <div className="auth-card">
+        <Title level={2} className="auth-title">
+          Đăng nhập
+        </Title>
+
+        <Form
+          name="login_form"
+          onFinish={onFinish}
+          size="large"
+          layout="vertical"
+        >
+          <Form.Item
+            name="username"
+            label="Tài khoản"
+            rules={[
+              { required: true, message: 'Vui lòng nhập Username hoặc Email!' },
+            ]}
           >
-            Quên mật khẩu?
+            <Input prefix={<UserOutlined />} placeholder="Nhập tên đăng nhập" />
+          </Form.Item>
+
+          <Form.Item
+            name="password"
+            label="Mật khẩu"
+            rules={[{ required: true, message: 'Vui lòng nhập Mật khẩu!' }]}
+          >
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder="Nhập mật khẩu"
+            />
+          </Form.Item>
+
+          {/* Chỉ giữ lại nút Quên mật khẩu nằm bên phải */}
+          <div style={{ textAlign: 'right', marginBottom: '24px' }}>
+            <Link to="/forgot-password" style={{ color: '#0288d1' }}>
+              Quên mật khẩu?
+            </Link>
+          </div>
+
+          <Form.Item>
+            <Button type="primary" htmlType="submit" block loading={loading}>
+              Đăng nhập
+            </Button>
+          </Form.Item>
+        </Form>
+
+        <div className="auth-footer">
+          Chưa có tài khoản?{' '}
+          <Link to="/register" style={{ color: '#ee4d2d', fontWeight: 'bold' }}>
+            Đăng ký ngay
           </Link>
         </div>
-        <button
-          type="submit"
-          style={{
-            padding: '10px',
-            background: '#ee4d2d',
-            color: 'white',
-            border: 'none',
-            cursor: 'pointer',
-          }}
-        >
-          Đăng nhập
-        </button>
-      </form>
-
-      {/* <div style={{ margin: '20px 0' }}>Hoặc</div>
-
-      <div style={{ display: 'flex', justifyContent: 'center' }}>
-        <GoogleLogin
-          onSuccess={handleGoogleSuccess}
-          onError={() => alert('Login Failed')}
-        />
-      </div> */}
-
-      <p style={{ marginTop: '20px' }}>
-        Chưa có tài khoản? <Link to="/register">Đăng ký ngay</Link>
-      </p>
+      </div>
     </div>
   );
 };
