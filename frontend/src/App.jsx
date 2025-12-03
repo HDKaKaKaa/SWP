@@ -9,6 +9,7 @@ import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import MainLayout from './components/MainLayout';
 import AdminDashboard from './pages/AdminDashboard';
+import CategoriesPage from "./pages/CategoriesPage.jsx";
 
 // Tạo nhanh component placeholder để menu admin bấm không bị lỗi
 const RestaurantsPage = () => <h2>Quản lý Nhà hàng</h2>;
@@ -26,6 +27,7 @@ function App() {
                 {/* ======================================================= */}
                 <Route path="/admin" element={<MainLayout />}>
                     <Route index element={<AdminDashboard />} />
+                    <Route path="categories" element={<CategoriesPage />} />
                     <Route path="restaurants" element={<RestaurantsPage />} />
                     <Route path="orders" element={<OrdersPage />} />
                     <Route path="users" element={<UsersPage />} />
