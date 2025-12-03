@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom';
+import "bootstrap/dist/css/bootstrap.min.css";
 import Header from './components/Header';
 import Footer from './components/Footer';
 import LandingPage from './pages/LandingPage';
@@ -10,6 +11,8 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import MainLayout from './components/MainLayout';
 import AdminDashboard from './pages/AdminDashboard';
 import ProfilePage from './pages/ProfilePage';
+import OwnerDashboard from './pages/OwnerDashboard';
+import OwnerLayout from './components/OwnerLayout';
 
 // Tạo nhanh component placeholder để menu admin bấm không bị lỗi
 const RestaurantsPage = () => <h2>Quản lý Nhà hàng</h2>;
@@ -56,6 +59,17 @@ function App() {
                     <Route path="/register" element={<RegisterPage />} />
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
+                </Route>
+                {/* ======================================================= */}
+                {/* NHÓM 3: Cửa hàng       */}
+                {/* ======================================================= */}
+                <Route path="/owner" element={<OwnerLayout />}>
+                    
+                    <Route index element={<OwnerDashboard />} />
+                    {/* <Route path="dashboard" element={<OwnerDashboard />} /> 
+                    <Route path="products" element={<OwnerProducts />} />    
+                    <Route path="orders" element={<OwnerOrders />} />         
+                    <Route path="reports" element={<OwnerReports />} />       */}
                 </Route>
 
             </Routes>
