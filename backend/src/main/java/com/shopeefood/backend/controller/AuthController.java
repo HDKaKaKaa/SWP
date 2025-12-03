@@ -40,9 +40,25 @@ public class AuthController {
                 .orElse(null);
 
         // Dùng hàm matches để so sánh password thô (request) và password mã hóa (DB)
-        if (account != null && passwordEncoder.matches(request.getPassword(), account.getPassword())) {
+//        if (account != null && passwordEncoder.matches(request.getPassword(), account.getPassword())) {
+//            return ResponseEntity.ok(account);
+//        }
+//        return ResponseEntity.status(401).body("Sai tài khoản hoặc mật khẩu");
+
+        if (account == null) {
+            return ResponseEntity.status(401).body("Sai tài khoản hoặc mật khẩu");
+        }
+
+        // Nếu tài khoản đã bị Admin vô hiệu hóa thì không cho đăng nhập
+        if (Boolean.FALSE.equals(account.getIsActive())) {
+            return ResponseEntity.status(403).body("Tài khoản đã bị vô hiệu hóa bởi quản trị viên");
+        }
+
+        // Dùng hàm matches để so sánh password thô (request) và password mã hóa (DB)
+        if (passwordEncoder.matches(request.getPassword(), account.getPassword())) {
             return ResponseEntity.ok(account);
         }
+
         return ResponseEntity.status(401).body("Sai tài khoản hoặc mật khẩu");
     }
 

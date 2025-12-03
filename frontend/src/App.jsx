@@ -10,59 +10,55 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import MainLayout from './components/MainLayout';
 import AdminDashboard from './pages/AdminDashboard';
 import ProfilePage from './pages/ProfilePage';
+import AdminUsersPage from './pages/AdminUsersPage';
 
 // Tạo nhanh component placeholder để menu admin bấm không bị lỗi
 const RestaurantsPage = () => <h2>Quản lý Nhà hàng</h2>;
 const OrdersPage = () => <h2>Quản lý Đơn hàng</h2>;
-const UsersPage = () => <h2>Quản lý Người dùng</h2>;
 const ShippersPage = () => <h2>Quản lý Tài xế</h2>;
 
 function App() {
-  return (
-    <Routes>
-      {/* ======================================================= */}
-      {/* NHÓM 1: ADMIN (Sử dụng MainLayout có Sidebar)           */}
-      {/* ======================================================= */}
-      <Route path="/admin" element={<MainLayout />}>
-        <Route index element={<AdminDashboard />} />
-        <Route path="restaurants" element={<RestaurantsPage />} />
-        <Route path="orders" element={<OrdersPage />} />
-        <Route path="users" element={<UsersPage />} />
-        <Route path="shippers" element={<ShippersPage />} />
-      </Route>
+    return (
+        <Routes>
 
-      {/* ======================================================= */}
-      {/* NHÓM 2: KHÁCH HÀNG (Sử dụng Header & Footer cũ)         */}
-      {/* ======================================================= */}
-      {/* Ta tạo một Route không có path để bao bọc layout khách */}
-      <Route
-        element={
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: '100vh',
-            }}
-          >
-            <Header />
-            <div style={{ flex: 1 }}>
-              <Outlet />{' '}
-              {/* Nội dung các trang Landing, Login... sẽ hiện ở đây */}
-            </div>
-            <Footer />
-          </div>
-        }
-      >
-        {/* Các trang con của khách hàng nằm trong này */}
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/restaurant/:id" element={<RestaurantDetail />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-      </Route>
-    </Routes>
-  );
+            {/* ======================================================= */}
+            {/* NHÓM 1: ADMIN (Sử dụng MainLayout có Sidebar)           */}
+            {/* ======================================================= */}
+            <Route path="/admin" element={<MainLayout />}>
+                <Route index element={<AdminDashboard />} />
+                <Route path="restaurants" element={<RestaurantsPage />} />
+                <Route path="orders" element={<OrdersPage />} />
+                <Route path="users" element={<AdminUsersPage />} />
+                <Route path="shippers" element={<ShippersPage />} />
+            </Route>
+
+
+            {/* ======================================================= */}
+            {/* NHÓM 2: KHÁCH HÀNG (Sử dụng Header & Footer cũ)         */}
+            {/* ======================================================= */}
+            {/* Ta tạo một Route không có path để bao bọc layout khách */}
+            <Route
+                element={
+                    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+                        <Header />
+                        <div style={{ flex: 1 }}>
+                            <Outlet /> {/* Nội dung các trang Landing, Login... sẽ hiện ở đây */}
+                        </div>
+                        <Footer />
+                    </div>
+                }
+            >
+                {/* Các trang con của khách hàng nằm trong này */}
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/restaurant/:id" element={<RestaurantDetail />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+            </Route>
+
+        </Routes>
+    );
 }
 
 export default App;

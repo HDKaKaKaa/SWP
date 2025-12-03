@@ -22,11 +22,11 @@ const MainLayout = () => {
 
     // Danh sách menu bên trái
     const items = [
-        { key: '/', icon: <PieChartOutlined />, label: 'Tổng quan' },
-        { key: '/restaurants', icon: <ShopOutlined />, label: 'Quản lý Nhà hàng' },
-        { key: '/orders', icon: <FileTextOutlined />, label: 'Đơn hàng' },
-        { key: '/users', icon: <UserOutlined />, label: 'Người dùng' },
-        { key: '/shippers', icon: <CarOutlined />, label: 'Tài xế' },
+        { key: '/admin', icon: <PieChartOutlined />, label: 'Tổng quan' },
+        { key: '/admin/restaurants', icon: <ShopOutlined />, label: 'Quản lý Nhà hàng' },
+        { key: '/admin/orders', icon: <FileTextOutlined />, label: 'Đơn hàng' },
+        { key: '/admin/users', icon: <UserOutlined />, label: 'Người dùng' },
+        { key: '/admin/shippers', icon: <CarOutlined />, label: 'Tài xế' },
     ];
 
     return (
