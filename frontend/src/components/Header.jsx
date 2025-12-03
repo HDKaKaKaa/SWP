@@ -12,6 +12,10 @@ const Header = () => {
     navigate('/login');
   };
 
+  const handleGoProfile = () => {
+      navigate('/profile');
+  };
+
   return (
     <div className="header-container">
       <div className="header-logo" onClick={() => navigate('/')}>
@@ -23,6 +27,12 @@ const Header = () => {
           <span>
             Xin chào, <b>{user.fullName || user.username}</b>
           </span>
+          <button
+              onClick={handleGoProfile}
+              style={{ padding: '5px 10px', cursor: 'pointer' }}
+          >
+              Tài khoản
+          </button>
           <button
             onClick={handleLogout}
             style={{ padding: '5px 10px', cursor: 'pointer' }}
