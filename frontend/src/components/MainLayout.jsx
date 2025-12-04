@@ -5,7 +5,9 @@ import {
     ShopOutlined,
     UserOutlined,
     FileTextOutlined,
-    CarOutlined
+    CarOutlined,
+    AppstoreOutlined,
+    HomeOutlined
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 
@@ -20,51 +22,39 @@ const MainLayout = () => {
         token: { colorBgContainer, borderRadiusLG },
     } = theme.useToken();
 
-    // Danh sách menu bên trái
     const items = [
-        { key: '/', icon: <PieChartOutlined />, label: 'Tổng quan' },
-        { key: '/restaurants', icon: <ShopOutlined />, label: 'Quản lý Nhà hàng' },
-        { key: '/orders', icon: <FileTextOutlined />, label: 'Đơn hàng' },
-        { key: '/users', icon: <UserOutlined />, label: 'Người dùng' },
-        { key: '/shippers', icon: <CarOutlined />, label: 'Tài xế' },
+        { key: '/admin', icon: <PieChartOutlined />, label: 'Tổng quan' },
+        { key: '/admin/categories', icon: <AppstoreOutlined />, label: 'Danh mục món' },
+        { key: '/admin/restaurants', icon: <ShopOutlined />, label: 'Quản lý Nhà hàng' },
+        { key: '/admin/orders', icon: <FileTextOutlined />, label: 'Đơn hàng' },
+        { key: '/admin/users', icon: <UserOutlined />, label: 'Người dùng' },
+        { key: '/admin/shippers', icon: <CarOutlined />, label: 'Tài xế' },
+        { type: 'divider' },
+        { key: '/', icon: <HomeOutlined />, label: 'Về trang chủ', danger: true },
     ];
 
     return (
         <Layout style={{ minHeight: '100vh' }}>
-            {/* 1. THANH SIDEBAR BÊN TRÁI */}
             <Sider collapsible collapsed={collapsed} onCollapse={(value) => setCollapsed(value)}>
-                <div style={{
-                    height: 32, margin: 16, background: 'rgba(255, 255, 255, 0.2)',
-                    color: 'white', textAlign: 'center', lineHeight: '32px', fontWeight: 'bold'
-                }}>
+                <div style={{ height: 32, margin: 16, background: 'rgba(255, 255, 255, 0.2)', textAlign: 'center', color: '#fff', lineHeight: '32px', fontWeight: 'bold' }}>
                     SHOPEE ADMIN
                 </div>
                 <Menu
                     theme="dark"
-                    defaultSelectedKeys={['/']}
-                    selectedKeys={[location.pathname]} // Highlight menu đang chọn
+                    defaultSelectedKeys={['/admin']}
+                    selectedKeys={[location.pathname]}
                     mode="inline"
                     items={items}
-                    onClick={({ key }) => navigate(key)} // Chuyển trang khi bấm
+                    onClick={({key}) => navigate(key)}
                 />
             </Sider>
-
-            {/* 2. PHẦN NỘI DUNG BÊN PHẢI */}
             <Layout>
                 <Header style={{ padding: 0, background: colorBgContainer }} />
-
                 <Content style={{ margin: '16px' }}>
-                    <div style={{
-                        padding: 24,
-                        minHeight: 360,
-                        background: colorBgContainer,
-                        borderRadius: borderRadiusLG
-                    }}>
-                        {/* QUAN TRỌNG: Outlet là nơi nội dung các trang con (Dashboard, User...) hiển thị */}
+                    <div style={{ padding: 24, minHeight: 360, background: colorBgContainer, borderRadius: borderRadiusLG }}>
                         <Outlet />
                     </div>
                 </Content>
-
             </Layout>
         </Layout>
     );

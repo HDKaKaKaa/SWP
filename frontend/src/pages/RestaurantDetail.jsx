@@ -1,4 +1,4 @@
-import { useEffect, useState, useContext } from 'react';
+import { useEffect, useState, useContext, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
@@ -12,210 +12,225 @@ const RestaurantDetail = () => {
   const [restaurant, setRestaurant] = useState(null);
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState([]);
+  const [loadingOrder, setLoadingOrder] = useState(false);
 
   // Load dữ liệu quán và món
   useEffect(() => {
-    axios
-      .get(`http://localhost:8080/api/restaurants/${id}`)
-      .then((res) => setRestaurant(res.data));
-    axios
-      .get(`http://localhost:8080/api/products?restaurantId=${id}`)
-      .then((res) => setProducts(res.data));
+      const fetchData = async () => {
+          try {
+              const [restaurantRes, productRes] = await Promise.all([
+                  axios.get(`http://localhost:8080/api/restaurants/${id}`),
+                  axios.get(`http://localhost:8080/api/products?restaurantId=${id}`),
+              ]);
+              setRestaurant(restaurantRes.data);
+              setProducts(productRes.data || []);
+          } catch (error) {
+              console.error(error);
+          }
+      };
+
+      fetchData();
   }, [id]);
 
   // Hàm thêm vào giỏ
-  const addToCart = (product) => {
-    const exist = cart.find((item) => item.id === product.id);
-    if (exist) {
-      setCart(
-        cart.map((item) =>
-          item.id === product.id
-            ? { ...exist, quantity: exist.quantity + 1 }
-            : item
-        )
-      );
-    } else {
-      setCart([...cart, { ...product, quantity: 1 }]);
-    }
-  };
-
-  // Hàm xóa khỏi giỏ
-  const removeFromCart = (productId) => {
-    setCart(cart.filter((item) => item.id !== productId));
-  };
-
-  // Hàm tính tổng tiền
-  const totalAmount = cart.reduce(
-    (acc, item) => acc + item.price * item.quantity,
-    0
-  );
-
-  // Hàm gửi đơn hàng
-  const handlePlaceOrder = async () => {
-    if (!user) {
-      alert('Bạn chưa đăng nhập!');
-      navigate('/login');
-      return;
-    }
-    if (cart.length === 0) {
-      alert('Giỏ hàng đang trống!');
-      return;
-    }
-
-    // Chuẩn bị cục JSON đúng format backend yêu cầu
-    const orderData = {
-      accountId: user.id,
-      restaurantId: id,
-      address: 'Hà Nội (Địa chỉ cứng)', // Sau này lấy từ input
-      items: cart.map((item) => ({
-        productId: item.id,
-        quantity: item.quantity,
-      })),
+    const addToCart = (product) => {
+        setCart((prev) => {
+            const exist = prev.find((item) => item.id === product.id);
+            if (exist) {
+                return prev.map((item) =>
+                    item.id === product.id
+                        ? { ...item, quantity: item.quantity + 1 }
+                        : item
+                );
+            }
+            return [...prev, { ...product, quantity: 1 }];
+        });
     };
 
-    try {
-      await axios.post('http://localhost:8080/api/orders/create', orderData);
-      alert('🎉 Đặt hàng thành công!');
-      setCart([]);
-    } catch (err) {
-      console.error(err);
-      alert('Lỗi đặt hàng: ' + (err.response?.data || 'Server Error'));
+  // Hàm xóa khỏi giỏ
+    const removeFromCart = (productId) => {
+        setCart((prev) => {
+            const exist = prev.find((item) => item.id === productId);
+            if (!exist) return prev;
+
+            if (exist.quantity <= 1) {
+                return prev.filter((item) => item.id !== productId);
+            }
+            return prev.map((item) =>
+                item.id === productId
+                    ? { ...item, quantity: item.quantity - 1 }
+                    : item
+            );
+        });
+    };
+
+  // Hàm tính tổng tiền
+    const cartTotal = useMemo(
+        () =>
+            cart.reduce(
+                (sum, item) => sum + (item.price || 0) * (item.quantity || 0),
+                0
+            ),
+        [cart]
+    );
+
+  // Hàm gửi đơn hàng
+    const handlePlaceOrder = async () => {
+        if (!user) {
+            alert('Bạn chưa đăng nhập!');
+            navigate('/login');
+            return;
+        }
+        if (cart.length === 0) {
+            alert('Giỏ hàng đang trống!');
+            return;
+        }
+
+        const orderData = {
+            accountId: user.id,
+            restaurantId: id,
+            address: 'Hà Nội (Địa chỉ cứng)', // TODO: Sau này lấy từ input người dùng
+            items: cart.map((item) => ({
+                productId: item.id,
+                quantity: item.quantity,
+            })),
+        };
+
+        try {
+            setLoadingOrder(true);
+            await axios.post('http://localhost:8080/api/orders/create', orderData);
+            alert('🎉 Đặt hàng thành công!');
+            setCart([]);
+        } catch (err) {
+            console.error(err);
+            alert('Lỗi đặt hàng: ' + (err.response?.data || 'Server Error'));
+        } finally {
+            setLoadingOrder(false);
+        }
+    };
+
+    if (!restaurant) {
+        return <div className="detail-loading">Đang tải dữ liệu quán ăn...</div>;
     }
-  };
 
-  if (!restaurant) return <div>Loading...</div>;
+    return (
+        <div className="detail-container">
+            <div className="detail-wrapper">
+                {/* Cột trái: Thông tin quán + menu */}
+                <div className="detail-main">
+                    <div className="panel res-header-info">
+                        <h1 className="res-name">{restaurant.name}</h1>
+                        <p className="res-address">{restaurant.address}</p>
+                    </div>
 
-  return (
-    <div
-      className="detail-container"
-      style={{ display: 'flex', gap: '20px', padding: '20px' }}
-    >
-      {/* THÔNG TIN & MENU */}
-      <div style={{ flex: 2 }}>
-        <div className="res-header-info">
-          <h1>{restaurant.name}</h1>
-          <p>{restaurant.address}</p>
-        </div>
+                    <div className="panel menu-panel">
+                        <div className="menu-header">
+                            <div>
+                                <h2 className="menu-title">Thực đơn hôm nay</h2>
+                                <p className="menu-subtitle">
+                                    Chọn món bạn thích, chúng tôi sẽ giao thật nhanh.
+                                </p>
+                            </div>
+                            <span className="menu-count">{products.length} món</span>
+                        </div>
 
-        <div className="menu-list" style={{ marginTop: '20px' }}>
-          {products.map((p) => (
-            <div
-              key={p.id}
-              className="menu-item"
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                padding: '10px',
-                borderBottom: '1px solid #eee',
-                background: 'white',
-              }}
-            >
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <img
-                  src={p.image || 'https://via.placeholder.com/60'}
-                  width="60"
-                  style={{ borderRadius: 5 }}
-                />
-                <div>
-                  <h4>{p.name}</h4>
-                  <div style={{ color: '#ee4d2d' }}>
-                    {p.price.toLocaleString()}đ
-                  </div>
+                        {products.length === 0 && (
+                            <div className="menu-empty">
+                                Quán hiện chưa có món nào. Vui lòng quay lại sau.
+                            </div>
+                        )}
+
+                        <div className="menu-list">
+                            {products.map((p) => (
+                                <div key={p.id} className="menu-item">
+                                    <div className="menu-item-main">
+                                        <div className="menu-item-info">
+                                            <h4 className="menu-item-name">{p.name}</h4>
+                                            {p.description && (
+                                                <p className="menu-item-desc">{p.description}</p>
+                                            )}
+                                            <div className="menu-item-price">
+                                                {p.price?.toLocaleString()} đ
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="btn-add"
+                                        onClick={() => addToCart(p)}
+                                    >
+                                        + Thêm
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
-              </div>
-              <button
-                onClick={() => addToCart(p)}
-                style={{
-                  background: '#ee4d2d',
-                  color: 'white',
-                  border: 'none',
-                  padding: '5px 15px',
-                  borderRadius: 5,
-                  cursor: 'pointer',
-                }}
-              >
-                +
-              </button>
+
+                {/* Cột phải: Giỏ hàng */}
+                <aside className="detail-cart">
+                    <div className="panel cart-panel">
+                        <h3 className="cart-title">Giỏ hàng của bạn</h3>
+                        <p className="cart-restaurant">{restaurant.name}</p>
+
+                        {cart.length === 0 ? (
+                            <p className="cart-empty">
+                                Chưa có món nào trong giỏ. Hãy chọn món ở bên trái nhé!
+                            </p>
+                        ) : (
+                            <>
+                                <div className="cart-items">
+                                    {cart.map((item) => (
+                                        <div key={item.id} className="cart-item">
+                                            <div className="cart-item-main">
+                                                <span className="cart-item-name">{item.name}</span>
+                                                <div className="cart-item-qty">
+                                                    <button
+                                                        type="button"
+                                                        className="cart-qty-btn"
+                                                        onClick={() => removeFromCart(item.id)}
+                                                    >
+                                                        -
+                                                    </button>
+                                                    <span>{item.quantity}</span>
+                                                    <button
+                                                        type="button"
+                                                        className="cart-qty-btn"
+                                                        onClick={() => addToCart(item)}
+                                                    >
+                                                        +
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="cart-item-price">
+                                                {(item.price * item.quantity).toLocaleString()} đ
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="cart-summary">
+                                    <span>Tổng cộng</span>
+                                    <span className="cart-total">
+                    {cartTotal.toLocaleString()} đ
+                  </span>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    className="btn-order"
+                                    onClick={handlePlaceOrder}
+                                    disabled={loadingOrder}
+                                >
+                                    {loadingOrder ? 'Đang xử lý...' : 'Đặt hàng ngay'}
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </aside>
             </div>
-          ))}
         </div>
-      </div>
-
-      {/* GIỎ HÀNG */}
-      <div
-        style={{
-          flex: 1,
-          background: 'white',
-          padding: '20px',
-          height: 'fit-content',
-          borderRadius: 8,
-          boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-          position: 'sticky',
-          top: '20px',
-        }}
-      >
-        <h3>Giỏ hàng ({cart.length})</h3>
-
-        {cart.map((item) => (
-          <div
-            key={item.id}
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              marginBottom: '10px',
-              fontSize: '14px',
-            }}
-          >
-            <span>
-              {item.quantity}x {item.name}
-            </span>
-            <span>
-              {(item.price * item.quantity).toLocaleString()}đ{' '}
-              <b
-                onClick={() => removeFromCart(item.id)}
-                style={{ color: 'red', cursor: 'pointer', marginLeft: 5 }}
-              >
-                x
-              </b>
-            </span>
-          </div>
-        ))}
-
-        <hr />
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            fontWeight: 'bold',
-            fontSize: '18px',
-            marginTop: '10px',
-          }}
-        >
-          <span>Tổng cộng:</span>
-          <span style={{ color: '#ee4d2d' }}>
-            {totalAmount.toLocaleString()}đ
-          </span>
-        </div>
-
-        <button
-          onClick={handlePlaceOrder}
-          style={{
-            width: '100%',
-            padding: '12px',
-            background: '#ee4d2d',
-            color: 'white',
-            border: 'none',
-            marginTop: '15px',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            fontSize: '16px',
-          }}
-        >
-          Đặt hàng ngay
-        </button>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default RestaurantDetail;
