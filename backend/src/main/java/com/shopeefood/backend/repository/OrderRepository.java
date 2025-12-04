@@ -41,4 +41,16 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
             "ORDER BY DATE(created_at) ASC",
             nativeQuery = true)
     List<Object[]> getRevenueLast7DaysRaw(@Param("startDate") LocalDateTime startDate);
+
+    // Tham số startDate và endDate là LocalDateTime
+    @Query("SELECT o FROM Order o WHERE " +
+            "(:status IS NULL OR o.status = :status) AND " +
+            "(:startDate IS NULL OR o.createdAt >= :startDate) AND " +
+            "(:endDate IS NULL OR o.createdAt <= :endDate) " +
+            "ORDER BY o.createdAt DESC")
+    List<Order> findOrders(
+            @Param("status") String status,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
 }

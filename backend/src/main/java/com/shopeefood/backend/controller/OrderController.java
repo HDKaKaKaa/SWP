@@ -10,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -57,7 +57,7 @@ public class OrderController {
         order.setShippingFee(BigDecimal.valueOf(15000)); // Phí ship cứng
         order.setTotalAmount(BigDecimal.valueOf(totalAmount + 15000));
         order.setStatus("PENDING");
-        order.setCreatedAt(new Date()); // Nếu entity chưa tự động set
+        order.setCreatedAt(LocalDateTime.now()); // Nếu entity chưa tự động set
 
         Order savedOrder = orderRepository.save(order);
 

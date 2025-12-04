@@ -48,6 +48,11 @@ public class Order {
     // --- TẤT CẢ DÙNG LOCALDATETIME ---
     // Không cần @Temporal nữa
 
+    // Phải là kiểu Shipper, KHÔNG ĐƯỢC là Account hay Integer
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "shipper_id")
+    private Shipper shipper;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

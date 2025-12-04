@@ -12,10 +12,10 @@ import AdminDashboard from './pages/AdminDashboard';
 import ProfilePage from './pages/ProfilePage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import CategoriesPage from './pages/CategoriesPage';
+import OrdersPage from './pages/OrdersPage';
 
 // Tạo nhanh component placeholder để menu admin bấm không bị lỗi
 const RestaurantsPage = () => <h2>Quản lý Nhà hàng</h2>;
-const OrdersPage = () => <h2>Quản lý Đơn hàng</h2>;
 const ShippersPage = () => <h2>Quản lý Tài xế</h2>;
 
 function App() {
@@ -27,6 +27,7 @@ function App() {
             {/* ======================================================= */}
             <Route path="/admin" element={<MainLayout />}>
                 <Route index element={<AdminDashboard />} />
+                <Route path="categories" element={<CategoriesPage />} />
                 <Route path="restaurants" element={<RestaurantsPage />} />
                 <Route path="orders" element={<OrdersPage />} />
                 <Route path="users" element={<AdminUsersPage />} />
