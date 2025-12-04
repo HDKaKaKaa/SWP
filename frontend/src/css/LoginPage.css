@@ -1,0 +1,42 @@
+.auth-page-container {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-image: url('https://shopeefood.vn/app/assets/img/hero-banner-1.jpg'); /* Ảnh nền mờ */
+  background-size: cover;
+  position: relative;
+}
+
+.auth-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.5); /* Lớp phủ trắng mờ */
+  backdrop-filter: blur(5px);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  background: white;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  position: relative;
+  z-index: 10;
+  margin: 50px;
+}
+
+.auth-title {
+  text-align: center;
+  margin-bottom: 30px;
+  color: #ee4d2d;
+  font-weight: bold;
+}
+
+.auth-footer {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 14px;
+}

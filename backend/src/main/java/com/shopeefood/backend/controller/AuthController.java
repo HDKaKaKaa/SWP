@@ -40,9 +40,25 @@ public class AuthController {
                 .orElse(null);
 
         // Dùng hàm matches để so sánh password thô (request) và password mã hóa (DB)
-        if (account != null && passwordEncoder.matches(request.getPassword(), account.getPassword())) {
+//        if (account != null && passwordEncoder.matches(request.getPassword(), account.getPassword())) {
+//            return ResponseEntity.ok(account);
+//        }
+//        return ResponseEntity.status(401).body("Sai tài khoản hoặc mật khẩu");
+
+        if (account == null) {
+            return ResponseEntity.status(401).body("Sai tài khoản hoặc mật khẩu");
+        }
+
+        // Nếu tài khoản đã bị Admin vô hiệu hóa thì không cho đăng nhập
+        if (Boolean.FALSE.equals(account.getIsActive())) {
+            return ResponseEntity.status(403).body("Tài khoản đã bị vô hiệu hóa bởi quản trị viên");
+        }
+
+        // Dùng hàm matches để so sánh password thô (request) và password mã hóa (DB)
+        if (passwordEncoder.matches(request.getPassword(), account.getPassword())) {
             return ResponseEntity.ok(account);
         }
+
         return ResponseEntity.status(401).body("Sai tài khoản hoặc mật khẩu");
     }
 
@@ -53,25 +69,36 @@ public class AuthController {
             return ResponseEntity.badRequest().body("Username đã tồn tại");
         }
 
-        // 1. Lưu vào bảng Account trước
-        Account newAcc = new Account();
-        newAcc.setUsername(request.getUsername());
-        newAcc.setPassword(passwordEncoder.encode(request.getPassword()));
-        newAcc.setEmail(request.getEmail());
-        newAcc.setPhone(request.getPhone());
-        newAcc.setRole("CUSTOMER");
+        if (accountRepository.existsByEmail(request.getEmail())) {
+            return ResponseEntity.badRequest().body("Email này đã được sử dụng bởi tài khoản khác!");
+        }
 
-        // Lưu Account và lấy về đối tượng đã có ID
-        Account savedAccount = accountRepository.save(newAcc);
+        if (request.getPhone() != null && accountRepository.existsByPhone(request.getPhone())) {
+            return ResponseEntity.badRequest().body("Số điện thoại này đã được đăng ký!");
+        }
 
-        // 2. Lưu tiếp vào bảng Customer (Lấy ID của Account vừa tạo)
-        Customer newCustomer = new Customer();
-        newCustomer.setAccountId(savedAccount.getId()); // ID Customer = ID Account
-        newCustomer.setFullName(request.getFullName()); // Lấy họ tên từ form đăng ký
+        try {
+            Account newAcc = new Account();
+            newAcc.setUsername(request.getUsername());
+            newAcc.setPassword(passwordEncoder.encode(request.getPassword()));
+            newAcc.setEmail(request.getEmail());
+            newAcc.setPhone(request.getPhone());
+            newAcc.setRole("CUSTOMER");
 
-        customerRepository.save(newCustomer);
+            Account savedAccount = accountRepository.save(newAcc);
 
-        return ResponseEntity.ok("Đăng ký thành công");
+            Customer newCustomer = new Customer();
+            newCustomer.setAccountId(savedAccount.getId());
+            newCustomer.setFullName(request.getFullName());
+
+            customerRepository.save(newCustomer);
+
+            return ResponseEntity.ok("Đăng ký thành công! Hãy đăng nhập ngay.");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body("Lỗi hệ thống: " + e.getMessage());
+        }
     }
 
     // 3. Quên mật khẩu
@@ -84,8 +111,7 @@ public class AuthController {
             return ResponseEntity.badRequest().body("Email không tồn tại trong hệ thống");
         }
 
-        // Tạo mật khẩu ngẫu nhiên (ví dụ lấy 6 ký tự đầu của thời gian hiện tại cho đơn
-        // giản)
+        // Tạo mật khẩu ngẫu nhiên (ví dụ lấy 6 ký tự đầu của thời gian hiện tại)
         String newPassword = String.valueOf(System.currentTimeMillis()).substring(0, 6);
 
         // Lưu mật khẩu mới vào DB

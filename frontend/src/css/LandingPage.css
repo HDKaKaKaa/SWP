@@ -1,140 +1,201 @@
-/* Banner và ô tìm kiếm */
-.hero-banner {
-  background-color: white;
-  padding: 40px 20px;
-  text-align: center;
-  background-image: url('https://shopeefood.vn/app/assets/img/hero-banner-1.jpg');
-  background-size: cover;
-  min-height: 300px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
+/* SWP/frontend/src/css/LandingPage.css */
 
-.hero-title {
-  color: #333;
-  text-shadow: 0 1px 2px white;
-  margin-bottom: 20px;
-}
-
-.search-container {
-  display: flex;
+/* --- Hero Section --- */
+.hero-section {
+  position: relative;
+  height: 450px;
   width: 100%;
-  max-width: 600px;
-  background: white;
-  border-radius: 5px;
   overflow: hidden;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
-.search-input {
-  flex: 1;
-  padding: 15px;
-  border: none;
-  outline: none;
-  font-size: 16px;
+.hero-carousel, .banner-slide {
+  height: 100%;
+  width: 100%;
 }
 
-.search-btn {
-  background-color: #0288d1;
-  color: white;
-  border: none;
-  padding: 0 30px;
-  font-size: 16px;
-  cursor: pointer;
+.banner-slide {
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+/* Lớp phủ đen mờ để chữ nổi hơn */
+.overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.4); 
+}
+
+/* Nội dung đè lên Banner */
+.hero-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  width: 100%;
+  max-width: 800px;
+  padding: 0 20px;
+  z-index: 10;
+}
+
+.hero-title.ant-typography {
+  color: white !important;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+  margin-bottom: 30px;
+  font-weight: 700;
+}
+
+/* --- Search Box Customization --- */
+.search-box-wrapper {
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  border-radius: 8px;
+  overflow: hidden;
+  max-width: 700px;
+  width: 100%;
+  display: flex; /* Đảm bảo wrapper ôm sát */
+}
+
+/* 1. Ép chiều cao cho INPUT */
+.custom-search .ant-input-wrapper .ant-input {
+  height: 50px !important;
+  line-height: 50px !important; /* Căn giữa chữ dọc */
+  font-size: 16px !important;
+  padding-left: 20px;
+}
+
+/* 2. Ép chiều cao cho BUTTON */
+.custom-search .ant-input-wrapper .ant-btn {
+  height: 50px !important;
+  width: 120px !important; /* Cố định chiều rộng nút cho đẹp */
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   font-weight: bold;
+  font-size: 16px;
+  border: none !important;
+  border-radius: 0 8px 8px 0 !important; /* Bo góc bên phải */
+  margin: 0 !important; /* Xóa margin thừa nếu có */
+  top: 0 !important; /* Đảm bảo không bị lệch top/bottom */
 }
 
-.search-btn:hover {
-  background-color: #0277bd;
+/* 3. Chỉnh icon bên trong nút (nếu có) */
+.custom-search .ant-btn .anticon {
+  vertical-align: middle;
 }
 
-/* Nút Filter Categories */
-.category-filter-container {
-  margin-top: 20px;
+/* --- Category Buttons --- */
+.category-list {
+  margin-top: 25px;
   display: flex;
+  justify-content: center;
   gap: 10px;
   flex-wrap: wrap;
-  justify-content: center;
 }
 
-.category-pill {
-  padding: 8px 15px;
-  border-radius: 20px;
-  border: none;
-  background: white;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  cursor: pointer;
-  transition: transform 0.2s;
+.cat-btn {
+  border: none !important;
+  background: rgba(255, 255, 255, 0.85) !important;
+  color: #333 !important;
+  font-weight: 600 !important;
+  backdrop-filter: blur(4px);
+  transition: all 0.3s ease;
 }
 
-.category-pill:hover {
-  transform: translateY(-2px);
-  color: #ee4d2d;
+.cat-btn:hover {
+  transform: translateY(-3px);
+  background: white !important;
+  color: #ee4d2d !important;
 }
 
-/* Danh sách quán ăn */
-.restaurant-section {
-  padding: 40px 10%;
-  background-color: #f5f5f5;
-  min-height: 500px;
+.cat-btn.active {
+  background: #ee4d2d !important;
+  color: white !important;
 }
 
-.restaurant-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
-  margin-top: 20px;
+/* --- Body Section --- */
+.container-body {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
 }
 
+.section-header {
+  margin-bottom: 25px;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 10px;
+}
+
+/* --- Card Restaurant Styling --- */
 .restaurant-card {
-  background-color: white;
-  border-radius: 10px;
+  border: none !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+  border-radius: 12px !important;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  cursor: pointer;
-  transition: transform 0.2s;
+  transition: all 0.3s ease !important;
 }
 
 .restaurant-card:hover {
   transform: translateY(-5px);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.15) !important;
 }
 
-.res-img {
-  width: 100%;
+.restaurant-card .ant-card-body {
+  padding: 12px !important;
+}
+
+.card-cover-wrapper {
+  position: relative;
   height: 180px;
+  overflow: hidden;
+}
+
+.card-img {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
+  transition: transform 0.5s ease;
 }
 
-.res-info {
-  padding: 15px;
+.restaurant-card:hover .card-img {
+  transform: scale(1.05); /* Zoom nhẹ ảnh khi hover */
 }
 
-.res-name {
-  margin: 0 0 5px 0;
-  font-size: 16px;
+/* Badge thời gian giao hàng trên ảnh */
+.delivery-time {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 4px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: bold;
   color: #333;
-  display: flex;
-  align-items: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
-.verified-icon {
-  color: orange;
-  margin-right: 5px;
+.res-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
 }
 
 .res-address {
-  font-size: 12px;
-  color: #777;
-  margin: 0;
+  font-size: 13px;
+  color: #888;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 8px;
 }
 
-.res-promo {
-  margin-top: 10px;
-  border-top: 1px solid #eee;
-  padding-top: 10px;
-  font-size: 12px;
-  color: #0288d1;
-  font-weight: bold;
+.res-tags {
+  margin-top: 8px;
+  display: flex;
+  gap: 4px;
 }
