@@ -6,9 +6,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -41,7 +38,8 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
             "FROM orders " +
             "WHERE status = 'COMPLETED' AND created_at >= :startDate " +
             "GROUP BY DATE(created_at) " +
-            "ORDER BY DATE(created_at) ASC", nativeQuery = true)
+            "ORDER BY DATE(created_at) ASC",
+            nativeQuery = true)
     List<Object[]> getRevenueLast7DaysRaw(@Param("startDate") LocalDateTime startDate);
 
     // Tham số startDate và endDate là LocalDateTime
@@ -55,31 +53,4 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate
     );
-    // Lấy tất cả đơn hàng của nhà hàng
-    List<Order> findByRestaurantId(Integer restaurantId);
-
-    // Lấy đơn hàng theo trạng thái (filter)
-    List<Order> findByRestaurantIdAndStatus(Integer restaurantId, String status);
-
-    // Tìm đơn theo tên khách hàng/mã đơn/ngày tạo đơn
-    @Query("""
-            SELECT o FROM Order o
-            JOIN o.customer c
-            JOIN o.restaurant r
-            WHERE r.owner.id = :ownerId
-              AND (:search IS NULL
-                   OR CAST(o.id AS string) LIKE :search_1
-                   OR LOWER(c.username) LIKE :search_1)
-              AND (:from IS NULL OR o.createdAt >= :from)
-              AND (:to IS NULL OR o.createdAt <= :to)
-            """)
-    // Tìm đơn theo Owner và Restaurant
-    Page<Order> findOrdersByOwnerAndRestaurant(
-            @Param("ownerId") Integer ownerId,
-            @Param("restaurantId") Integer restaurantId, // NULL = tất cả
-            @Param("search") String search,
-            @Param("from") LocalDateTime from,
-            @Param("to") LocalDateTime to,
-            Pageable pageable);
-
 }

@@ -10,7 +10,6 @@ import java.util.List;
 
 @Repository
 public interface RestaurantRepository extends JpaRepository<Restaurant, Integer> {
-    List<Restaurant> findByOwnerId(Integer ownerId);
 
     // Logic: Tìm quán ăn NẾU:
     // 1. Tên quán chứa từ khóa
