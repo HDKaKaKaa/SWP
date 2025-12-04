@@ -43,7 +43,7 @@ const RegisterPage = () => {
       <div className="auth-overlay"></div>
       <div className="auth-card" style={{ maxWidth: '500px' }}>
         {' '}
-        {/* Form đăng ký rộng hơn chút */}
+        {/* Form đăng ký */}
         <Title level={2} className="auth-title">
           Đăng ký tài khoản
         </Title>
@@ -51,13 +51,17 @@ const RegisterPage = () => {
           name="register"
           onFinish={onFinish}
           size="large"
-          layout="vertical" // Label nằm trên input
+          layout="vertical"
           scrollToFirstError
         >
           <Form.Item
             name="username"
             label="Tên đăng nhập"
-            rules={[{ required: true, message: 'Vui lòng nhập Username!' }]}
+            normalize={(value) => value?.replace(/\s/g, '')}
+            rules={[
+              { required: true, message: 'Vui lòng nhập Username!' },
+              { min: 4, message: 'Tên đăng nhập phải từ 4 ký tự!' },
+            ]}
           >
             <Input prefix={<UserOutlined />} placeholder="Ví dụ: user123" />
           </Form.Item>
@@ -65,6 +69,7 @@ const RegisterPage = () => {
           <Form.Item
             name="fullName"
             label="Họ và tên"
+            normalize={(value) => value?.trimStart()}
             rules={[{ required: true, message: 'Vui lòng nhập Họ tên!' }]}
           >
             <Input
@@ -76,6 +81,7 @@ const RegisterPage = () => {
           <Form.Item
             name="email"
             label="Email"
+            normalize={(value) => value?.trim()}
             rules={[
               { type: 'email', message: 'Email không hợp lệ!' },
               { required: true, message: 'Vui lòng nhập Email!' },
@@ -87,6 +93,7 @@ const RegisterPage = () => {
           <Form.Item
             name="phone"
             label="Số điện thoại"
+            normalize={(value) => value?.replace(/\s/g, '')}
             rules={[
               { required: true, message: 'Vui lòng nhập SĐT!' },
               {
@@ -105,6 +112,7 @@ const RegisterPage = () => {
           <Form.Item
             name="password"
             label="Mật khẩu"
+            normalize={(value) => value?.replace(/\s/g, '')}
             rules={[
               { required: true, message: 'Vui lòng nhập mật khẩu!' },
               { min: 6, message: 'Mật khẩu ít nhất 6 ký tự!' },
@@ -117,6 +125,7 @@ const RegisterPage = () => {
           <Form.Item
             name="confirmPassword"
             label="Nhập lại mật khẩu"
+            normalize={(value) => value?.replace(/\s/g, '')}
             dependencies={['password']}
             hasFeedback
             rules={[
