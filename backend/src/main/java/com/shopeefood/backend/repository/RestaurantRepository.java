@@ -29,4 +29,10 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Integer>
      */
     @Query("SELECT COUNT(r) FROM Restaurant r WHERE r.status = 'ACTIVE'")
     Long countActiveRestaurants();
+
+    /**
+     * Lấy danh sách quán theo danh sách chủ quán (owner account id).
+     * Dùng cho màn admin quản lý chủ nhà hàng.
+     */
+    List<Restaurant> findByOwnerAccountIdIn(List<Integer> ownerAccountIds);
 }

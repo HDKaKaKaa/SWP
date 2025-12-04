@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Integer> {
@@ -52,5 +53,15 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
             @Param("status") String status,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate
+    );
+
+    // Tìm đơn hàng trạng thái "CART" (giỏ hàng) của 1 khách
+    Optional<Order> findFirstByCustomerIdAndStatus(Integer customerId, String status);
+
+    // Tìm đơn hàng "CART" theo khách + nhà hàng (nếu sau này cần)
+    Optional<Order> findFirstByCustomerIdAndRestaurantIdAndStatus(
+            Integer customerId,
+            Integer restaurantId,
+            String status
     );
 }

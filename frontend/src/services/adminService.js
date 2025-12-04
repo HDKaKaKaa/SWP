@@ -4,7 +4,8 @@ import axios from 'axios';
 const DASHBOARD_URL = 'http://localhost:8080/api/admin/dashboard';
 // Đường dẫn gốc tới API Accounts
 const ACCOUNTS_URL = 'http://localhost:8080/api/admin/accounts';
-
+// Đường dẫn gốc tới API Users
+const USERS_URL = 'http://localhost:8080/api/admin/users';
 
 // =================== DASHBOARD ===================
 export const getDashboardStats = async () => {
@@ -33,4 +34,20 @@ export const deactivateAccount = async (accountId) => {
 export const activateAccount = async (accountId) => {
     const response = await axios.put(`${ACCOUNTS_URL}/${accountId}/activate`);
     return response.data;
+};
+
+// =================== USERS ===================
+export const getAdminCustomers = async () => {
+    const res = await axios.get(`${USERS_URL}/customers`);
+    return res.data;
+};
+
+export const getAdminShippers = async () => {
+    const res = await axios.get(`${USERS_URL}/shippers`);
+    return res.data;
+};
+
+export const getAdminOwners = async () => {
+    const res = await axios.get(`${USERS_URL}/owners`);
+    return res.data;
 };
