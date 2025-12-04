@@ -1,35 +1,66 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom';
+import Header from './components/Header';
+import Footer from './components/Footer';
+import LandingPage from './pages/LandingPage';
+import RestaurantDetail from './pages/RestaurantDetail';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import MainLayout from './components/MainLayout';
+import AdminDashboard from './pages/AdminDashboard';
+import ProfilePage from './pages/ProfilePage';
+
+// Tạo nhanh component placeholder để menu admin bấm không bị lỗi
+const RestaurantsPage = () => <h2>Quản lý Nhà hàng</h2>;
+const OrdersPage = () => <h2>Quản lý Đơn hàng</h2>;
+const UsersPage = () => <h2>Quản lý Người dùng</h2>;
+const ShippersPage = () => <h2>Quản lý Tài xế</h2>;
 
 function App() {
-  const [count, setCount] = useState(0)
+    return (
+        <Router>
+            <Routes>
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+                {/* ======================================================= */}
+                {/* NHÓM 1: ADMIN (Sử dụng MainLayout có Sidebar)           */}
+                {/* ======================================================= */}
+                <Route path="/admin" element={<MainLayout />}>
+                    <Route index element={<AdminDashboard />} />
+                    <Route path="restaurants" element={<RestaurantsPage />} />
+                    <Route path="orders" element={<OrdersPage />} />
+                    <Route path="users" element={<UsersPage />} />
+                    <Route path="shippers" element={<ShippersPage />} />
+                </Route>
+
+
+                {/* ======================================================= */}
+                {/* NHÓM 2: KHÁCH HÀNG (Sử dụng Header & Footer cũ)         */}
+                {/* ======================================================= */}
+                {/* Ta tạo một Route không có path để bao bọc layout khách */}
+                <Route
+                    element={
+                        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+                            <Header />
+                            <div style={{ flex: 1 }}>
+                                <Outlet /> {/* Nội dung các trang Landing, Login... sẽ hiện ở đây */}
+                            </div>
+                            <Footer />
+                        </div>
+                    }
+                >
+                    {/* Các trang con của khách hàng nằm trong này */}
+                    <Route path="/" element={<LandingPage />} />
+                    <Route path="/restaurant/:id" element={<RestaurantDetail />} />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                    <Route path="/profile" element={<ProfilePage />} />
+                </Route>
+
+            </Routes>
+        </Router>
+    );
 }
 
-export default App
+export default App;
