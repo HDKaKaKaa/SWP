@@ -22,6 +22,7 @@ public class Order {
     @JoinColumn(name = "restaurant_id")
     private Restaurant restaurant;
 
+    // Thông tin tiền nong (Dùng BigDecimal để tính tiền chính xác)
     private BigDecimal subtotal;
 
     @Column(name = "shipping_fee")

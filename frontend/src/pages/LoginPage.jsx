@@ -27,6 +27,8 @@ const LoginPage = () => {
       // Phân quyền điều hướng
       if (res.data.role === 'ADMIN') {
         navigate('/admin');
+      } else if (res.data.role === 'SHIPPER') {
+        navigate('/shipper');
       } else {
         navigate('/');
       }
