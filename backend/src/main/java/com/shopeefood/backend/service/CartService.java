@@ -7,8 +7,10 @@ import com.shopeefood.backend.dto.UpdateCartItemRequest;
 import com.shopeefood.backend.entity.*;
 import com.shopeefood.backend.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -51,6 +53,14 @@ public class CartService {
 
         Customer customer = customerRepository.findById(accountId)
                 .orElseThrow(() -> new RuntimeException("Customer not found"));
+
+        // Validate: Chưa có địa chỉ giao hàng
+        if (customer.getAddress() == null || customer.getAddress().trim().isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "CUSTOMER_ADDRESS_REQUIRED"
+            );
+        }
 
         Restaurant restaurant = restaurantRepository.findById(restaurantId)
                 .orElseThrow(() -> new RuntimeException("Restaurant not found"));

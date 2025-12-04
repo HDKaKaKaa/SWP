@@ -2,6 +2,8 @@ import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
+import { MdRestaurant } from "react-icons/md";
+import { HiLocationMarker } from "react-icons/hi";
 import '../css/CartPage.css';
 
 const CartPage = () => {
@@ -12,13 +14,14 @@ const CartPage = () => {
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
     const [error, setError] = useState(null);
+    const [note, setNote] = useState('');
 
     const formatPrice = (v) => {
-        if (v == null) return '0 ₫';
+        if (!v) return '0 đ';
         try {
-            return v.toLocaleString('vi-VN') + ' ₫';
+            return v.toLocaleString('vi-VN') + ' đ';
         } catch {
-            return `${v} ₫`;
+            return `${v} đ`;
         }
     };
 
@@ -34,6 +37,7 @@ const CartPage = () => {
 
     useEffect(() => {
         window.scrollTo(0, 0);
+
         if (!user) {
             setLoading(false);
             return;
@@ -70,8 +74,9 @@ const CartPage = () => {
         try {
             setUpdating(true);
             let res;
+
             if (newQuantity === 0) {
-                // xoá món
+                // Xoá món khỏi giỏ
                 res = await axios.delete(
                     `http://localhost:8080/api/cart/items/${item.productId}`,
                     {
@@ -79,16 +84,18 @@ const CartPage = () => {
                     }
                 );
             } else {
-                // cập nhật số lượng
+                // Cập nhật số lượng
                 res = await axios.put('http://localhost:8080/api/cart/items', {
                     accountId: user.id,
                     productId: item.productId,
                     quantity: newQuantity,
                 });
             }
+
             setCart(res.data);
         } catch (err) {
             console.error(err);
+            // Có thể nâng cấp sang Modal sau nếu muốn
             alert('Không cập nhật được số lượng. Vui lòng thử lại.');
         } finally {
             setUpdating(false);
@@ -102,8 +109,13 @@ const CartPage = () => {
         }
         if (!hasItems) return;
 
-        // Flow: Cart -> Checkout -> PayOS
-        navigate('/checkout'); // màn checkout sẽ xử lý PayOS sau
+        // Flow: Cart -> Checkout -> PayOS (sau này xử lý tiếp ở /checkout)
+        navigate('/checkout', {
+            state: {
+                cartId: cart?.orderId || null,
+                note: note || '',
+            },
+        });
     };
 
     const handleChangeAddress = () => {
@@ -114,24 +126,27 @@ const CartPage = () => {
         navigate('/');
     };
 
+    const shippingFee = cart?.shippingFee ?? 15000;
+    const subtotal = cart?.subtotal ?? 0;
+    const total = cart?.total ?? subtotal + shippingFee;
+
+    // ======= Các trạng thái đặc biệt =======
     if (!user) {
         return (
             <div className="cart-page">
                 <div className="cart-wrapper">
-                    <div className="cart-main">
-                        <div className="cart-panel">
-                            <h1 className="cart-title">Giỏ hàng</h1>
-                            <p className="cart-empty-message">
-                                Bạn cần đăng nhập để xem và đặt món.
-                            </p>
-                            <button
-                                type="button"
-                                className="cart-login-btn"
-                                onClick={() => navigate('/login')}
-                            >
-                                Đăng nhập ngay
-                            </button>
-                        </div>
+                    <h1 className="cart-page-title">Xác nhận đơn hàng</h1>
+                    <div className="cart-empty-card">
+                        <p className="cart-empty-text">
+                            Bạn cần đăng nhập để xem giỏ hàng và đặt món.
+                        </p>
+                        <button
+                            type="button"
+                            className="cart-login-btn"
+                            onClick={() => navigate('/login')}
+                        >
+                            Đăng nhập ngay
+                        </button>
                     </div>
                 </div>
             </div>
@@ -142,11 +157,31 @@ const CartPage = () => {
         return (
             <div className="cart-page">
                 <div className="cart-wrapper">
-                    <div className="cart-main">
-                        <div className="cart-panel">
-                            <h1 className="cart-title">Giỏ hàng</h1>
-                            <p className="cart-loading">Đang tải giỏ hàng...</p>
-                        </div>
+                    <h1 className="cart-page-title">Xác nhận đơn hàng</h1>
+                    <div className="cart-empty-card">
+                        <p className="cart-loading-text">Đang tải giỏ hàng...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (!hasItems) {
+        return (
+            <div className="cart-page">
+                <div className="cart-wrapper">
+                    <h1 className="cart-page-title">Xác nhận đơn hàng</h1>
+                    <div className="cart-empty-card">
+                        <p className="cart-empty-text">
+                            Giỏ hàng của bạn đang trống. Hãy quay lại chọn món nhé!
+                        </p>
+                        <button
+                            type="button"
+                            className="cart-back-btn"
+                            onClick={handleBackToRestaurant}
+                        >
+                            Quay lại trang chủ
+                        </button>
                     </div>
                 </div>
             </div>
@@ -156,121 +191,21 @@ const CartPage = () => {
     return (
         <div className="cart-page">
             <div className="cart-wrapper">
-                {/* Cột trái: danh sách món */}
-                <main className="cart-main">
-                    <div className="cart-panel">
-                        <h1 className="cart-title">Giỏ hàng</h1>
+                {/* Tiêu đề */}
+                <h1 className="cart-page-title">Xác nhận đơn hàng</h1>
 
-                        {error && <p className="cart-error">{error}</p>}
-
-                        {!hasItems ? (
-                            <>
-                                <p className="cart-empty-message">
-                                    Chưa có món nào trong giỏ. Hãy quay lại chọn món nhé!
-                                </p>
-                                <button
-                                    type="button"
-                                    className="cart-login-btn"
-                                    onClick={handleBackToRestaurant}
-                                >
-                                    Về trang chọn quán
-                                </button>
-                            </>
-                        ) : (
-                            <>
-                                <div className="cart-restaurant-header">
-                                    <div>
-                                        <div className="cart-res-name">
-                                            {cart.restaurantName || 'Quán ăn'}
-                                        </div>
-                                        <div className="cart-res-meta">Giao ngay • ~25 phút</div>
-                                    </div>
-                                </div>
-
-                                <div className="cart-items-list">
-                                    {cart.items.map((item) => (
-                                        <div key={item.productId} className="cart-item-row">
-                                            <div className="cart-item-left">
-                                                <div className="cart-item-name">
-                                                    {item.productName}
-                                                </div>
-                                                {/* chỗ ghi chú có thể thêm sau */}
-                                                <div className="cart-item-price-mobile">
-                                                    {formatPrice(item.unitPrice)}
-                                                </div>
-                                            </div>
-
-                                            <div className="cart-item-right">
-                                                <div className="cart-qty-control">
-                                                    <button
-                                                        type="button"
-                                                        className="cart-qty-btn"
-                                                        onClick={() => handleChangeQuantity(item, -1)}
-                                                        disabled={updating}
-                                                    >
-                                                        −
-                                                    </button>
-                                                    <span className="cart-qty-value">
-                            {item.quantity}
-                          </span>
-                                                    <button
-                                                        type="button"
-                                                        className="cart-qty-btn"
-                                                        onClick={() => handleChangeQuantity(item, +1)}
-                                                        disabled={updating}
-                                                    >
-                                                        +
-                                                    </button>
-                                                </div>
-                                                <div className="cart-item-total">
-                                                    {formatPrice(item.lineTotal)}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </>
-                        )}
-                    </div>
-                </main>
-
-                {/* Cột phải: tóm tắt + địa chỉ */}
-                <aside className="cart-sidebar">
-                    <div className="cart-summary-panel">
-                        <h2 className="cart-summary-title">Tóm tắt đơn hàng</h2>
-
-                        <div className="cart-summary-row">
-                            <span>Tạm tính</span>
-                            <span>{formatPrice(cart?.subtotal)}</span>
+                {/* Địa chỉ giao hàng */}
+                <section className="cart-address-card">
+                    <div className="cart-address-left">
+                        <div className="cart-address-title-row">
+                            <HiLocationMarker className="cart-address-icon" />
+                            <span className="cart-address-label">Địa chỉ giao hàng</span>
                         </div>
-                        <div className="cart-summary-row">
-                            <span>Phí giao hàng</span>
-                            <span>{formatPrice(cart?.shippingFee)}</span>
-                        </div>
-
-                        <div className="cart-summary-total-row">
-                            <span>Tổng cộng</span>
-                            <span className="cart-summary-total-value">
-                {formatPrice(cart?.total)}
-              </span>
-                        </div>
-
-                        <button
-                            type="button"
-                            className="cart-order-btn"
-                            disabled={!hasItems || updating}
-                            onClick={handlePlaceOrder}
-                        >
-                            Đặt hàng
-                            {totalItems > 0 ? ` (${totalItems} món)` : ''}
-                        </button>
-                    </div>
-
-                    <div className="cart-address-panel">
-                        <div className="cart-address-header">Địa chỉ giao hàng</div>
-                        <div className="cart-address-text">
+                        <div className="cart-address-value">
                             {cart?.shippingAddress || 'Chưa có địa chỉ giao hàng'}
                         </div>
+                    </div>
+                    <div className="cart-address-right">
                         <button
                             type="button"
                             className="cart-address-change-btn"
@@ -279,7 +214,141 @@ const CartPage = () => {
                             Thay đổi
                         </button>
                     </div>
-                </aside>
+                </section>
+
+                {/* Nội dung chính: Giỏ hàng (trái) + Chi tiết thanh toán (phải) */}
+                <div className="cart-content">
+                    {/* Cột trái: giỏ hàng */}
+                    <main className="cart-main">
+                        <section className="cart-items-card">
+                            <header className="cart-restaurant-header">
+                                <div className="cart-res-avatar">
+                                    <MdRestaurant className="cart-res-avatar-icon" />
+                                </div>
+                                <div className="cart-res-info">
+                                    <div className="cart-res-name">
+                                        {cart?.restaurantName || 'Quán ăn'}
+                                    </div>
+                                    <div className="cart-res-meta">
+                                        {cart?.restaurantAddress || 'Địa chỉ quán chưa cập nhật'}
+                                    </div>
+                                </div>
+                            </header>
+
+                            <div className="cart-items-list">
+                                {cart.items.map((item) => (
+                                    <div key={item.productId} className="cart-item-row">
+                                        <div className="cart-item-left">
+                                            <div className="cart-item-thumb">
+                                                {item.productImage ? (
+                                                    <img
+                                                        src={item.productImage}
+                                                        alt={item.productName}
+                                                        className="cart-item-thumb-img"
+                                                        onError={(e) => {
+                                                            e.currentTarget.style.display = 'none';
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <div className="cart-item-thumb-placeholder">
+                            <span className="cart-item-thumb-placeholder-text">
+                              {item.productName.charAt(0).toUpperCase()}
+                            </span>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="cart-item-info">
+                                                <div className="cart-item-name">
+                                                    {item.productName}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="cart-item-right">
+                                            <div className="cart-qty-control">
+                                                <button
+                                                    type="button"
+                                                    className="cart-qty-btn"
+                                                    onClick={() => handleChangeQuantity(item, -1)}
+                                                    disabled={updating}
+                                                >
+                                                    −
+                                                </button>
+                                                <span className="cart-qty-value">
+                          {item.quantity}
+                        </span>
+                                                <button
+                                                    type="button"
+                                                    className="cart-qty-btn"
+                                                    onClick={() => handleChangeQuantity(item, +1)}
+                                                    disabled={updating}
+                                                >
+                                                    +
+                                                </button>
+                                            </div>
+                                            <div className="cart-item-total">
+                                                {formatPrice(item.lineTotal)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    </main>
+
+                    {/* Cột phải: Chi tiết thanh toán + Ghi chú */}
+                    <aside className="cart-sidebar">
+                        <section className="cart-summary-card">
+                            <h2 className="cart-summary-title">Chi tiết thanh toán</h2>
+
+                            <div className="cart-summary-row">
+                <span>
+                  Tổng giá món
+                    {totalItems > 0 ? ` (${totalItems} món)` : ''}
+                </span>
+                                <span>{formatPrice(subtotal)}</span>
+                            </div>
+
+                            <div className="cart-summary-row">
+                                <span>Phí giao hàng</span>
+                                <span>{formatPrice(shippingFee)}</span>
+                            </div>
+
+                            <div className="cart-summary-total-row">
+                                <span>Tổng thanh toán</span>
+                                <span className="cart-summary-total-value">
+                  {formatPrice(total)}
+                </span>
+                            </div>
+                            <div className="cart-summary-tax-note">Đã bao gồm thuế</div>
+
+                            <button
+                                type="button"
+                                className="cart-place-order-btn"
+                                disabled={!hasItems || updating}
+                                onClick={handlePlaceOrder}
+                            >
+                                Đặt đơn - {formatPrice(total)}
+                            </button>
+                        </section>
+
+                        <section className="cart-note-card">
+                            <div className="cart-note-header">
+                                <span>Ghi chú cho quán</span>
+                            </div>
+                            <textarea
+                                className="cart-note-input"
+                                rows={3}
+                                placeholder="Ví dụ: Không hành, ít đá, gọi trước khi giao..."
+                                value={note}
+                                onChange={(e) => setNote(e.target.value)}
+                            />
+                        </section>
+                    </aside>
+                </div>
+
+                {error && <p className="cart-error-text">{error}</p>}
             </div>
         </div>
     );
