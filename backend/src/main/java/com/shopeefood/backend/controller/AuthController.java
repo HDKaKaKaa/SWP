@@ -6,7 +6,9 @@ import com.shopeefood.backend.repository.CustomerRepository;
 import com.shopeefood.backend.dto.LoginRequest;
 import com.shopeefood.backend.dto.RegisterRequest;
 import com.shopeefood.backend.entity.Account;
+import com.shopeefood.backend.entity.Shipper;
 import com.shopeefood.backend.repository.AccountRepository;
+import com.shopeefood.backend.repository.ShipperRepository;
 
 import java.util.Map;
 
@@ -31,6 +33,9 @@ public class AuthController {
     private CustomerRepository customerRepository;
 
     @Autowired
+    private ShipperRepository shipperRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     // 1. Đăng nhập
@@ -40,11 +45,6 @@ public class AuthController {
                 .orElse(null);
 
         // Dùng hàm matches để so sánh password thô (request) và password mã hóa (DB)
-//        if (account != null && passwordEncoder.matches(request.getPassword(), account.getPassword())) {
-//            return ResponseEntity.ok(account);
-//        }
-//        return ResponseEntity.status(401).body("Sai tài khoản hoặc mật khẩu");
-
         if (account == null) {
             return ResponseEntity.status(401).body("Sai tài khoản hoặc mật khẩu");
         }
@@ -56,6 +56,22 @@ public class AuthController {
 
         // Dùng hàm matches để so sánh password thô (request) và password mã hóa (DB)
         if (passwordEncoder.matches(request.getPassword(), account.getPassword())) {
+            // Nếu là shipper, thêm shipperId vào response
+            if ("SHIPPER".equals(account.getRole())) {
+                Shipper shipper = shipperRepository.findById(account.getId()).orElse(null);
+                if (shipper != null) {
+                    // Tạo Map để trả về thông tin đầy đủ
+                    Map<String, Object> response = new java.util.HashMap<>();
+                    response.put("id", account.getId());
+                    response.put("username", account.getUsername());
+                    response.put("email", account.getEmail());
+                    response.put("phone", account.getPhone());
+                    response.put("role", account.getRole());
+                    response.put("shipperId", shipper.getAccountId());
+                    response.put("fullName", shipper.getFullName());
+                    return ResponseEntity.ok(response);
+                }
+            }
             return ResponseEntity.ok(account);
         }
 

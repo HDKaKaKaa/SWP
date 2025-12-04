@@ -13,6 +13,13 @@ import ProfilePage from './pages/ProfilePage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import CategoriesPage from './pages/CategoriesPage';
 import OrdersPage from './pages/OrdersPage';
+import ShipperLayout from './components/ShipperLayout';
+import ShipperDashboard from './pages/ShipperDashboard';
+import ShipperOrders from './pages/ShipperOrders';
+import ShipperHistory from './pages/ShipperHistory';
+import ShipperOrderDetail from './pages/ShipperOrderDetail';
+import ShipperMap from './pages/ShipperMap';
+import ShipperProfile from './pages/ShipperProfile';
 
 // Tạo nhanh component placeholder để menu admin bấm không bị lỗi
 const RestaurantsPage = () => <h2>Quản lý Nhà hàng</h2>;
@@ -34,9 +41,20 @@ function App() {
                 <Route path="shippers" element={<ShippersPage />} />
             </Route>
 
+            {/* ======================================================= */}
+            {/* NHÓM 2: SHIPPER (Sử dụng ShipperLayout có Sidebar)       */}
+            {/* ======================================================= */}
+            <Route path="/shipper" element={<ShipperLayout />}>
+                <Route index element={<ShipperDashboard />} />
+                <Route path="orders" element={<ShipperOrders />} />
+                <Route path="history" element={<ShipperHistory />} />
+                <Route path="history/:orderId" element={<ShipperOrderDetail />} />
+                <Route path="map" element={<ShipperMap />} />
+                <Route path="profile" element={<ShipperProfile />} />
+            </Route>
 
             {/* ======================================================= */}
-            {/* NHÓM 2: KHÁCH HÀNG (Sử dụng Header & Footer cũ)         */}
+            {/* NHÓM 3: KHÁCH HÀNG (Sử dụng Header & Footer cũ)         */}
             {/* ======================================================= */}
             {/* Ta tạo một Route không có path để bao bọc layout khách */}
             <Route

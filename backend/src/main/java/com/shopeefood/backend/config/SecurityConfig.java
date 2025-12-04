@@ -39,8 +39,12 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Cho phép Frontend (React) truy cập
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173"));
+        // Cho phép Frontend (React) truy cập - hỗ trợ cả port 5173 và 5174
+        configuration.setAllowedOrigins(Arrays.asList(
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "http://localhost:3000"
+        ));
         // Cho phép các method
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         // Cho phép các header (Content-Type, Authorization...)
