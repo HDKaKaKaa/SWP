@@ -48,7 +48,7 @@ const LandingPage = () => {
     } catch (err) {
       console.error(err);
     } finally {
-      setTimeout(() => setLoading(false), 100);
+      setLoading(false);
     }
   };
 
@@ -190,7 +190,6 @@ const LandingPage = () => {
 
             {restaurants.map((res) => (
               <Col xs={24} sm={12} md={8} lg={6} key={res.id}>
-                {/* Badge Ribbon giống ShopeeFood */}
                 <Badge.Ribbon text="Yêu thích" color="#ee4d2d">
                   <Card
                     hoverable
@@ -203,6 +202,11 @@ const LandingPage = () => {
                             res.coverImage ||
                             'https://via.placeholder.com/300x180'
                           }
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src =
+                              'https://via.placeholder.com/300x180?text=No+Image';
+                          }}
                           className="card-img"
                         />
                         <div className="delivery-time">
