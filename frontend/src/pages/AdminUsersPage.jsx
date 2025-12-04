@@ -266,7 +266,6 @@ const AdminUsersPage = () => {
     }
 
     const commonActionButtons = (record) => {
-        const isOwner = record.role?.toUpperCase() === 'OWNER';
 
         return (
             <Space size="small">

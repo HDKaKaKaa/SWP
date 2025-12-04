@@ -50,7 +50,7 @@ public class CartService {
                 .orElseThrow(() -> new RuntimeException("Account not found"));
 
         Customer customer = customerRepository.findById(accountId)
-                .orElse(null);
+                .orElseThrow(() -> new RuntimeException("Customer not found"));
 
         Restaurant restaurant = restaurantRepository.findById(restaurantId)
                 .orElseThrow(() -> new RuntimeException("Restaurant not found"));
