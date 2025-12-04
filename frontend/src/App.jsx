@@ -23,7 +23,7 @@ const ShippersPage = () => <h2>Quản lý Tài xế</h2>;
 
 function App() {
     return (
-        <Router>
+        
             <Routes>
 
                 {/* ======================================================= */}
@@ -73,7 +73,7 @@ function App() {
                 </Route>
 
             </Routes>
-        </Router>
+        
     );
 }
 
