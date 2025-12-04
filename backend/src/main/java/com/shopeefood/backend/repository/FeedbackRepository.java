@@ -12,6 +12,7 @@ public interface FeedbackRepository extends JpaRepository<Feedback, Integer> {
     List<Feedback> findByRestaurantId(Integer restaurantId);
 
     // Tính rating trung bình của nhà hàng
-    @Query("SELECT AVG(r.rating) FROM Review r WHERE r.restaurant.id = :restaurantId")
+    @Query("SELECT AVG(f.rating) FROM Feedback f WHERE f.restaurant.id = :restaurantId")
     Double getAverageRating(@Param("restaurantId") Integer restaurantId);
+
 }
