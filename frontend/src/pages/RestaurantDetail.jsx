@@ -2,6 +2,20 @@ import { useEffect, useState, useContext, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
+import {
+    Input,
+    Button,
+    Card,
+    Rate,
+    Badge,
+    Tag,
+    Row,
+    Col,
+    Typography,
+    Skeleton,
+    Carousel,
+    Modal,
+} from 'antd';
 import { FiShoppingBag, FiImage } from "react-icons/fi";
 import '../css/RestaurantDetail.css';
 
@@ -13,6 +27,10 @@ const RestaurantDetail = () => {
     const [restaurant, setRestaurant] = useState(null);
     const [products, setProducts] = useState([]);
     const [addingProductId, setAddingProductId] = useState(null);
+
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
+    const [addressModalOpen, setAddressModalOpen] = useState(false);
+    const [errorModalOpen, setErrorModalOpen] = useState(false);
 
     // productId -> quantity trong giỏ
     const [cartQuantities, setCartQuantities] = useState({});
@@ -83,7 +101,7 @@ const RestaurantDetail = () => {
                 setCartSummary({
                     subtotal: data?.subtotal || 0,
                     shippingFee: data?.shippingFee || 0,
-                    total: data?.total || data?.subtotal || 0,
+                    total: data?.subtotal || 0,
                 });
             } catch (err) {
                 console.error(err);
@@ -103,14 +121,14 @@ const RestaurantDetail = () => {
         setCartSummary({
             subtotal: data?.subtotal || 0,
             shippingFee: data?.shippingFee || 0,
-            total: data?.total || data?.subtotal || 0,
+            total: data?.subtotal || 0,
         });
     };
 
     const handleAddToCart = async (product) => {
+        // Nếu chưa đăng nhập
         if (!user) {
-            alert('Bạn cần đăng nhập để đặt món.');
-            navigate('/login');
+            setLoginModalOpen(true);
             return;
         }
 
@@ -126,7 +144,19 @@ const RestaurantDetail = () => {
             syncQuantitiesFromResponse(res.data);
         } catch (err) {
             console.error(err);
-            alert('Không thêm được món vào giỏ. Vui lòng thử lại.');
+
+            const status = err?.response?.status;
+            const data = err?.response?.data;
+            console.log('status:', err?.response?.status);
+            console.log('data:', err?.response?.data);
+
+            // BẤT KỲ 400 nào từ /api/cart/items ta đều coi là thiếu địa chỉ giao hàng
+            // (vì hiện tại addToCart chỉ chủ động ném 400 trong case này)
+            if (status === 400) {
+                setAddressModalOpen(true);
+            } else {
+                setErrorModalOpen(true);
+            }
         } finally {
             setAddingProductId(null);
         }
@@ -188,6 +218,7 @@ const RestaurantDetail = () => {
     }
 
     return (
+        <>
         <div className="detail-container">
             <div className="detail-wrapper">
                 {/* Cột trái: thông tin quán + menu */}
@@ -309,19 +340,11 @@ const RestaurantDetail = () => {
                             </div>
 
                             <div className="detail-cart-prices">
-                                <div className="detail-cart-row">
-                                    <span>Tạm tính</span>
-                                    <span className="detail-cart-subtotal">
-                        {formatPrice(cartSummary.subtotal)}
-                    </span>
-                                </div>
                                 <div className="detail-cart-row detail-cart-row-total">
                                     <span>Tổng cộng</span>
                                     <span className="detail-cart-total">
-                        {formatPrice(
-                            cartSummary.total || cartSummary.subtotal
-                        )}
-                    </span>
+                                        {formatPrice(cartSummary.total || cartSummary.subtotal)}
+                                    </span>
                                 </div>
                             </div>
 
@@ -345,6 +368,51 @@ const RestaurantDetail = () => {
                 </aside>
             </div>
         </div>
+        {/* === MODAL: YÊU CẦU ĐĂNG NHẬP === */}
+        <Modal
+            open={loginModalOpen}
+            title="Đăng nhập để tiếp tục"
+            onOk={() => {
+                setLoginModalOpen(false);
+                navigate('/login');
+            }}
+            onCancel={() => setLoginModalOpen(false)}
+            okText="Đăng nhập ngay"
+            cancelText="Để sau"
+        >
+            <p>Bạn cần đăng nhập để đặt món và quản lý giỏ hàng.</p>
+        </Modal>
+
+        {/* === MODAL: CẬP NHẬT ĐỊA CHỈ GIAO HÀNG === */}
+        <Modal
+            open={addressModalOpen}
+            title="Cập nhật địa chỉ giao hàng"
+            onOk={() => {
+                setAddressModalOpen(false);
+                navigate('/profile');
+            }}
+            onCancel={() => setAddressModalOpen(false)}
+            okText="Cập nhật ngay"
+            cancelText="Để sau"
+        >
+            <p>
+                Bạn chưa cập nhật địa chỉ giao hàng. Vui lòng nhập địa chỉ trước khi đặt món
+                để chúng tôi có thể giao hàng cho bạn.
+            </p>
+        </Modal>
+
+        {/* === MODAL: LỖI CHUNG KHI THÊM VÀO GIỎ === */}
+        <Modal
+            open={errorModalOpen}
+            title="Lỗi khi thêm vào giỏ"
+            onOk={() => setErrorModalOpen(false)}
+            onCancel={() => setErrorModalOpen(false)}
+            okText="Đóng"
+            cancelButtonProps={{ style: { display: 'none' } }} // chỉ 1 nút Đóng
+        >
+            <p>Không thêm được món vào giỏ. Vui lòng thử lại sau.</p>
+        </Modal>
+    </>
     );
 };
 
