@@ -11,14 +11,15 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import MainLayout from './components/MainLayout';
 import AdminDashboard from './pages/AdminDashboard';
 import ProfilePage from './pages/ProfilePage';
+import AdminUsersPage from './pages/AdminUsersPage';
+import CategoriesPage from './pages/CategoriesPage';
+import OrdersPage from './pages/OrdersPage';
 import OwnerDashboard from './pages/OwnerDashboard';
 import OwnerOrders from './components/OwnerOrders';
 import OwnerLayout from './components/OwnerLayout';
 
 // Tạo nhanh component placeholder để menu admin bấm không bị lỗi
 const RestaurantsPage = () => <h2>Quản lý Nhà hàng</h2>;
-const OrdersPage = () => <h2>Quản lý Đơn hàng</h2>;
-const UsersPage = () => <h2>Quản lý Người dùng</h2>;
 const ShippersPage = () => <h2>Quản lý Tài xế</h2>;
 
 function App() {
@@ -26,16 +27,17 @@ function App() {
         
             <Routes>
 
-                {/* ======================================================= */}
-                {/* NHÓM 1: ADMIN (Sử dụng MainLayout có Sidebar)           */}
-                {/* ======================================================= */}
-                <Route path="/admin" element={<MainLayout />}>
-                    <Route index element={<AdminDashboard />} />
-                    <Route path="restaurants" element={<RestaurantsPage />} />
-                    <Route path="orders" element={<OrdersPage />} />
-                    <Route path="users" element={<UsersPage />} />
-                    <Route path="shippers" element={<ShippersPage />} />
-                </Route>
+            {/* ======================================================= */}
+            {/* NHÓM 1: ADMIN (Sử dụng MainLayout có Sidebar)           */}
+            {/* ======================================================= */}
+            <Route path="/admin" element={<MainLayout />}>
+                <Route index element={<AdminDashboard />} />
+                <Route path="categories" element={<CategoriesPage />} />
+                <Route path="restaurants" element={<RestaurantsPage />} />
+                <Route path="orders" element={<OrdersPage />} />
+                <Route path="users" element={<AdminUsersPage />} />
+                <Route path="shippers" element={<ShippersPage />} />
+            </Route>
 
 
                 {/* ======================================================= */}
