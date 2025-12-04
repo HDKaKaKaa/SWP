@@ -12,6 +12,7 @@ import MainLayout from './components/MainLayout';
 import AdminDashboard from './pages/AdminDashboard';
 import ProfilePage from './pages/ProfilePage';
 import OwnerDashboard from './pages/OwnerDashboard';
+import OwnerOrders from './components/OwnerOrders';
 import OwnerLayout from './components/OwnerLayout';
 
 // Tạo nhanh component placeholder để menu admin bấm không bị lỗi
@@ -64,12 +65,11 @@ function App() {
                 {/* NHÓM 3: Cửa hàng       */}
                 {/* ======================================================= */}
                 <Route path="/owner" element={<OwnerLayout />}>
-                    
                     <Route index element={<OwnerDashboard />} />
-                    {/* <Route path="dashboard" element={<OwnerDashboard />} /> 
-                    <Route path="products" element={<OwnerProducts />} />    
-                    <Route path="orders" element={<OwnerOrders />} />         
-                    <Route path="reports" element={<OwnerReports />} />       */}
+                    <Route path="dashboard" element={<OwnerDashboard />} />
+                    {/* <Route path="products" element={<OwnerProducts />} />     */}
+                    <Route path="orders" element={<OwnerOrders />} />
+                    {/* <Route path="reports" element={<OwnerReports />} />       */}
                 </Route>
 
             </Routes>

@@ -20,13 +20,13 @@ const OwnerLayout = () => {
     ];
 
     return (
-        <Layout style={{ minHeight: '100vh', margin: 0, padding: 0 }}>
+        <Layout style={{ minHeight: '100vh'}}>
 
             <Sider
                 collapsible
                 collapsed={collapsed}
                 onCollapse={setCollapsed}
-                style={{ margin: 0, padding: 0 }}
+                style={{}}
             >
                 <div
                     className="sider-header"
@@ -53,7 +53,7 @@ const OwnerLayout = () => {
 
             <Layout style={{ margin: 0, padding: 0 }}>
                 <Header style={{ background: colorBgContainer, padding: 0 }} />
-                <Content style={{ margin: 0, padding: 0 }}>
+                <Content style={{ }}>
                     <div style={{
                         padding: 24,
                         minHeight: '100%',
