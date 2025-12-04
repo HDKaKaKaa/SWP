@@ -14,6 +14,7 @@ import ProfilePage from './pages/ProfilePage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import CategoriesPage from './pages/CategoriesPage';
 import OrdersPage from './pages/OrdersPage';
+import CartPage from './pages/CartPage';
 import OwnerDashboard from './pages/OwnerDashboard';
 import OwnerOrders from './components/OwnerOrders';
 import OwnerLayout from './components/OwnerLayout';
@@ -62,6 +63,7 @@ function App() {
                     <Route path="/register" element={<RegisterPage />} />
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/cart" element={<CartPage />} />
                 </Route>
                 {/* ======================================================= */}
                 {/* NHÓM 3: Cửa hàng       */}

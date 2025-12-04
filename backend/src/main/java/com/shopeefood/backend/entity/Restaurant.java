@@ -14,6 +14,11 @@ public class Restaurant {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    // Chủ quán (owner_id trong DB)
+    @ManyToOne
+    @JoinColumn(name = "owner_id", nullable = false)
+    private Owner owner;
+
     private String name;
     private String address;
     private String phone;
