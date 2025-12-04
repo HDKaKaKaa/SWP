@@ -30,6 +30,10 @@ public class Restaurant {
     @OneToMany(mappedBy = "restaurant")
     private List<Product> products;
 
+    @ManyToOne
+    @JoinColumn(name = "owner_id")
+    private Owner owner;
+
     public enum RestaurantStatus {
         PENDING,
         ACTIVE,
