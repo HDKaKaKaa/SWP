@@ -1,5 +1,6 @@
 package com.shopeefood.backend.controller;
 
+import com.shopeefood.backend.dto.OrderDTO;
 import com.shopeefood.backend.entity.Order;
 import com.shopeefood.backend.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,32 +19,32 @@ public class OwnerOrderController {
 
     // Lấy danh sách đơn hàng cho Owner
     @GetMapping
-    public Page<Order> getOrders(
+    public Page<OrderDTO> getOrders(
             @RequestParam Integer ownerId,
             @RequestParam(required = false) Integer restaurantId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String search,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to
-    ) {
-        return orderService.getOrdersForOwner(ownerId, restaurantId, page, size, search, from, to);
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+
+            @RequestParam(defaultValue = "createdAt") String sortField,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        // Truyền TẤT CẢ tham số, bao gồm sortField và sortDir, vào service
+        return orderService.getOrdersForOwner(ownerId, restaurantId, page, size,
+                search, from, to, sortField, sortDir);
     }
 
-    // Cập nhật trạng thái đơn hàng
+    // Cập nhật trạng thái đơn hàng (Logic đã được đơn giản hóa)
     @PutMapping("/{orderId}/status")
     public Order updateStatus(
             @PathVariable Integer orderId,
-            @RequestParam String status
-    ) {
+            @RequestParam String status) {
+        // 1. Cập nhật trạng thái
         orderService.updateOrderStatus(orderId, status);
-        return orderService.getOrdersForOwner(null, null, 0, 1, null, null, null)
-                .getContent()
-                .stream()
-                .filter(o -> o.getId().equals(orderId))
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("Order not found after update"));
+
+        // 2. Lấy đơn hàng mới nhất để trả về cho frontend
+        // Giả định orderService đã có hàm getOrderById(Integer orderId)
+        return orderService.getOrderById(orderId);
     }
 }

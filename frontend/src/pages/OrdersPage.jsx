@@ -37,6 +37,7 @@ const OrdersPage = () => {
             }
             const response = await axios.get(API_URL, { params });
             setOrders(response.data);
+        // eslint-disable-next-line no-unused-vars
         } catch (error) {
             message.error('Không thể tải danh sách đơn hàng!');
         } finally {

@@ -30,6 +30,7 @@ import ShipperOrderDetail from './pages/ShipperOrderDetail';
 import ShipperMap from './pages/ShipperMap';
 import ShipperProfile from './pages/ShipperProfile';
 import RestaurantRegistration from './pages/RestaurantRegistration';
+import CartPage from './pages/CartPage';
 
 // Tạo nhanh component placeholder để menu admin bấm không bị lỗi
 const RestaurantsPage = () => <h2>Quản lý Nhà hàng</h2>;
@@ -37,7 +38,7 @@ const ShippersPage = () => <h2>Quản lý Tài xế</h2>;
 
 function App() {
   return (
-    <Router>
+    
       <Routes>
         {/* ======================================================= */}
         {/* NHÓM 1: ADMIN (Sử dụng MainLayout có Sidebar)           */}
@@ -109,7 +110,7 @@ function App() {
           {/* <Route path="reports" element={<OwnerReports />} />       */}
         </Route>
       </Routes>
-    </Router>
+    
   );
 }
 

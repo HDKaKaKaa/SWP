@@ -1,10 +1,12 @@
 package com.shopeefood.backend.service;
 
+import com.shopeefood.backend.dto.OrderDTO;
 import com.shopeefood.backend.entity.Order;
 import com.shopeefood.backend.repository.OrderRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
@@ -17,21 +19,26 @@ public class OrderService {
     private OrderRepository orderRepository;
 
     // Lấy đơn hàng cho Owner, với filter: restaurant, search, from-to, page-size
-    public Page<Order> getOrdersForOwner(Integer ownerId, Integer restaurantId,
-                                         int page, int size, String search,
-                                         LocalDateTime from, LocalDateTime to) {
-        if (from == null) from = LocalDateTime.MIN;
-        if (to == null) to = LocalDateTime.now();
-        if (search == null) search = "";
+    public Page<OrderDTO> getOrdersForOwner(Integer ownerId, Integer restaurantId,
+            int page, int size, String search,
+            LocalDateTime from, LocalDateTime to, String sortField, String sortDir) {
+ 
+        if (to == null)
+            to = LocalDateTime.now();
 
-        return orderRepository.findOrdersByOwnerAndRestaurant(
+        String searchPattern = null;
+        if (search != null && !search.trim().isEmpty()) {
+            searchPattern = "%" + search.trim().toLowerCase() + "%";
+        }
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Order> orderPage = orderRepository.findOrdersByOwnerAndRestaurant(
                 ownerId,
                 restaurantId,
-                search.toLowerCase(),
+                searchPattern,
                 from,
                 to,
-                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"))
-        );
+                pageable);
+        return orderPage.map(OrderDTO::new);
     }
 
     // Cập nhật trạng thái đơn hàng (Owner action)
@@ -58,5 +65,10 @@ public class OrderService {
 
         order.setStatus(newStatus);
         orderRepository.save(order);
+    }
+
+    public Order getOrderById(Integer orderId) {
+        return orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
     }
 }
