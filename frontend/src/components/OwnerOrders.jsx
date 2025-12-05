@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { Table, Form, Button, Row, Col, Badge, Pagination } from "react-bootstrap";
 import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css"; 
+import "react-datepicker/dist/react-datepicker.css";
 const OrderStatusBadge = ({ status }) => {
     const colors = {
         PENDING: "secondary",
@@ -153,11 +153,10 @@ export default function OwnerOrders() {
                     <DatePicker
                         selected={fromDate ? new Date(fromDate) : null}
                         onChange={(date) => {
-                            // Chuyển lại Date Object thành chuỗi 'YYYY-MM-DD' để lưu state
                             setFromDate(date ? date.toISOString().split('T')[0] : "");
-                            handleFilter(); // Có thể gọi hàm lọc nếu bạn muốn filter ngay sau khi chọn
+                            handleFilter();
                         }}
-                        customInput={<Form.Control />} // Sử dụng Form.Control làm input
+                        customInput={<Form.Control />}
                         dateFormat="dd/MM/yyyy"
                         placeholderText="Từ ngày"
                         isClearable
@@ -249,14 +248,18 @@ export default function OwnerOrders() {
                     )}
                 </tbody>
             </Table>
+            <Row className="mt-3">
+                <Col className="d-flex justify-content-center">
+                    <Pagination>
+                        <Pagination.First disabled={page === 0} onClick={() => setPage(0)} />
+                        <Pagination.Prev disabled={page === 0} onClick={() => setPage(page - 1)} />
+                        <Pagination.Item active>{page + 1}</Pagination.Item>
+                        <Pagination.Next disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} />
+                        <Pagination.Last disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)} />
+                    </Pagination>
+                </Col>
+            </Row>
 
-            <Pagination>
-                <Pagination.First disabled={page === 0} onClick={() => setPage(0)} />
-                <Pagination.Prev disabled={page === 0} onClick={() => setPage(page - 1)} />
-                <Pagination.Item active>{page + 1}</Pagination.Item>
-                <Pagination.Next disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} />
-                <Pagination.Last disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)} />
-            </Pagination>
-        </div>
+        </div >
     );
 }

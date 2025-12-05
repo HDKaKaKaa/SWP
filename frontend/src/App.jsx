@@ -22,6 +22,7 @@ import OrdersPage from './pages/OrdersPage';
 import OwnerDashboard from './pages/OwnerDashboard';
 import OwnerOrders from './components/OwnerOrders';
 import OwnerLayout from './components/OwnerLayout';
+import OwnerProducts from './components/OwnerProduct';
 import ShipperLayout from './components/ShipperLayout';
 import ShipperDashboard from './pages/ShipperDashboard';
 import ShipperOrders from './pages/ShipperOrders';
@@ -105,7 +106,7 @@ function App() {
         <Route path="/owner" element={<OwnerLayout />}>
           <Route index element={<OwnerDashboard />} />
           <Route path="dashboard" element={<OwnerDashboard />} />
-          {/* <Route path="products" element={<OwnerProducts />} />     */}
+          <Route path="products" element={<OwnerProducts />} />    
           <Route path="orders" element={<OwnerOrders />} />
           {/* <Route path="reports" element={<OwnerReports />} />       */}
         </Route>
