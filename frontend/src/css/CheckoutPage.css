@@ -1,0 +1,449 @@
+/* ====== Trang Thanh toán đơn hàng (CheckoutPage) ====== */
+
+.checkout-page {
+    background-color: #f5f5f5;
+    min-height: 100vh;
+    padding: 40px 0 48px;
+}
+
+.checkout-wrapper {
+    max-width: 1450px;
+    margin: 0 auto;
+    padding: 0 12px;
+}
+
+/* Tiêu đề */
+
+.checkout-title {
+    text-align: center;
+    font-size: 24px;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 16px;
+}
+
+/* Layout 2 cột giống CartPage / RestaurantDetail */
+
+.checkout-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+}
+
+.checkout-main {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.checkout-sidebar {
+    flex: 0 0 320px;
+    max-width: 340px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Card chung */
+
+.checkout-card,
+.checkout-empty-card {
+    background-color: #fff;
+    border-radius: 20px;
+    padding: 20px 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+/* Empty / loading */
+
+.checkout-empty-card {
+    text-align: center;
+    margin-top: 24px;
+}
+
+.checkout-empty-text {
+    font-size: 14px;
+    color: #555;
+    margin-bottom: 16px;
+}
+
+/* Header địa chỉ */
+
+.checkout-address-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.checkout-address-icon-wrap {
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    background-color: #fff4f1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.checkout-address-icon {
+    font-size: 22px;
+    color: #ee4d2d;
+}
+
+.checkout-address-text-wrap {
+    flex: 1;
+    min-width: 0;
+}
+
+.checkout-address-label {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #999;
+    margin-bottom: 2px;
+}
+
+.checkout-address-main {
+    font-size: 15px;
+    font-weight: 600;
+    color: #222;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.checkout-address-name {
+    max-width: 100%;
+}
+
+.checkout-address-phone {
+    color: #555;
+    font-weight: 400;
+}
+
+.checkout-address-detail {
+    margin-top: 2px;
+    font-size: 14px;
+    color: #444;
+}
+
+.checkout-change-address-btn {
+    border: none;
+    background: none;
+    color: #ee4d2d;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0;
+}
+
+/* Thông tin quán */
+
+.checkout-restaurant-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #eee;
+}
+
+.checkout-res-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    background-color: #fff4f1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.checkout-res-avatar-icon {
+    font-size: 20px;
+    color: #ee4d2d;
+}
+
+.checkout-res-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.checkout-res-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #222;
+    text-align: left;
+}
+
+.checkout-res-address {
+    font-size: 13px;
+    color: #666;
+}
+
+/* Tiêu đề section nhỏ */
+
+.checkout-section-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: #222;
+}
+
+/* Payment methods */
+
+.checkout-payment-methods {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.checkout-payment-option {
+    border-radius: 12px;
+    border: 1px solid #eee;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.checkout-payment-option--active {
+    border-color: #ee4d2d;
+    box-shadow: 0 0 0 1px rgba(238, 77, 45, 0.1);
+    background-color: #fff9f6;
+}
+
+.checkout-payment-option input[type="radio"] {
+    display: none;
+}
+
+.checkout-payment-option-left {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.checkout-radio-wrapper {
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    border: 1px solid #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 3px;
+    flex-shrink: 0;
+}
+
+.checkout-radio-circle {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background-color: transparent;
+}
+
+.checkout-radio-circle--checked {
+    background-color: #ee4d2d;
+}
+
+.checkout-payment-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 2px;
+}
+
+.checkout-payment-icon {
+    font-size: 16px;
+    color: #ee4d2d;
+}
+
+.checkout-payment-desc {
+    font-size: 13px;
+    color: #666;
+}
+
+.checkout-note-payos {
+    margin-top: 10px;
+    font-size: 13px;
+    color: #777;
+}
+
+/* Danh sách món & summary */
+
+.checkout-items-list {
+    border-radius: 12px;
+    background-color: #fafafa;
+    padding: 10px 12px;
+    max-height: 260px;
+    overflow-y: auto;
+    margin-bottom: 12px;
+}
+
+.checkout-item-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.checkout-item-row:last-child {
+    border-bottom: none;
+}
+
+.checkout-item-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.checkout-item-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #222;
+}
+
+.checkout-item-meta {
+    font-size: 13px;
+    color: #777;
+    margin-top: 2px;
+}
+
+.checkout-item-total {
+    font-size: 14px;
+    font-weight: 600;
+    color: #222;
+    white-space: nowrap;
+}
+
+/* Summary rows */
+
+.checkout-summary-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 14px;
+    margin-bottom: 6px;
+    color: #444;
+}
+
+.checkout-summary-row-total {
+    font-size: 15px;
+    font-weight: 600;
+    color: #222;
+}
+
+.checkout-summary-divider {
+    border-top: 1px solid #eee;
+    margin: 8px 0;
+}
+
+.checkout-summary-tax-note {
+    font-size: 12px;
+    color: #777;
+    margin-top: 4px;
+}
+
+/* Buttons */
+
+.checkout-login-btn,
+.checkout-back-btn,
+.checkout-pay-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: none;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.15s ease, transform 0.1s ease, opacity 0.1s ease;
+}
+
+.checkout-login-btn {
+    background-color: #ee4d2d;
+    color: #fff;
+}
+
+.checkout-back-btn {
+    background-color: #333;
+    color: #fff;
+}
+
+.checkout-summary-back-btn {
+    width: 100%;
+    margin-top: 12px;
+    margin-bottom: 6px;
+}
+
+.checkout-pay-btn {
+    width: 100%;
+    background-color: #ee4d2d;
+    color: #fff;
+}
+
+.checkout-login-btn:hover,
+.checkout-back-btn:hover,
+.checkout-pay-btn:hover {
+    filter: brightness(0.95);
+}
+
+.checkout-login-btn:active,
+.checkout-back-btn:active,
+.checkout-pay-btn:active {
+    transform: translateY(1px);
+}
+
+.checkout-login-btn:disabled,
+.checkout-back-btn:disabled,
+.checkout-pay-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+/* Error */
+
+.checkout-error-text {
+    font-size: 13px;
+    color: #d93025;
+}
+
+/* Responsive */
+
+@media (max-width: 1024px) {
+    .checkout-content {
+        flex-direction: column;
+    }
+
+    .checkout-sidebar {
+        max-width: 100%;
+        flex: 1;
+    }
+}
+
+@media (max-width: 600px) {
+    .checkout-page {
+        padding: 24px 0 32px;
+    }
+
+    .checkout-card,
+    .checkout-empty-card {
+        padding: 16px 16px;
+        border-radius: 16px;
+    }
+
+    .checkout-title {
+        font-size: 20px;
+    }
+}

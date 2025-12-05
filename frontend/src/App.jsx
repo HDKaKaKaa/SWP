@@ -32,6 +32,7 @@ import ShipperMap from './pages/ShipperMap';
 import ShipperProfile from './pages/ShipperProfile';
 import RestaurantRegistration from './pages/RestaurantRegistration';
 import CartPage from './pages/CartPage';
+import CheckoutPage from './pages/CheckoutPage';
 
 // Tạo nhanh component placeholder để menu admin bấm không bị lỗi
 const RestaurantsPage = () => <h2>Quản lý Nhà hàng</h2>;
@@ -95,6 +96,7 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/cart" element={<CartPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
           <Route
             path="/restaurant-registration"
             element={<RestaurantRegistration />}

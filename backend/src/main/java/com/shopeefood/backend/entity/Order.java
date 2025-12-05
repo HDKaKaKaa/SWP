@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime; // CHỈ DÙNG GÓI NÀY
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Data
@@ -13,6 +14,9 @@ public class Order {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
+
+    @Column(name = "order_number", length = 50, unique = true)
+    private String orderNumber;
 
     @ManyToOne
     @JoinColumn(name = "customer_id")
@@ -76,6 +80,13 @@ public class Order {
         // Dùng LocalDateTime.now()
         createdAt = LocalDateTime.now();
         if (status == null) status = "PENDING";
-        if (paymentMethod == null) paymentMethod = "COD";
+        if (paymentMethod == null) paymentMethod = "PAYOS";
+    }
+
+    // Helper tạo order number
+    public static String buildOrderNumber(Integer id) {
+        String date = LocalDateTime.now().format(DateTimeFormatter.BASIC_ISO_DATE);
+        String sequence = String.format("%04d", id % 10000);
+        return "FO" + date + sequence; // FO202512050001
     }
 }
