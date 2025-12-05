@@ -21,7 +21,7 @@ public class OrderDTO {
     private String paymentMethod;
 
     // --- Thông tin hiển thị ---
-    private String customerName;   // Sẽ được Service điền
+    private String customerName; // Sẽ được Service điền
     private String restaurantName;
     private String shipperName;
     private String shipperEmail;
@@ -61,7 +61,8 @@ public class OrderDTO {
             this.restaurantName = order.getRestaurant().getName();
         }
 
-        // Map Shipper (Nếu Shipper entity có fullName và quan hệ với Account để lấy email)
+        // Map Shipper (Nếu Shipper entity có fullName và quan hệ với Account để lấy
+        // email)
         if (order.getShipper() != null) {
             this.shipperName = order.getShipper().getFullName();
             if (order.getShipper().getAccount() != null) {
@@ -75,8 +76,9 @@ public class OrderDTO {
                     .map(OrderItemDTO::new)
                     .collect(Collectors.toList());
         }
+        if (order.getCustomer() != null) {
+            this.customerName = order.getCustomer().getUsername();
+        }
 
-        // LƯU Ý: customerName không được map ở đây vì order.getCustomer() trả về Account
-        // Việc này sẽ do AdminOrderService xử lý.
     }
 }

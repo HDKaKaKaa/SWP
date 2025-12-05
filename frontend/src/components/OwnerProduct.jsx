@@ -1,16 +1,17 @@
 /* eslint-disable no-unused-vars */
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useContext } from "react";
 import axios from "axios";
 import { Table, Button, Container, Row, Col, Badge, Spinner, Alert, Pagination, Form } from "react-bootstrap";
 import { FaEdit, FaTrash, FaPlus, FaCamera, FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
-
+import { AuthContext } from "../context/AuthContext";
 const OwnerProducts = () => {
     const API_URL = "http://localhost:8080/api/owner/products";
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [message, setMessage] = useState(null);
     const [variant, setVariant] = useState(null);
-
+    const { user } = useContext(AuthContext);
+    const [ownerId, setOwnerId] = useState(null);
     // States cho Lọc/Tìm kiếm/Phân trang
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(0);
@@ -20,7 +21,20 @@ const OwnerProducts = () => {
     const [restaurants, setRestaurants] = useState([]);
     const [selectedRestaurant, setSelectedRestaurant] = useState("");
 
-    const ownerId = 7;
+    useEffect(() => {
+        if (!user) return;
+
+        const fetchOwnerId = async () => {
+            try {
+                const res = await axios.get(`http://localhost:8080/api/owner/byAccount/${user.id}`);
+                setOwnerId(res.data);
+            } catch (err) {
+                console.error("Không lấy được ownerId:", err);
+            }
+        };
+
+        fetchOwnerId();
+    }, [user]);
 
     // Hàm chung để tải sản phẩm 
     const fetchProducts = useCallback(async () => {
@@ -180,7 +194,7 @@ const OwnerProducts = () => {
             <Table striped bordered hover responsive>
                 <thead>
                     <tr>
-                        <th> ID</th>
+                        <th>ID</th>
                         <th>Ảnh</th>
                         <th onClick={() => handleSort("name")} style={{ cursor: "pointer" }}>
                             Tên Sản Phẩm {getSortIcon("name")}
