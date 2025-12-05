@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import '../css/LoginPage.css'; // Tái sử dụng style của Login cho đồng bộ
+import '../css/LoginPage.css';
 import { Form, Input, Button, message, Typography } from 'antd';
 import {
   UserOutlined,

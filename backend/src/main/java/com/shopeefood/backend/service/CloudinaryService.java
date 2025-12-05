@@ -15,14 +15,13 @@ public class CloudinaryService {
     @Autowired
     private Cloudinary cloudinary;
 
-    public String uploadImage(MultipartFile file) {
-        try {
-            // Upload file lên Cloudinary
-            Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.emptyMap());
-            // Trả về đường dẫn URL của ảnh
-            return uploadResult.get("url").toString();
-        } catch (IOException e) {
-            throw new RuntimeException("Lỗi upload ảnh: " + e.getMessage());
-        }
+    public String uploadImage(MultipartFile file) throws IOException {
+        // Upload file lên Cloudinary
+        // file.getBytes() chuyển nội dung file thành mảng byte để upload trực tiếp
+        Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
+                "resource_type", "auto"));
+
+        // Lấy về URL ảnh sau khi upload thành công
+        return uploadResult.get("secure_url").toString();
     }
 }

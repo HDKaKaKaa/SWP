@@ -74,7 +74,7 @@ const LoginPage = () => {
             />
           </Form.Item>
 
-          {/* Chỉ giữ lại nút Quên mật khẩu nằm bên phải */}
+          {/* Quên mật khẩu */}
           <div style={{ textAlign: 'right', marginBottom: '24px' }}>
             <Link to="/forgot-password" style={{ color: '#0288d1' }}>
               Quên mật khẩu?

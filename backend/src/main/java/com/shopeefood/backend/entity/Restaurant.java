@@ -18,6 +18,8 @@ public class Restaurant {
     private String address;
     private String phone;
     private String description;
+    private Double latitude;
+    private Double longitude;
 
     @Column(name = "cover_image")
     private String coverImage;
