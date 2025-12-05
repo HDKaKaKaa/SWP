@@ -9,25 +9,25 @@ import { AuthProvider } from './context/AuthContext';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <BrowserRouter>
-      <ConfigProvider
-        theme={{
-          token: {
-            colorPrimary: '#ee4d2d',
-            borderRadius: 8,
-            fontFamily: 'Helvetica Neue, sans-serif',
+    {/* <BrowserRouter> */}
+    <ConfigProvider
+      theme={{
+        token: {
+          colorPrimary: '#ee4d2d',
+          borderRadius: 8,
+          fontFamily: 'Helvetica Neue, sans-serif',
+        },
+        components: {
+          Button: {
+            fontWeight: 600,
           },
-          components: {
-            Button: {
-              fontWeight: 600,
-            },
-          },
-        }}
-      >
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </ConfigProvider>
-    </BrowserRouter>
+        },
+      }}
+    >
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </ConfigProvider>
+    {/* </BrowserRouter> */}
   </StrictMode>
 );

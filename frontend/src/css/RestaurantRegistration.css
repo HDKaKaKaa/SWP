@@ -65,7 +65,7 @@
 /* Tùy chỉnh vùng upload ảnh của Antd */
 .avatar-uploader .ant-upload {
   width: 100% !important;
-  height: 200px !important;
+  height: 400px !important;
   background: #fafafa;
   border: 1px dashed #d9d9d9;
   border-radius: 8px;

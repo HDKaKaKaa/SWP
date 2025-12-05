@@ -30,6 +30,7 @@ import ShipperOrderDetail from './pages/ShipperOrderDetail';
 import ShipperMap from './pages/ShipperMap';
 import ShipperProfile from './pages/ShipperProfile';
 import RestaurantRegistration from './pages/RestaurantRegistration';
+import CartPage from './pages/CartPage';
 
 // Tạo nhanh component placeholder để menu admin bấm không bị lỗi
 const RestaurantsPage = () => <h2>Quản lý Nhà hàng</h2>;
