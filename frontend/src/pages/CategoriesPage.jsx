@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Table, Button, Modal, Form, Input, Space, message, Popconfirm, Card, Image, Upload
-} from 'antd';
+    Table, Button, Modal, Form, Input, Space, message, Popconfirm, Card, Image, Upload, Tag, Divider
+} from 'antd'; // <-- Đã thêm Tag, Divider
 import {
-    PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined
-} from '@ant-design/icons';
+    PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, MinusCircleOutlined
+} from '@ant-design/icons'; // <-- Đã thêm MinusCircleOutlined
 import {
     getAllCategories, createCategory, updateCategory, deleteCategory, uploadImage
 } from '../services/categoryService';
@@ -62,7 +62,7 @@ const CategoriesPage = () => {
         const isLt10M = file.size / 1024 / 1024 < 10;
         if (!isLt10M) {
             message.error('Ảnh phải nhỏ hơn 10MB!');
-            return Upload.LIST_IGNORE; // Chặn upload và không hiện file lỗi
+            return Upload.LIST_IGNORE;
         }
         return true;
     };
@@ -84,6 +84,9 @@ const CategoriesPage = () => {
     };
 
     const handleFinish = async (values) => {
+        // Log để kiểm tra dữ liệu gửi đi
+        console.log("Submit values:", values);
+
         try {
             if (editingCategory) {
                 await updateCategory(editingCategory.id, values);
@@ -95,7 +98,17 @@ const CategoriesPage = () => {
             setIsModalOpen(false);
             fetchData();
         } catch (error) {
-            const errorMsg = error.response?.data || 'Có lỗi xảy ra!';
+            // Xử lý thông báo lỗi an toàn
+            let errorMsg = 'Có lỗi xảy ra!';
+            if (error.response && error.response.data) {
+                if (typeof error.response.data === 'string') {
+                    errorMsg = error.response.data;
+                } else if (error.response.data.message) {
+                    errorMsg = error.response.data.message;
+                } else if (error.response.data.error) {
+                    errorMsg = error.response.data.error;
+                }
+            }
             message.error(errorMsg);
         }
     };
@@ -128,8 +141,27 @@ const CategoriesPage = () => {
         {
             title: 'Tên danh mục',
             dataIndex: 'name',
-            width: 250,
+            width: 200,
             render: (text) => <strong style={{ color: '#1677ff', fontSize: 15 }}>{text}</strong>
+        },
+        // --- CỘT THUỘC TÍNH MỚI ---
+        {
+            title: 'Thuộc tính',
+            dataIndex: 'attributes',
+            width: 250,
+            render: (attributes) => (
+                <>
+                    {attributes && attributes.length > 0 ? (
+                        attributes.map((attr) => (
+                            <Tag color="cyan" key={attr.id || attr.name} style={{ margin: '2px' }}>
+                                {attr.name}
+                            </Tag>
+                        ))
+                    ) : (
+                        <span style={{ color: '#ccc', fontSize: 12 }}>-</span>
+                    )}
+                </>
+            ),
         },
         { title: 'Mô tả', dataIndex: 'description' },
         {
@@ -183,6 +215,7 @@ const CategoriesPage = () => {
                 open={isModalOpen}
                 onCancel={() => setIsModalOpen(false)}
                 footer={null}
+                width={600} // Mở rộng modal một chút
             >
                 <Form form={form} layout="vertical" onFinish={handleFinish}>
                     <Form.Item
@@ -213,7 +246,7 @@ const CategoriesPage = () => {
                             fileList={fileList}
                             onChange={handleUploadChange}
                             customRequest={customUpload}
-                            beforeUpload={beforeUpload} // <--- ĐÃ GẮN HÀM KIỂM TRA TẠI ĐÂY
+                            beforeUpload={beforeUpload}
                             onRemove={() => form.setFieldValue('image', '')}
                         >
                             {fileList.length < 1 && (
@@ -224,6 +257,67 @@ const CategoriesPage = () => {
                             )}
                         </Upload>
                     </Form.Item>
+
+                    <Divider />
+
+                    {/* --- PHẦN QUẢN LÝ THUỘC TÍNH --- */}
+                    <div style={{ marginBottom: 16 }}>
+                        <strong>Cấu hình thuộc tính sản phẩm:</strong>
+                        <div style={{ fontSize: 12, color: '#888' }}>
+                            Định nghĩa các thuộc tính (VD: Size, Mức đường, Mức đá...).
+                        </div>
+                    </div>
+
+                    <Form.List name="attributes">
+                        {(fields, { add, remove }) => (
+                            <>
+                                {fields.map(({ key, name, ...restField }) => (
+                                    <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
+
+                                        {/* Input ẩn chứa ID để Backend biết là Update */}
+                                        <Form.Item
+                                            {...restField}
+                                            name={[name, 'id']}
+                                            hidden={true}
+                                        >
+                                            <Input />
+                                        </Form.Item>
+
+                                        <Form.Item
+                                            {...restField}
+                                            name={[name, 'name']}
+                                            rules={[{ required: true, message: 'Nhập tên' }]}
+                                            style={{ width: 300 }}
+                                        >
+                                            <Input placeholder="Tên thuộc tính (VD: Size)" />
+                                        </Form.Item>
+
+                                        {/* Input ẩn DataType mặc định là TEXT */}
+                                        <Form.Item
+                                            {...restField}
+                                            name={[name, 'dataType']}
+                                            initialValue="TEXT"
+                                            hidden={true}
+                                        >
+                                            <Input />
+                                        </Form.Item>
+
+                                        <MinusCircleOutlined
+                                            onClick={() => remove(name)}
+                                            style={{ color: '#ff4d4f', fontSize: 18, cursor: 'pointer' }}
+                                        />
+                                    </Space>
+                                ))}
+
+                                <Form.Item>
+                                    <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                                        Thêm thuộc tính mới
+                                    </Button>
+                                </Form.Item>
+                            </>
+                        )}
+                    </Form.List>
+                    {/* ---------------------------------- */}
 
                     <div style={{ textAlign: 'right', marginTop: 20 }}>
                         <Space>
