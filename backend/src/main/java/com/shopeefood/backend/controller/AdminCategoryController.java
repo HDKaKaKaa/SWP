@@ -19,10 +19,12 @@ public class AdminCategoryController {
     // GET: Lấy danh sách
     @GetMapping
     public ResponseEntity<List<Category>> getAll() {
+        // Trả về Entity list, nhưng Attribute đã có @JsonIgnore ở chiều ngược lại
+        // nên Homepage load danh sách này sẽ KHÔNG bị lỗi 500.
         return ResponseEntity.ok(categoryService.getAllCategories());
     }
 
-    // POST: Thêm mới
+    // POST: Thêm mới (Nhận DTO để xử lý cả list thuộc tính)
     @PostMapping
     public ResponseEntity<?> create(@RequestBody CategoryDTO dto) {
         try {
@@ -33,7 +35,7 @@ public class AdminCategoryController {
         }
     }
 
-    // PUT: Cập nhật
+    // PUT: Cập nhật (Nhận DTO để cập nhật lại list thuộc tính)
     @PutMapping("/{id}")
     public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody CategoryDTO dto) {
         try {
