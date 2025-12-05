@@ -1,45 +1,30 @@
 package com.shopeefood.backend.controller;
 
+import com.shopeefood.backend.service.CloudinaryService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.util.UUID;
-
 @RestController
 @RequestMapping("/api/upload")
+@CrossOrigin("*")
 public class FileUploadController {
 
-    private final String UPLOAD_DIR = "./uploads/";
+    @Autowired
+    private CloudinaryService cloudinaryService;
 
-    @PostMapping
+    @PostMapping("/image")
     public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) {
         try {
-            // Tạo thư mục uploads nếu chưa có
-            Path uploadPath = Paths.get(UPLOAD_DIR);
-            if (!Files.exists(uploadPath)) {
-                Files.createDirectories(uploadPath);
-            }
+            // Gọi service để upload lên Cloudinary
+            String imageUrl = cloudinaryService.uploadImage(file);
 
-            // Tạo tên file độc nhất để tránh trùng (dùng UUID)
-            String fileName = UUID.randomUUID().toString() + "_" + StringUtils.cleanPath(file.getOriginalFilename());
+            // Trả về URL của Cloudinary
+            return ResponseEntity.ok(imageUrl);
 
-            // Lưu file vào thư mục
-            Path filePath = uploadPath.resolve(fileName);
-            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-
-            // Trả về đường dẫn ảnh để Frontend dùng (URL đầy đủ)
-            String fileUrl = "http://localhost:8080/images/" + fileName;
-            return ResponseEntity.ok(fileUrl);
-
-        } catch (IOException e) {
-            return ResponseEntity.internalServerError().body("Lỗi upload file: " + e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Lỗi upload ảnh: " + e.getMessage());
         }
     }
 }

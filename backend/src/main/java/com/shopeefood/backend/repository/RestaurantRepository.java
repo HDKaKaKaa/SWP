@@ -1,6 +1,8 @@
 package com.shopeefood.backend.repository;
 
 import com.shopeefood.backend.entity.Restaurant;
+import com.shopeefood.backend.entity.Restaurant.RestaurantStatus;
+
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -36,4 +38,8 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Integer>
      * Dùng cho màn admin quản lý chủ nhà hàng.
      */
     List<Restaurant> findByOwnerAccountIdIn(List<Integer> ownerAccountIds);
+
+    List<Restaurant> findByStatus(RestaurantStatus status);
+
+    List<Restaurant> findByNameContainingAndStatus(String keyword, RestaurantStatus status);
 }

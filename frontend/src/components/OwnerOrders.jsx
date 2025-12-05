@@ -1,8 +1,11 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useContext } from "react";
 import axios from "axios";
 import { Table, Form, Button, Row, Col, Badge, Pagination } from "react-bootstrap";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { FaSort, FaSortUp, FaSortDown } from "react-icons/fa";
+import { AuthContext } from "../context/AuthContext";
+
 const OrderStatusBadge = ({ status }) => {
     const colors = {
         PENDING: "secondary",
@@ -16,9 +19,9 @@ const OrderStatusBadge = ({ status }) => {
 };
 
 export default function OwnerOrders() {
-    const ownerId = 7;
-    // const { user } = useContext(AuthContext);
-    // const ownerId = user?.accountId;
+    const { user } = useContext(AuthContext);
+    const [ownerId, setOwnerId] = useState(null);
+
     const [orders, setOrders] = useState([]);
     const [restaurants, setRestaurants] = useState([]);
     const [selectedRestaurant, setSelectedRestaurant] = useState(null);
@@ -34,6 +37,26 @@ export default function OwnerOrders() {
     const [sortDir, setSortDir] = useState("desc");
 
     const [loading, setLoading] = useState(false);
+    const getSortIcon = (field) => {
+        if (sortField === field) {
+            return sortDir === "asc" ? <FaSortUp className="ms-1" /> : <FaSortDown className="ms-1" />;
+        }
+        return <FaSort className="ms-1 text-muted" />;
+    };
+    useEffect(() => {
+        if (!user) return;
+
+        const fetchOwnerId = async () => {
+            try {
+                const res = await axios.get(`http://localhost:8080/api/owner/byAccount/${user.id}`);
+                setOwnerId(res.data);
+            } catch (err) {
+                console.error("Không lấy được ownerId:", err);
+            }
+        };
+
+        fetchOwnerId();
+    }, [user]);
 
     useEffect(() => {
         if (!ownerId) return;
@@ -61,8 +84,8 @@ export default function OwnerOrders() {
                     ownerId,
                     restaurantId: selectedRestaurant || null,
                     search,
-                    from: fromDate ? new Date(fromDate).toISOString() : null,
-                    to: toDate ? new Date(toDate).toISOString() : null,
+                    from: fromDate ? fromDate + "T00:00:00" : null,
+                    to: toDate ? toDate + "T23:59:59" : null,
                     page,
                     size: 10,
                     sortField,
@@ -119,6 +142,15 @@ export default function OwnerOrders() {
             alert("Cập nhật trạng thái thất bại");
             fetchOrders();
         }
+    };
+    const handleReset = () => {
+        setSearch("");
+        setSelectedRestaurant(null);
+        setFromDate("");
+        setToDate("");
+        setSortField("createdAt");
+        setSortDir("desc");
+        setPage(0);
     };
 
     return (
@@ -180,9 +212,9 @@ export default function OwnerOrders() {
                 <Col md={2}>
                     <Button
                         className="w-100"
-                        onClick={handleFilter}
+                        onClick={handleReset}
                     >
-                        Lọc
+                        Reset
                     </Button>
                 </Col>
             </Row>
@@ -190,13 +222,20 @@ export default function OwnerOrders() {
             <Table striped bordered hover>
                 <thead>
                     <tr>
-                        <th onClick={() => handleSort("id")} style={{ cursor: "pointer" }}>Mã đơn</th>
+                        <th>STT</th>
+                        <th onClick={() => handleSort("id")} style={{ cursor: "pointer" }}>Mã đơn {getSortIcon("id")}</th>
                         <th>Đơn hàng</th>
                         <th>Ghi chú</th>
                         <th>Khách hàng</th>
-                        <th onClick={() => handleSort("totalAmount")} style={{ cursor: "pointer" }}>Tổng tiền</th>
+                        <th onClick={() => handleSort("totalAmount")} style={{ cursor: "pointer" }}>
+                            Tổng tiền {getSortIcon("totalAmount")}
+                        </th>
+
                         <th>Thanh toán</th>
-                        <th onClick={() => handleSort("createdAt")} style={{ cursor: "pointer" }}>Ngày tạo</th>
+                        <th onClick={() => handleSort("createdAt")} style={{ cursor: "pointer" }}>
+                            Ngày tạo {getSortIcon("createdAt")}
+                        </th>
+
                         <th>Trạng thái</th>
                         <th>Hành động</th>
                     </tr>
@@ -208,8 +247,9 @@ export default function OwnerOrders() {
                     ) : orders.length === 0 ? (
                         <tr><td colSpan="9" className="text-center">Không có đơn hàng</td></tr>
                     ) : (
-                        orders.map((o) => (
+                        orders.map((o, index) => (
                             <tr key={o.id}>
+                                <td>{page * 10 + index + 1}</td>
                                 <td>{o.id}</td>
                                 <td>
                                     {o.items && o.items.length > 0 ? (
@@ -224,10 +264,20 @@ export default function OwnerOrders() {
                                     )}
                                 </td>
                                 <td>{o.note || '—'}</td>
-                                <td>{o.customerName || '—'}</td>
+                                <td>{o.customer?.username || '—'}</td>
                                 <td>{o.totalAmount.toLocaleString('vi-VN')}₫</td>
                                 <td>{o.paymentMethod}</td>
-                                <td>{new Date(o.createdAt).toLocaleString()}</td>
+                                <td>
+                                    {(() => {
+                                        const d = new Date(o.createdAt);
+                                        const dd = String(d.getDate()).padStart(2, "0");
+                                        const mm = String(d.getMonth() + 1).padStart(2, "0");
+                                        const yyyy = d.getFullYear();
+                                        const hh = String(d.getHours()).padStart(2, "0");
+                                        const mi = String(d.getMinutes()).padStart(2, "0");
+                                        return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
+                                    })()}
+                                </td>
                                 <td><OrderStatusBadge status={o.status} /></td>
                                 <td>
                                     {o.status === "PENDING" && (

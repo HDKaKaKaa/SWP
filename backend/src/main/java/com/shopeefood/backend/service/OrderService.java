@@ -22,7 +22,7 @@ public class OrderService {
     public Page<OrderDTO> getOrdersForOwner(Integer ownerId, Integer restaurantId,
             int page, int size, String search,
             LocalDateTime from, LocalDateTime to, String sortField, String sortDir) {
- 
+
         if (to == null)
             to = LocalDateTime.now();
 
@@ -30,7 +30,24 @@ public class OrderService {
         if (search != null && !search.trim().isEmpty()) {
             searchPattern = "%" + search.trim().toLowerCase() + "%";
         }
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        // Xử lý sort
+        Sort sort;
+
+        if (sortField == null || sortField.isBlank()) {
+            // sort mặc định
+            sort = Sort.by(Sort.Direction.DESC, "createdAt");
+        } else {
+            // sort theo user
+            Sort.Direction direction = (sortDir != null && sortDir.equalsIgnoreCase("asc"))
+                    ? Sort.Direction.ASC
+                    : Sort.Direction.DESC;
+
+            sort = Sort.by(direction, sortField);
+        }
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+
         Page<Order> orderPage = orderRepository.findOrdersByOwnerAndRestaurant(
                 ownerId,
                 restaurantId,

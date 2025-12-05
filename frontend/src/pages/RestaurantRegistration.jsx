@@ -2,9 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
-import '../css/RestaurantRegistration.css'; // Import CSS mới
-
-// Import Ant Design Components
+import '../css/RestaurantRegistration.css';
 import {
   Form,
   Input,
@@ -24,7 +22,10 @@ import {
   HomeOutlined,
   PlusOutlined,
   LoadingOutlined,
+  EnvironmentOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
+import MapModal from '../components/MapModal';
 
 const { TextArea } = Input;
 
@@ -32,6 +33,8 @@ const RestaurantRegistration = () => {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
+  const [isMapOpen, setIsMapOpen] = useState(false);
+  const [coordinates, setCoordinates] = useState(null);
 
   // State quản lý ảnh upload
   const [fileList, setFileList] = useState([]);
@@ -40,12 +43,12 @@ const RestaurantRegistration = () => {
   // Form instance để xử lý dữ liệu
   const [form] = Form.useForm();
 
-  useEffect(() => {
-    if (!user) {
-      message.warning('Bạn cần đăng nhập để thực hiện chức năng này!');
-      navigate('/login');
-    }
-  }, [user, navigate]);
+  // useEffect(() => {
+  //   if (!user) {
+  //     message.warning('Bạn cần đăng nhập để thực hiện chức năng này!');
+  //     navigate('/login');
+  //   }
+  // }, [user, navigate]);
 
   // Xử lý khi người dùng chọn ảnh
   const handlePreview = async (file) => {
@@ -55,17 +58,28 @@ const RestaurantRegistration = () => {
     setPreviewImage(file.url || file.preview);
   };
 
+  const handleRemoveImage = (e) => {
+    e.stopPropagation();
+
+    setFileList([]);
+    setPreviewImage('');
+  };
+
   const handleChange = ({ fileList: newFileList }) => setFileList(newFileList);
 
-  // Chặn auto upload của Antd, chỉ lấy file để gửi thủ công
   const beforeUpload = (file) => {
-    // Kiểm tra định dạng ảnh
     const isJpgOrPng = file.type === 'image/jpeg' || file.type === 'image/png';
     if (!isJpgOrPng) {
       message.error('Bạn chỉ có thể upload file JPG/PNG!');
       return Upload.LIST_IGNORE;
     }
-    return false; // Return false để không tự động upload ngay
+    const isLt5M = file.size / 1024 / 1024 < 5;
+    if (!isLt5M) {
+      message.error('Dung lượng ảnh phải nhỏ hơn 5MB!');
+      return Upload.LIST_IGNORE;
+    }
+
+    return false;
   };
 
   // Hàm chuyển file sang base64 để preview
@@ -76,6 +90,35 @@ const RestaurantRegistration = () => {
       reader.onload = () => resolve(reader.result);
       reader.onerror = (error) => reject(error);
     });
+
+  const handleMapConfirm = async (coords) => {
+    const [lat, lng] = coords;
+    setCoordinates({ latitude: lat, longitude: lng });
+    setIsMapOpen(false);
+
+    message.loading({ content: 'Đang lấy địa chỉ...', key: 'geocoding' });
+
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`
+      );
+      const data = await response.json();
+
+      // Cập nhật vào ô input Địa chỉ
+      if (data.display_name) {
+        form.setFieldsValue({
+          address: data.display_name,
+        });
+        message.success({ content: 'Đã cập nhật địa chỉ!', key: 'geocoding' });
+      }
+    } catch (error) {
+      console.error(error);
+      message.error({
+        content: 'Không thể lấy tên đường, vui lòng nhập tay.',
+        key: 'geocoding',
+      });
+    }
+  };
 
   // XỬ LÝ SUBMIT FORM
   const onFinish = async (values) => {
@@ -117,6 +160,8 @@ const RestaurantRegistration = () => {
         idCardNumber: values.idCardNumber,
         coverImageUrl: coverImageUrl,
         accountId: user.id,
+        latitude: coordinates?.latitude || null,
+        longitude: coordinates?.longitude || null,
       };
 
       await axios.post(
@@ -147,6 +192,12 @@ const RestaurantRegistration = () => {
             Hãy trở thành đối tác của Foorder ngay hôm nay
           </p>
         </div>
+
+        <MapModal
+          isOpen={isMapOpen}
+          onClose={() => setIsMapOpen(false)}
+          onConfirm={handleMapConfirm}
+        />
 
         <div className="res-reg-body">
           <Form
@@ -225,17 +276,44 @@ const RestaurantRegistration = () => {
                 </Form.Item>
 
                 <Form.Item
-                  name="address"
                   label="Địa chỉ quán"
-                  normalize={(v) => v?.trimStart()}
-                  rules={[
-                    { required: true, message: 'Vui lòng nhập địa chỉ!' },
-                  ]}
+                  required
+                  style={{ marginBottom: 0 }}
                 >
-                  <Input
-                    prefix={<HomeOutlined />}
-                    placeholder="Số nhà, đường, phường, quận..."
-                  />
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <Form.Item
+                      name="address"
+                      style={{ flex: 1 }}
+                      rules={[
+                        { required: true, message: 'Vui lòng nhập địa chỉ!' },
+                      ]}
+                    >
+                      <Input
+                        prefix={<HomeOutlined />}
+                        placeholder="Số nhà, đường, phường, quận..."
+                      />
+                    </Form.Item>
+
+                    <Button
+                      icon={<EnvironmentOutlined />}
+                      onClick={() => setIsMapOpen(true)}
+                    >
+                      Chọn trên bản đồ
+                    </Button>
+                  </div>
+                  {coordinates && (
+                    <div
+                      style={{
+                        fontSize: '12px',
+                        color: '#1890ff',
+                        marginTop: '-15px',
+                        marginBottom: '15px',
+                      }}
+                    >
+                      Đã chọn tọa độ: {coordinates.latitude.toFixed(6)},{' '}
+                      {coordinates.longitude.toFixed(6)}
+                    </div>
+                  )}
                 </Form.Item>
 
                 <Form.Item name="description" label="Mô tả ngắn">
@@ -265,24 +343,65 @@ const RestaurantRegistration = () => {
                     name="avatar"
                     listType="picture-card"
                     className="avatar-uploader"
-                    showUploadList={false} // Tắt list mặc định để tự custom preview
+                    showUploadList={false}
                     beforeUpload={beforeUpload}
                     onChange={handleChange}
                     maxCount={1}
+                    style={{ overflow: 'hidden' }}
                   >
                     {fileList.length > 0 ? (
-                      <img
-                        src={URL.createObjectURL(fileList[0].originFileObj)}
-                        alt="avatar"
+                      <div
+                        className="preview-wrapper"
                         style={{
+                          position: 'relative',
                           width: '100%',
                           height: '100%',
-                          objectFit: 'cover',
-                          borderRadius: '8px',
+                          aspectRatio: '1/1',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                         }}
-                      />
+                      >
+                        <img
+                          src={
+                            previewImage ||
+                            URL.createObjectURL(fileList[0].originFileObj)
+                          }
+                          alt="avatar"
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            borderRadius: '8px',
+                          }}
+                        />
+                        <Button
+                          type="primary"
+                          danger
+                          shape="circle"
+                          icon={<DeleteOutlined />}
+                          size="small"
+                          onClick={handleRemoveImage}
+                          style={{
+                            position: 'absolute',
+                            top: '5px',
+                            right: '5px',
+                            zIndex: 10,
+                            opacity: 0.9,
+                          }}
+                        />
+                      </div>
                     ) : (
-                      <div style={{ padding: 20 }}>
+                      <div
+                        style={{
+                          padding: 20,
+                          aspectRatio: '1/1',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
                         {loading ? (
                           <LoadingOutlined />
                         ) : (

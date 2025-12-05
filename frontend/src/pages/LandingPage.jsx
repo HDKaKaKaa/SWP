@@ -79,9 +79,9 @@ const LandingPage = () => {
   };
 
   const banners = [
-    'https://plus.unsplash.com/premium_photo-1695411123705-3a2157d517ad?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8VmlldG5hbWVzZSUyMGZvb2R8ZW58MHx8MHx8fDA%3D',
-    'https://images.unsplash.com/photo-1715925717150-2a6d181d8846?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Nnx8VmlldG5hbWVzZSUyMGZvb2R8ZW58MHx8MHx8fDA%3D',
-    'https://images.unsplash.com/photo-1619900950180-4a099c7aaeb1?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTF8fFZpZXRuYW1lc2UlMjBmb29kfGVufDB8fDB8fHww',
+    'https://png.pngtree.com/thumb_back/fh260/back_our/20190621/ourmid/pngtree-vegetable-salad-simple-gray-banner-image_190217.jpg',
+    'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQZ4_m4nU_ojuEDQ1j2ht5xoLJp7b4iv-CjLw&s',
+    'https://diachiamthuc.vn/wp-content/uploads/2023/09/Mr.Eco-Salad-Healthy-Food-Drinks.jpg',
   ];
 
   return (
