@@ -1,11 +1,11 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { AuthContext } from '../context/AuthContext';
-import { MdRestaurant } from 'react-icons/md';
-import { HiLocationMarker } from 'react-icons/hi';
-import { FaCreditCard } from 'react-icons/fa';
-import '../css/CheckoutPage.css';
+import React, { useContext, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import { AuthContext } from "../context/AuthContext";
+import { MdRestaurant } from "react-icons/md";
+import { HiLocationMarker } from "react-icons/hi";
+import { FaCreditCard } from "react-icons/fa";
+import "../css/CheckoutPage.css";
 
 const CheckoutPage = () => {
     const { user } = useContext(AuthContext);
@@ -13,19 +13,19 @@ const CheckoutPage = () => {
 
     const [cart, setCart] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
     const [processing, setProcessing] = useState(false);
+    const [error, setError] = useState(null);
 
     const formatPrice = (v) => {
-        if (!v) return '0 đ';
+        if (!v) return "0 đ";
         try {
-            return v.toLocaleString('vi-VN') + ' đ';
+            return v.toLocaleString("vi-VN") + " đ";
         } catch {
             return `${v} đ`;
         }
     };
 
-    // Load cart giống CartPage nhưng chỉ hiển thị read-only
+    // ===== Lấy cart để hiển thị =====
     useEffect(() => {
         if (!user) {
             setLoading(false);
@@ -36,13 +36,14 @@ const CheckoutPage = () => {
             try {
                 setLoading(true);
                 setError(null);
-                const res = await axios.get('http://localhost:8080/api/cart', {
+                const res = await axios.get("http://localhost:8080/api/cart", {
                     params: { accountId: user.id },
+                    withCredentials: true,
                 });
                 setCart(res.data);
-            } catch (err) {
-                console.error(err);
-                setError('Không tải được thông tin đơn hàng. Vui lòng thử lại.');
+            } catch (e) {
+                console.error(e);
+                setError("Không tải được thông tin đơn hàng.");
             } finally {
                 setLoading(false);
             }
@@ -52,17 +53,17 @@ const CheckoutPage = () => {
     }, [user]);
 
     const shippingFee = useMemo(
-        () => (cart?.shippingFee ?? 15000),
+        () => cart?.shippingFee ?? 0,
         [cart]
     );
 
     const subtotal = useMemo(
-        () => (cart?.subtotal ?? 0),
+        () => cart?.subtotal ?? 0,
         [cart]
     );
 
     const total = useMemo(
-        () => (cart?.total ?? subtotal + shippingFee),
+        () => cart?.total ?? subtotal + shippingFee,
         [cart, subtotal, shippingFee]
     );
 
@@ -72,48 +73,56 @@ const CheckoutPage = () => {
     );
 
     const handleChangeAddress = () => {
-        // Không cho sửa trực tiếp trên checkout, chỉ điều hướng về nơi được phép sửa
-        navigate('/cart');
-        // hoặc navigate('/profile'); tuỳ flow bạn đang dùng cho update address
+        navigate("/cart"); // chỗ này bạn đang cho sửa địa chỉ
     };
 
     const handleBackToCart = () => {
-        navigate('/cart');
+        navigate("/cart");
     };
 
+    // ===== Nút Thanh toán PayOS =====
     const handlePayWithPayOS = async () => {
         if (!user) {
-            navigate('/login');
+            navigate("/login");
             return;
         }
         if (!cart || !cart.items || cart.items.length === 0) return;
 
+        // Lưu ý: cart cần có field orderId (id của Order đã tạo ở backend).
+        // Nếu backend của bạn đặt tên khác (vd: cart.order.id), chỉnh lại cho đúng.
+        const orderId = cart.orderId || cart.order?.id || cart.id;
+
+        if (!orderId) {
+            setError("Không tìm thấy mã đơn hàng (orderId) để thanh toán.");
+            return;
+        }
+
         try {
             setProcessing(true);
+            setError(null);
 
-            // TODO: sau này gọi API tạo order + transaction + link PayOS ở backend
-            // Ví dụ:
-            // const res = await axios.post('http://localhost:8080/api/payos/checkout', {
-            //   orderId: cart.orderId,
-            //   totalAmount: total,
-            // });
-            // window.location.href = res.data.paymentUrl;
+            const res = await axios.post(
+                `http://localhost:8080/api/payment/create-link/${orderId}`,
+                {},
+                { withCredentials: true }
+            );
 
-            console.log('Thanh toán với PayOS', {
-                orderId: cart.orderId,
-                paymentMethod: 'PAYOS',
-                total,
-            });
-            alert('Preview UI: Chỗ này sẽ redirect sang PayOS sau khi backend xong.');
-        } catch (err) {
-            console.error(err);
-            setError('Không khởi tạo được thanh toán. Vui lòng thử lại.');
+            const data = res.data; // PaymentLinkDTO
+            if (data && data.checkoutUrl) {
+                // Redirect sang trang thanh toán PayOS
+                window.location.href = data.checkoutUrl;
+            } else {
+                setError("Không nhận được link thanh toán từ PayOS.");
+            }
+        } catch (e) {
+            console.error(e);
+            setError("Không khởi tạo được thanh toán PayOS.");
         } finally {
             setProcessing(false);
         }
     };
 
-    // ======= Các trạng thái đặc biệt =======
+    // ========== Render các trạng thái ==========
     if (!user) {
         return (
             <div className="checkout-page">
@@ -126,7 +135,7 @@ const CheckoutPage = () => {
                         <button
                             type="button"
                             className="checkout-login-btn"
-                            onClick={() => navigate('/login')}
+                            onClick={() => navigate("/login")}
                         >
                             Đăng nhập ngay
                         </button>
@@ -142,9 +151,7 @@ const CheckoutPage = () => {
                 <div className="checkout-wrapper">
                     <h1 className="checkout-title">Thanh toán đơn hàng</h1>
                     <div className="checkout-empty-card">
-                        <p className="checkout-empty-text">
-                            Đang tải thông tin đơn hàng...
-                        </p>
+                        <p className="checkout-empty-text">Đang tải thông tin đơn hàng...</p>
                     </div>
                 </div>
             </div>
@@ -173,36 +180,35 @@ const CheckoutPage = () => {
         );
     }
 
+    // ========== UI chính ==========
     return (
         <div className="checkout-page">
             <div className="checkout-wrapper">
                 <h1 className="checkout-title">Thanh toán đơn hàng</h1>
 
                 <div className="checkout-content">
-                    {/* Cột trái: Thông tin giao hàng + Phương thức thanh toán */}
+                    {/* Cột trái */}
                     <main className="checkout-main">
-                        {/* Thông tin giao hàng */}
+                        {/* Địa chỉ giao hàng */}
                         <section className="checkout-card">
                             <header className="checkout-address-header">
                                 <div className="checkout-address-icon-wrap">
                                     <HiLocationMarker className="checkout-address-icon" />
                                 </div>
                                 <div className="checkout-address-text-wrap">
-                                    <div className="checkout-address-label">
-                                        Địa chỉ giao hàng
-                                    </div>
+                                    <div className="checkout-address-label">Địa chỉ giao hàng</div>
                                     <div className="checkout-address-main">
-                                        <span className="checkout-address-name">
-                                            {user?.fullName || user?.username || 'Khách hàng'}
-                                        </span>
+                    <span className="checkout-address-name">
+                      {user?.fullName || user?.username || "Khách hàng"}
+                    </span>
                                         {user?.phone && (
                                             <span className="checkout-address-phone">
-                                                • {user.phone}
-                                            </span>
+                        • {user.phone}
+                      </span>
                                         )}
                                     </div>
                                     <div className="checkout-address-detail">
-                                        {cart.shippingAddress || 'Chưa có địa chỉ giao hàng'}
+                                        {cart.shippingAddress || "Chưa có địa chỉ giao hàng"}
                                     </div>
                                 </div>
                                 <button
@@ -220,24 +226,24 @@ const CheckoutPage = () => {
                                 </div>
                                 <div className="checkout-res-text">
                                     <div className="checkout-res-name">
-                                        {cart.restaurantName || 'Quán ăn'}
+                                        {cart.restaurantName || "Quán ăn"}
                                     </div>
                                     <div className="checkout-res-address">
-                                        {cart.restaurantAddress || 'Địa chỉ quán chưa cập nhật'}
+                                        {cart.restaurantAddress || "Địa chỉ quán chưa cập nhật"}
                                     </div>
                                 </div>
                             </div>
                         </section>
 
-                        {/* Phương thức thanh toán – chỉ PayOS */}
+                        {/* Phương thức thanh toán */}
                         <section className="checkout-card">
                             <h2 className="checkout-section-title">Phương thức thanh toán</h2>
                             <div className="checkout-payment-methods">
                                 <div className="checkout-payment-option checkout-payment-option--active">
                                     <div className="checkout-payment-option-left">
-                                        <span className="checkout-radio-wrapper">
-                                            <span className="checkout-radio-circle checkout-radio-circle--checked" />
-                                        </span>
+                    <span className="checkout-radio-wrapper">
+                      <span className="checkout-radio-circle checkout-radio-circle--checked" />
+                    </span>
                                         <div>
                                             <div className="checkout-payment-title">
                                                 <FaCreditCard className="checkout-payment-icon" />
@@ -257,21 +263,16 @@ const CheckoutPage = () => {
                         </section>
                     </main>
 
-                    {/* Cột phải: Tóm tắt đơn hàng */}
+                    {/* Cột phải – tóm tắt đơn hàng */}
                     <aside className="checkout-sidebar">
                         <section className="checkout-card checkout-summary-card">
                             <h2 className="checkout-section-title">Đơn hàng của bạn</h2>
 
                             <div className="checkout-items-list">
                                 {cart.items.map((item) => (
-                                    <div
-                                        key={item.productId}
-                                        className="checkout-item-row"
-                                    >
+                                    <div key={item.productId} className="checkout-item-row">
                                         <div className="checkout-item-main">
-                                            <div className="checkout-item-name">
-                                                {item.productName}
-                                            </div>
+                                            <div className="checkout-item-name">{item.productName}</div>
                                             <div className="checkout-item-meta">
                                                 x{item.quantity} · {formatPrice(item.price)}
                                             </div>
@@ -284,10 +285,10 @@ const CheckoutPage = () => {
                             </div>
 
                             <div className="checkout-summary-row">
-                                <span>
-                                    Tổng giá món
-                                    {totalItems > 0 ? ` (${totalItems} món)` : ''}
-                                </span>
+                <span>
+                  Tổng giá món
+                    {totalItems > 0 ? ` (${totalItems} món)` : ""}
+                </span>
                                 <span>{formatPrice(subtotal)}</span>
                             </div>
                             <div className="checkout-summary-row">
@@ -319,16 +320,16 @@ const CheckoutPage = () => {
                                 disabled={processing}
                             >
                                 {processing
-                                    ? 'Đang xử lý...'
+                                    ? "Đang xử lý..."
                                     : `Thanh toán với PayOS - ${formatPrice(total)}`}
                             </button>
-                        </section>
 
-                        {error && (
-                            <p className="checkout-error-text">
-                                {error}
-                            </p>
-                        )}
+                            {error && (
+                                <p className="checkout-error-text" style={{ marginTop: 8 }}>
+                                    {error}
+                                </p>
+                            )}
+                        </section>
                     </aside>
                 </div>
             </div>

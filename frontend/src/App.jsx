@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  BrowserRouter as Router,
   Routes,
   Route,
   Outlet,
@@ -113,7 +112,6 @@ function App() {
           {/* <Route path="reports" element={<OwnerReports />} />       */}
         </Route>
       </Routes>
-    
   );
 }
 

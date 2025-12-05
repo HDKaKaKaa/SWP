@@ -8,7 +8,9 @@ import com.shopeefood.backend.entity.Order;
 import com.shopeefood.backend.entity.Transaction;
 import com.shopeefood.backend.repository.OrderRepository;
 import com.shopeefood.backend.repository.TransactionRepository;
-import lombok.Value;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.payos.PayOS;
 import vn.payos.type.Webhook;
@@ -24,7 +26,10 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
+@Service
+@RequiredArgsConstructor
 public class PaymentService {
+
     private final OrderRepository orderRepository;
     private final TransactionRepository transactionRepository;
     private final PayOS payOS;

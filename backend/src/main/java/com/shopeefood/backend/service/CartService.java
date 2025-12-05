@@ -89,6 +89,13 @@ public class CartService {
             order.setSubtotal(BigDecimal.ZERO);
             order.setTotalAmount(BigDecimal.ZERO);
             order = orderRepository.save(order);
+
+            // Gán mã đơn FOyyyyMMddNNNN
+            if (order.getOrderNumber() == null) {
+                order.setOrderNumber(Order.buildOrderNumber(order.getId()));
+                orderRepository.save(order);
+            }
+
         } else {
             order = optCart.get();
 

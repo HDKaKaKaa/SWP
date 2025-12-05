@@ -61,6 +61,12 @@ public class OrderController {
 
         Order savedOrder = orderRepository.save(order);
 
+        // Gán mã đơn nếu chưa có
+        if (savedOrder.getOrderNumber() == null) {
+            savedOrder.setOrderNumber(Order.buildOrderNumber(savedOrder.getId()));
+            savedOrder = orderRepository.save(savedOrder);
+        }
+
         // 3. Lưu chi tiết món (Order Items)
         for (OrderItemRequest itemReq : request.getItems()) {
             Product p = productRepository.findById(itemReq.getProductId()).orElseThrow();

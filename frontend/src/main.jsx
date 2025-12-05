@@ -9,7 +9,7 @@ import { AuthProvider } from './context/AuthContext';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    {/* <BrowserRouter> */}
+     <BrowserRouter>
     <ConfigProvider
       theme={{
         token: {
@@ -28,6 +28,6 @@ createRoot(document.getElementById('root')).render(
         <App />
       </AuthProvider>
     </ConfigProvider>
-    {/* </BrowserRouter> */}
+     </BrowserRouter>
   </StrictMode>
 );
