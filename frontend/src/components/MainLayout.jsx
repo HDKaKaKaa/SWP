@@ -7,7 +7,8 @@ import {
     FileTextOutlined,
     CarOutlined,
     AppstoreOutlined,
-    HomeOutlined
+    HomeOutlined,
+    AuditOutlined
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 
@@ -25,10 +26,12 @@ const MainLayout = () => {
     const items = [
         { key: '/admin', icon: <PieChartOutlined />, label: 'Tổng quan' },
         { key: '/admin/categories', icon: <AppstoreOutlined />, label: 'Danh mục món' },
-        { key: '/admin/restaurants', icon: <ShopOutlined />, label: 'Quản lý Nhà hàng' },
+        { key: '/admin/restaurant-approval', icon: <AuditOutlined />, label: 'Duyệt Nhà hàng' },
+        { key: '/admin/restaurants', icon: <ShopOutlined />, label: 'Danh sách Nhà hàng' },
         { key: '/admin/orders', icon: <FileTextOutlined />, label: 'Đơn hàng' },
         { key: '/admin/users', icon: <UserOutlined />, label: 'Người dùng' },
         { key: '/admin/shippers', icon: <CarOutlined />, label: 'Tài xế' },
+
         { type: 'divider' },
         { key: '/', icon: <HomeOutlined />, label: 'Về trang chủ', danger: true },
     ];
