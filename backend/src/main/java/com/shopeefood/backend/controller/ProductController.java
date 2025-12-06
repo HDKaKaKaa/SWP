@@ -19,12 +19,15 @@ public class ProductController {
     public List<Product> getProducts(
             @RequestParam(required = false) Integer categoryId,
             @RequestParam(required = false) Integer restaurantId) {
+
         if (categoryId != null) {
-            return productRepository.findByCategoryId(categoryId);
+            return productRepository.findByCategoryIdWithDetails(categoryId);
         }
+
         if (restaurantId != null) {
-            return productRepository.findByRestaurantId(restaurantId);
+            return productRepository.findByRestaurantIdWithDetails(restaurantId);
         }
+
         return productRepository.findAll();
     }
 }

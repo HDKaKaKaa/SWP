@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 @Entity
@@ -26,5 +27,14 @@ public class OrderItem {
 
     private Integer quantity;
 
-    private BigDecimal price; // Giá tại thời điểm đặt (đề phòng sau này quán tăng giá)
+    // Giá tại thời điểm đặt (đề phòng sau này quán tăng giá)
+    private BigDecimal price;
+
+    // ==== MỚI: danh sách options của dòng này ====
+    @OneToMany(
+            mappedBy = "orderItem",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private List<OrderItemOption> options;
 }

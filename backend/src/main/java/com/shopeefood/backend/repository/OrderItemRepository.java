@@ -17,4 +17,6 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Integer> {
 
     // Lấy toàn bộ item của 1 order
     List<OrderItem> findByOrder(Order order);
+
+    List<OrderItem> findAllByOrderAndProduct(Order order, Product product);
 }
