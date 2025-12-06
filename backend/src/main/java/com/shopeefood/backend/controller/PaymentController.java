@@ -34,4 +34,10 @@ public class PaymentController {
         return ResponseEntity.ok("success");
     }
 
+    @PostMapping("/confirm-success")
+    public ResponseEntity<?> confirmSuccess(@RequestParam("orderId") Integer orderId) {
+        paymentService.markPaidFromClient(orderId);
+        return ResponseEntity.ok().build();
+    }
+
 }

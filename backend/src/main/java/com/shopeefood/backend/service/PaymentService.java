@@ -205,4 +205,18 @@ public class PaymentService {
             throw new RuntimeException("Error generating HMAC", e);
         }
     }
+
+    // =============================
+    //  Xác nhận paid từ client
+    // =============================
+    @Transactional
+    public void markPaidFromClient(Integer orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        if (!"PAID".equals(order.getStatus())) {
+            order.setStatus("PAID");
+            orderRepository.save(order);
+        }
+    }
 }

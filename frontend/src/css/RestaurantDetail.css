@@ -36,6 +36,25 @@
     flex: 1;
 }
 
+.detail-back-row {
+    margin-bottom: 8px;
+    text-align: left;
+}
+
+.detail-back-btn {
+    border: none;
+    background: transparent;
+    color: #ee4d2d;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0;
+}
+
+.detail-back-btn:hover {
+    text-decoration: underline;
+}
+
 /* Loading text */
 .detail-loading {
     min-height: 60vh;

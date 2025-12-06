@@ -47,6 +47,10 @@
 
 /* Card chung */
 
+.checkout-card {
+    text-align: left;
+}
+
 .checkout-card,
 .checkout-empty-card {
     background-color: #fff;
@@ -96,24 +100,25 @@
 .checkout-address-text-wrap {
     flex: 1;
     min-width: 0;
+    text-align: left;
 }
 
 .checkout-address-label {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: #999;
-    margin-bottom: 2px;
+    margin-bottom: 4px;
 }
 
 .checkout-address-main {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
     color: #222;
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: 6px;
 }
 
 .checkout-address-name {
@@ -123,12 +128,17 @@
 .checkout-address-phone {
     color: #555;
     font-weight: 400;
+    font-size: 15px;
 }
 
 .checkout-address-detail {
-    margin-top: 2px;
-    font-size: 14px;
+    margin-top: 4px;
+    font-size: 15px;
     color: #444;
+}
+
+.checkout-address-detail-label {
+    font-weight: 500;
 }
 
 .checkout-change-address-btn {
@@ -188,7 +198,7 @@
 /* Tiêu đề section nhỏ */
 
 .checkout-section-title {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 600;
     margin-bottom: 12px;
     color: #222;
@@ -291,12 +301,19 @@
 
 .checkout-item-row {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
     gap: 8px;
     padding: 6px 0;
     border-bottom: 1px solid #f0f0f0;
 }
+
+.checkout-item-title-row {
+    display: flex;
+    align-items: baseline;
+    gap: 4px; /* khoảng cách giữa tên và x1 */
+}
+
 
 .checkout-item-row:last-child {
     border-bottom: none;
@@ -308,22 +325,21 @@
 }
 
 .checkout-item-name {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 500;
     color: #222;
 }
 
 .checkout-item-meta {
-    font-size: 13px;
+    font-size: 14px;
     color: #777;
-    margin-top: 2px;
+    margin-top: 0;
 }
 
 .checkout-item-total {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     color: #222;
-    white-space: nowrap;
 }
 
 /* Summary rows */
@@ -332,7 +348,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 14px;
+    font-size: 15px;
     margin-bottom: 6px;
     color: #444;
 }
@@ -378,7 +394,18 @@
 
 .checkout-back-btn {
     background-color: #333;
-    color: #fff;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    width: 100%;
+    border-radius: 999px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 12px;
+}
+
+.checkout-back-btn:hover {
+    background-color: #444;
 }
 
 .checkout-summary-back-btn {

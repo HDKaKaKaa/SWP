@@ -7,6 +7,7 @@ import java.util.List;
 @Data
 public class CartResponse {
     private Integer orderId;
+    private String status;
 
     private Integer restaurantId;
     private String restaurantName;

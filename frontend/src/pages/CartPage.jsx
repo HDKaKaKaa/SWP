@@ -123,7 +123,11 @@ const CartPage = () => {
     };
 
     const handleBackToRestaurant = () => {
-        navigate('/');
+        if (cart?.restaurantId) {
+            navigate(`/restaurant/${cart.restaurantId}`);
+        } else {
+            navigate('/');
+        }
     };
 
     const shippingFee = cart?.shippingFee ?? 15000;
@@ -193,16 +197,26 @@ const CartPage = () => {
             <div className="cart-wrapper">
                 {/* Tiêu đề */}
                 <h1 className="cart-page-title">Xác nhận đơn hàng</h1>
-
+                {/* Nút quay lại chọn món */}
+                <div className="cart-back-row">
+                    <button
+                        type="button"
+                        className="cart-back-btn"
+                        onClick={handleBackToRestaurant}
+                    >
+                        ← Quay lại chọn món
+                    </button>
+                </div>
                 {/* Địa chỉ giao hàng */}
                 <section className="cart-address-card">
                     <div className="cart-address-left">
-                        <div className="cart-address-title-row">
-                            <HiLocationMarker className="cart-address-icon" />
+                        <HiLocationMarker className="cart-address-icon" />
+
+                        <div className="cart-address-text">
                             <span className="cart-address-label">Địa chỉ giao hàng</span>
-                        </div>
-                        <div className="cart-address-value">
-                            {cart?.shippingAddress || 'Chưa có địa chỉ giao hàng'}
+                            <div className="cart-address-value">
+                                {cart?.shippingAddress || 'Chưa có địa chỉ giao hàng'}
+                            </div>
                         </div>
                     </div>
                     <div className="cart-address-right">

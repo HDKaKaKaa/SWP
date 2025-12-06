@@ -38,12 +38,19 @@
 /* Bên trái: icon + label + địa chỉ */
 .cart-address-left {
     display: flex;
-    flex-direction: column;
     align-items: flex-start;
-    gap: 4px;
+    gap: 8px; /* khoảng cách giữa icon và cột text */
 }
 
-/* Hàng đầu */
+/* Cột text (label + địa chỉ) */
+.cart-address-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: left;
+}
+
+/* Hàng đầu: icon + label */
 .cart-address-title-row {
     display: flex;
     align-items: center;
@@ -67,10 +74,13 @@
     text-align: left;
 }
 
+/* Dòng địa chỉ: thụt vào bằng đúng chiều rộng icon + khoảng cách
+   để chữ đầu tiên thẳng với chữ "Đ" phía trên */
 .cart-address-value {
     font-size: 15px;
     color: #333;
-    margin-left: 0;
+    padding-left: 0;   /* bỏ thụt lề, dùng cột text để canh */
+    line-height: 1.5;
 }
 
 .cart-address-right {
@@ -148,8 +158,7 @@
     color: #555;
 }
 
-.cart-login-btn,
-.cart-back-btn {
+.cart-login-btn {
     padding: 10px 20px;
     border-radius: 999px;
     border: none;
@@ -161,13 +170,27 @@
     transition: background-color 0.15s ease, transform 0.1s ease;
 }
 
-.cart-back-btn {
-    background-color: #333;
+.cart-back-row {
+    margin-bottom: 12px;
+    text-align: left;
 }
 
-.cart-login-btn:hover,
+.cart-back-btn {
+    border: none;
+    background: transparent;
+    color: #ee4d2d;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0;
+}
+
 .cart-back-btn:hover {
-    background-color: #c73a00;
+    text-decoration: underline;
+}
+
+.cart-login-btn:hover {
+    background-color: #333;
     transform: translateY(-1px);
 }
 
@@ -531,7 +554,9 @@
     }
 
     .cart-address-card {
-        padding: 12px 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
     }
 
     .cart-items-card,

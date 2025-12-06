@@ -139,17 +139,29 @@ public class CartService {
         Optional<Order> optCart =
                 orderRepository.findFirstByCustomerIdAndStatus(accountId, CART_STATUS);
 
+        // Không có giỏ CART nào
         if (optCart.isEmpty()) {
             CartResponse res = new CartResponse();
+            res.setOrderId(null);
+            res.setStatus(null);
+
+            res.setRestaurantId(null);
+            res.setRestaurantName(null);
+            res.setRestaurantAddress(null);
+
+            res.setShippingAddress(null);
+
             res.setItems(List.of());
             res.setSubtotal(BigDecimal.ZERO);
-            res.setShippingFee(DEFAULT_SHIPPING_FEE);
-            res.setTotal(DEFAULT_SHIPPING_FEE);
+            res.setShippingFee(BigDecimal.ZERO);  // <-- KHÔNG lấy 15000 nữa
+            res.setTotal(BigDecimal.ZERO);
+
             return res;
         }
 
         return mapToCartResponse(optCart.get());
     }
+
 
 
     // ----------------- UPDATE ITEM -----------------
@@ -218,12 +230,36 @@ public class CartService {
     // ----------------- CLEAR CART -----------------
     @Transactional
     public void clearCart(Integer accountId) {
-        orderRepository.findFirstByCustomerIdAndStatus(accountId, CART_STATUS)
-                .ifPresent(order -> {
-                    orderItemRepository.deleteAll(order.getOrderItems());
-                    orderRepository.delete(order);
-                });
+        // Chỉ đụng vào order có status = CART
+        Optional<Order> opt = orderRepository.findFirstByCustomerIdAndStatus(accountId, CART_STATUS);
+        if (opt.isEmpty()) {
+            // Không có giỏ CART thì thôi, return luôn, không ném exception
+            return;
+        }
+
+        Order order = opt.get();
+
+        // Lấy list item an toàn từ repo (kể cả order.getOrderItems() null)
+        List<OrderItem> items = orderItemRepository.findByOrder(order);
+
+        if (items != null && !items.isEmpty()) {
+            orderItemRepository.deleteAll(items);
+        }
+
+        // Nếu JPA có quản lý collection, clear luôn cho chắc
+        if (order.getOrderItems() != null) {
+            order.getOrderItems().clear();
+        }
+
+        // Đánh dấu giỏ này đã bị huỷ, không còn là CART nữa
+        order.setStatus("CANCELLED");
+        order.setSubtotal(BigDecimal.ZERO);
+        order.setShippingFee(BigDecimal.ZERO);      // Giỏ bị huỷ → coi như 0
+        order.setTotalAmount(BigDecimal.ZERO);
+
+        orderRepository.save(order);
     }
+
 
 
     // ----------------- HELPER -----------------
@@ -251,6 +287,7 @@ public class CartService {
 
         CartResponse res = new CartResponse();
         res.setOrderId(order.getId());
+        res.setStatus(order.getStatus());
 
         // Sửa lại phần restaurant
         if (order.getRestaurant() != null) {
