@@ -65,6 +65,9 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
       Integer restaurantId,
       String status);
 
+  // Dùng khi muốn load tất cả giỏ CART của 1 khách
+  List<Order> findByCustomerIdAndStatus(Integer customerId, String status);
+
   // Lấy tất cả đơn hàng của nhà hàng
   List<Order> findByRestaurantId(Integer restaurantId);
 
@@ -93,5 +96,6 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
       @Param("from") LocalDateTime from,
       @Param("to") LocalDateTime to,
       Pageable pageable);
+
 
 }

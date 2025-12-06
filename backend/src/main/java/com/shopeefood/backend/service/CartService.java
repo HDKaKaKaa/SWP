@@ -1,6 +1,7 @@
 package com.shopeefood.backend.service;
 
 import com.shopeefood.backend.dto.AddToCartRequest;
+import com.shopeefood.backend.dto.CartItemOptionDTO;
 import com.shopeefood.backend.dto.CartItemResponse;
 import com.shopeefood.backend.dto.CartResponse;
 import com.shopeefood.backend.dto.UpdateCartItemRequest;
@@ -15,6 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -41,10 +43,15 @@ public class CartService {
     @Autowired
     private CustomerRepository customerRepository;
 
+    @Autowired
+    private ProductDetailRepository productDetailRepository;
+
+    @Autowired
+    private OrderItemOptionRepository orderItemOptionRepository;
+
     // ----------------- ADD TO CART -----------------
     @Transactional
     public CartResponse addToCart(AddToCartRequest request) {
-
         Integer accountId = request.getAccountId();
         Integer restaurantId = request.getRestaurantId();
 
@@ -54,7 +61,7 @@ public class CartService {
         Customer customer = customerRepository.findById(accountId)
                 .orElseThrow(() -> new RuntimeException("Customer not found"));
 
-        // Validate: Chưa có địa chỉ giao hàng
+        // Bắt buộc phải có địa chỉ giao hàng
         if (customer.getAddress() == null || customer.getAddress().trim().isEmpty()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -72,57 +79,62 @@ public class CartService {
                 ? request.getQuantity()
                 : 1;
 
-        // Tìm giỏ hiện tại
-        Optional<Order> optCart =
-                orderRepository.findFirstByCustomerIdAndStatus(accountId, CART_STATUS);
-
-        Order order;
-
-        if (optCart.isEmpty()) {
-            // Giỏ mới
-            order = new Order();
-            order.setCustomer(account);
-            order.setRestaurant(restaurant);
-            order.setStatus(CART_STATUS);
-            order.setShippingAddress(customer.getAddress());
-            order.setShippingFee(DEFAULT_SHIPPING_FEE);
-            order.setSubtotal(BigDecimal.ZERO);
-            order.setTotalAmount(BigDecimal.ZERO);
-            order = orderRepository.save(order);
-
-            // Gán mã đơn FOyyyyMMddNNNN
-            if (order.getOrderNumber() == null) {
-                order.setOrderNumber(Order.buildOrderNumber(order.getId()));
-                orderRepository.save(order);
-            }
-
-        } else {
-            order = optCart.get();
-
-            // Nếu đang ở giỏ của quán khác → clear items + chuyển quán
-            if (!order.getRestaurant().getId().equals(restaurantId)) {
-                List<OrderItem> oldItems = orderItemRepository.findByOrder(order);
-                orderItemRepository.deleteAll(oldItems);
-                order.getOrderItems().clear();
-                order.setRestaurant(restaurant);
-                order.setShippingAddress(customer.getAddress());
-            }
+        // ==== Load các ProductDetail (options) từ detailIds ====
+        List<Integer> detailIds = request.getDetailIds();
+        List<ProductDetail> selectedDetails = java.util.Collections.emptyList();
+        if (detailIds != null && !detailIds.isEmpty()) {
+            selectedDetails = productDetailRepository.findAllById(detailIds);
         }
 
-        // Tìm item trong giỏ
-        Optional<OrderItem> optItem =
-                orderItemRepository.findByOrderAndProduct(order, product);
+        BigDecimal finalUnitPrice = calculateFinalUnitPrice(product, selectedDetails);
 
-        if (optItem.isPresent()) {
-            OrderItem item = optItem.get();
-            item.setQuantity(item.getQuantity() + quantity);
-            orderItemRepository.save(item);
-        } else {
-            OrderItem item = new OrderItem();
+        // ==== Tìm hoặc tạo giỏ hàng của NHÀ HÀNG HIỆN TẠI (status = CART) ====
+        Order order = orderRepository
+                .findFirstByCustomerIdAndRestaurantIdAndStatus(accountId, restaurantId, CART_STATUS)
+                .orElseGet(() -> {
+                    Order o = new Order();
+                    o.setCustomer(account);
+                    o.setRestaurant(restaurant);
+                    o.setStatus(CART_STATUS);
+                    o.setShippingAddress(customer.getAddress());
+                    o.setPaymentMethod("PAYOS");
+                    o.setShippingFee(DEFAULT_SHIPPING_FEE);
+                    o.setSubtotal(BigDecimal.ZERO);
+                    o.setTotalAmount(DEFAULT_SHIPPING_FEE);
+                    o = orderRepository.save(o);
+                    o.setOrderNumber(Order.buildOrderNumber(o.getId()));
+                    return orderRepository.save(o);
+                });
+
+        // ==== TÌM XEM ĐÃ CÓ DÒNG NÀO CÙNG PRODUCT + CÙNG COMBO OPTIONS CHƯA ====
+        OrderItem item = findItemWithSameOptions(order, product, selectedDetails);
+
+        if (item == null) {
+            // ---- Chưa có => tạo dòng mới ----
+            item = new OrderItem();
             item.setOrder(order);
             item.setProduct(product);
             item.setQuantity(quantity);
-            item.setPrice(BigDecimal.valueOf(product.getPrice()));
+            item.setPrice(finalUnitPrice);
+
+            // Tạo list options cho item này
+            if (!selectedDetails.isEmpty()) {
+                List<OrderItemOption> options = new java.util.ArrayList<>();
+                for (ProductDetail d : selectedDetails) {
+                    OrderItemOption opt = new OrderItemOption();
+                    opt.setOrderItem(item);
+                    opt.setProductDetail(d);
+                    options.add(opt);
+                }
+                item.setOptions(options);
+            }
+
+            orderItemRepository.save(item);
+        } else {
+            // ---- Đã có cùng combo options => cộng dồn quantity ----
+            item.setQuantity(item.getQuantity() + quantity);
+            // Giá unit giữ theo finalUnitPrice hiện tại
+            item.setPrice(finalUnitPrice);
             orderItemRepository.save(item);
         }
 
@@ -131,21 +143,21 @@ public class CartService {
         return mapToCartResponse(loadOrder(order.getId()));
     }
 
-
     // ----------------- GET CART -----------------
     @Transactional(readOnly = true)
-    public CartResponse getCart(Integer accountId) {
+    public CartResponse getCart(Integer accountId, Integer restaurantId) {
 
         Optional<Order> optCart =
-                orderRepository.findFirstByCustomerIdAndStatus(accountId, CART_STATUS);
+                orderRepository.findFirstByCustomerIdAndRestaurantIdAndStatus(
+                        accountId, restaurantId, CART_STATUS
+                );
 
-        // Không có giỏ CART nào
         if (optCart.isEmpty()) {
             CartResponse res = new CartResponse();
             res.setOrderId(null);
             res.setStatus(null);
 
-            res.setRestaurantId(null);
+            res.setRestaurantId(restaurantId);
             res.setRestaurantName(null);
             res.setRestaurantAddress(null);
 
@@ -153,7 +165,7 @@ public class CartService {
 
             res.setItems(List.of());
             res.setSubtotal(BigDecimal.ZERO);
-            res.setShippingFee(BigDecimal.ZERO);  // <-- KHÔNG lấy 15000 nữa
+            res.setShippingFee(BigDecimal.ZERO);
             res.setTotal(BigDecimal.ZERO);
 
             return res;
@@ -163,8 +175,12 @@ public class CartService {
     }
 
 
-
-    // ----------------- UPDATE ITEM -----------------
+    // ----------------- UPDATE ITEM (THEO productId - CŨ, GIỜ HẠN CHẾ) -----------------
+    /**
+     * Giữ lại cho tương thích cũ, nhưng:
+     * - Nếu có nhiều OrderItem cùng productId (khác combo options) => báo lỗi,
+     *   buộc FE dùng API theo itemId.
+     */
     @Transactional
     public CartResponse updateItem(UpdateCartItemRequest request) {
 
@@ -175,14 +191,24 @@ public class CartService {
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new RuntimeException("Product not found"));
 
-        // Nếu quantity <=0 → xoá
         if (request.getQuantity() == null || request.getQuantity() <= 0) {
             return removeItem(request.getAccountId(), request.getProductId());
         }
 
-        OrderItem item = orderItemRepository.findByOrderAndProduct(order, product)
-                .orElseThrow(() -> new RuntimeException("Cart item not found"));
+        List<OrderItem> items = orderItemRepository.findAllByOrderAndProduct(order, product);
 
+        if (items.isEmpty()) {
+            throw new RuntimeException("Cart item not found");
+        }
+        if (items.size() > 1) {
+            // Có nhiều combo options cho cùng 1 product -> phải dùng itemId
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "MULTIPLE_ITEMS_FOR_PRODUCT_USE_ITEM_ID"
+            );
+        }
+
+        OrderItem item = items.get(0);
         item.setQuantity(request.getQuantity());
         orderItemRepository.save(item);
 
@@ -191,8 +217,7 @@ public class CartService {
         return mapToCartResponse(loadOrder(order.getId()));
     }
 
-
-    // ----------------- REMOVE ITEM -----------------
+    // ----------------- REMOVE ITEM (THEO productId - CŨ, GIỜ HẠN CHẾ) -----------------
     @Transactional
     public CartResponse removeItem(Integer accountId, Integer productId) {
 
@@ -203,14 +228,25 @@ public class CartService {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
 
-        OrderItem item = orderItemRepository.findByOrderAndProduct(order, product)
-                .orElseThrow(() -> new RuntimeException("Cart item not found"));
+        List<OrderItem> items = orderItemRepository.findAllByOrderAndProduct(order, product);
 
+        if (items.isEmpty()) {
+            throw new RuntimeException("Cart item not found");
+        }
+        if (items.size() > 1) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "MULTIPLE_ITEMS_FOR_PRODUCT_USE_ITEM_ID"
+            );
+        }
+
+        OrderItem item = items.get(0);
         orderItemRepository.delete(item);
 
         List<OrderItem> remain = orderItemRepository.findByOrder(order);
 
         if (remain.isEmpty()) {
+            // Không còn món nào -> có thể xoá cả order hoặc giữ lại tuỳ design
             orderRepository.delete(order);
 
             CartResponse res = new CartResponse();
@@ -226,40 +262,66 @@ public class CartService {
         return mapToCartResponse(loadOrder(order.getId()));
     }
 
+    // ----------------- UPDATE ITEM QUANTITY (THEO itemId MỚI) -----------------
+    @Transactional
+    public CartResponse updateItemQuantity(Integer accountId, Integer itemId, Integer newQuantity) {
+        if (newQuantity == null || newQuantity < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "INVALID_QUANTITY");
+        }
+
+        OrderItem item = orderItemRepository.findById(itemId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "ITEM_NOT_FOUND"));
+
+        Order order = item.getOrder();
+
+        // Đảm bảo item thuộc về customer này
+        if (!order.getCustomer().getId().equals(accountId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ITEM_NOT_OF_ACCOUNT");
+        }
+
+        if (newQuantity == 0) {
+            orderItemRepository.delete(item);
+        } else {
+            item.setQuantity(newQuantity);
+            orderItemRepository.save(item);
+        }
+
+        recalcTotals(order);
+        return mapToCartResponse(loadOrder(order.getId()));
+    }
+
 
     // ----------------- CLEAR CART -----------------
     @Transactional
-    public void clearCart(Integer accountId) {
-        // Chỉ đụng vào order có status = CART
-        Optional<Order> opt = orderRepository.findFirstByCustomerIdAndStatus(accountId, CART_STATUS);
+    public void clearCart(Integer accountId, Integer restaurantId) {
+        Optional<Order> opt = orderRepository
+                .findFirstByCustomerIdAndRestaurantIdAndStatus(
+                        accountId, restaurantId, CART_STATUS
+                );
+
         if (opt.isEmpty()) {
-            // Không có giỏ CART thì thôi, return luôn, không ném exception
             return;
         }
 
         Order order = opt.get();
 
-        // Lấy list item an toàn từ repo (kể cả order.getOrderItems() null)
         List<OrderItem> items = orderItemRepository.findByOrder(order);
 
         if (items != null && !items.isEmpty()) {
             orderItemRepository.deleteAll(items);
         }
 
-        // Nếu JPA có quản lý collection, clear luôn cho chắc
         if (order.getOrderItems() != null) {
             order.getOrderItems().clear();
         }
 
-        // Đánh dấu giỏ này đã bị huỷ, không còn là CART nữa
         order.setStatus("CANCELLED");
         order.setSubtotal(BigDecimal.ZERO);
-        order.setShippingFee(BigDecimal.ZERO);      // Giỏ bị huỷ → coi như 0
+        order.setShippingFee(BigDecimal.ZERO);
         order.setTotalAmount(BigDecimal.ZERO);
 
         orderRepository.save(order);
     }
-
 
 
     // ----------------- HELPER -----------------
@@ -289,7 +351,6 @@ public class CartService {
         res.setOrderId(order.getId());
         res.setStatus(order.getStatus());
 
-        // Sửa lại phần restaurant
         if (order.getRestaurant() != null) {
             Restaurant r = order.getRestaurant();
             res.setRestaurantId(r.getId());
@@ -304,6 +365,7 @@ public class CartService {
         res.setItems(
                 items.stream().map(oi -> {
                     CartItemResponse dto = new CartItemResponse();
+                    dto.setItemId(oi.getId());                         // <=== MỚI
                     dto.setProductId(oi.getProduct().getId());
                     dto.setProductName(oi.getProduct().getName());
                     dto.setProductImage(oi.getProduct().getImage());
@@ -312,6 +374,27 @@ public class CartService {
                     dto.setLineTotal(
                             oi.getPrice().multiply(BigDecimal.valueOf(oi.getQuantity()))
                     );
+
+                    // ==== MAP OPTIONS RA DTO ====
+                    if (oi.getOptions() != null && !oi.getOptions().isEmpty()) {
+                        List<CartItemOptionDTO> optDtos = oi.getOptions().stream().map(opt -> {
+                            CartItemOptionDTO od = new CartItemOptionDTO();
+                            ProductDetail d = opt.getProductDetail();
+                            od.setDetailId(d.getId());
+                            if (d.getAttribute() != null) {
+                                od.setAttributeName(d.getAttribute().getName());
+                            }
+                            od.setValue(d.getValue());
+                            od.setPriceAdjustment(
+                                    d.getPriceAdjustment() != null ? d.getPriceAdjustment() : BigDecimal.ZERO
+                            );
+                            return od;
+                        }).collect(Collectors.toList());
+                        dto.setOptions(optDtos);
+                    } else {
+                        dto.setOptions(List.of());
+                    }
+
                     return dto;
                 }).collect(Collectors.toList())
         );
@@ -321,5 +404,55 @@ public class CartService {
         res.setTotal(order.getTotalAmount());
 
         return res;
+    }
+
+    /**
+     * Tính giá unitPrice cuối cùng = giá gốc + tổng priceAdjustment của các option
+     */
+    private BigDecimal calculateFinalUnitPrice(Product product, List<ProductDetail> details) {
+        BigDecimal basePrice = product.getPrice() != null
+                ? BigDecimal.valueOf(product.getPrice())
+                : BigDecimal.ZERO;
+
+        BigDecimal extra = BigDecimal.ZERO;
+        if (details != null) {
+            for (ProductDetail d : details) {
+                if (d.getPriceAdjustment() != null) {
+                    extra = extra.add(d.getPriceAdjustment());
+                }
+            }
+        }
+        return basePrice.add(extra);
+    }
+
+    /**
+     * Tìm OrderItem trong order có cùng product + cùng tập detailIds (options).
+     * Nếu không có -> return null.
+     */
+    private OrderItem findItemWithSameOptions(Order order,
+                                              Product product,
+                                              List<ProductDetail> selectedDetails) {
+
+        List<OrderItem> items = orderItemRepository.findAllByOrderAndProduct(order, product);
+
+        Set<Integer> selectedIds = (selectedDetails == null || selectedDetails.isEmpty())
+                ? java.util.Collections.emptySet()
+                : selectedDetails.stream()
+                .map(ProductDetail::getId)
+                .collect(java.util.stream.Collectors.toSet());
+
+        for (OrderItem item : items) {
+            List<OrderItemOption> opts = item.getOptions();
+            Set<Integer> optIds = (opts == null || opts.isEmpty())
+                    ? java.util.Collections.emptySet()
+                    : opts.stream()
+                    .map(o -> o.getProductDetail().getId())
+                    .collect(java.util.stream.Collectors.toSet());
+
+            if (optIds.equals(selectedIds)) {
+                return item;
+            }
+        }
+        return null;
     }
 }

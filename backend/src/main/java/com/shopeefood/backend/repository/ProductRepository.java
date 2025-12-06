@@ -3,7 +3,8 @@ package com.shopeefood.backend.repository;
 import com.shopeefood.backend.entity.Product;
 
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable; 
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -28,4 +29,14 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
         @Param("search") String search,
         Pageable pageable
     );
+
+    // Thêm 2 hàm mới
+    // Dùng cho màn CHỌN MÓN & CHỈNH SỬA MÓN
+    @EntityGraph(attributePaths = {"details", "details.attribute"})
+    @Query("SELECT p FROM Product p WHERE p.restaurant.id = :restaurantId")
+    List<Product> findByRestaurantIdWithDetails(@Param("restaurantId") Integer restaurantId);
+
+    @EntityGraph(attributePaths = {"details", "details.attribute"})
+    @Query("SELECT p FROM Product p WHERE p.category.id = :categoryId")
+    List<Product> findByCategoryIdWithDetails(@Param("categoryId") Integer categoryId);
 }

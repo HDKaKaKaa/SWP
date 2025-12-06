@@ -293,11 +293,17 @@
 .checkout-items-list {
     border-radius: 12px;
     background-color: #fafafa;
-    padding: 10px 12px;
+    /* bỏ padding trái/phải để thẳng với chữ "Đơn hàng của bạn" */
+    padding: 10px 0;
     max-height: 260px;
     overflow-y: auto;
     margin-bottom: 12px;
+
+    /* làm scrollbar gọn hơn trên Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: #d0d0d0 transparent;
 }
+
 
 .checkout-item-row {
     display: flex;
@@ -328,6 +334,7 @@
     font-size: 15px;
     font-weight: 500;
     color: #222;
+    text-align: left;
 }
 
 .checkout-item-meta {
@@ -335,6 +342,14 @@
     color: #777;
     margin-top: 0;
 }
+
+.checkout-item-options {
+    font-size: 13px;
+    color: #888;
+    margin-top: 2px;
+    text-align: left;
+}
+
 
 .checkout-item-total {
     font-size: 15px;
@@ -437,6 +452,19 @@
 .checkout-pay-btn:disabled {
     opacity: 0.6;
     cursor: default;
+}
+
+/* DEV */
+.checkout-pay-btn-simulate {
+    margin-top: 8px;
+    background-color: #fff;
+    color: #ee4d2d;
+    border: 1px dashed #ee4d2d;
+    font-size: 13px;
+}
+
+.checkout-pay-btn-simulate:hover {
+    background-color: #fff7f3;
 }
 
 /* Error */

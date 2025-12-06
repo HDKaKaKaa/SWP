@@ -328,7 +328,16 @@
     font-size: 17px;
     font-weight: 600;
     color: #222;
+    text-align: left;
 }
+
+.cart-item-options {
+    font-size: 13px;
+    color: #999999;
+    margin-top: 2px;
+    text-align: left;
+}
+
 
 /* Bên phải: số lượng + tổng tiền */
 
