@@ -30,6 +30,7 @@ import ShipperOrderDetail from './pages/ShipperOrderDetail';
 import ShipperMap from './pages/ShipperMap';
 import ShipperProfile from './pages/ShipperProfile';
 import RestaurantRegistration from './pages/RestaurantRegistration';
+import RestaurantApprovalPage from "./pages/RestaurantApprovalPage";
 import CartPage from './pages/CartPage';
 import CheckoutPage from './pages/CheckoutPage';
 import OrderSuccessPage from './pages/OrderSuccessPage';
@@ -47,6 +48,7 @@ function App() {
         {/* ======================================================= */}
         <Route path="/admin" element={<MainLayout />}>
           <Route index element={<AdminDashboard />} />
+          <Route path="restaurant-approval" element={<RestaurantApprovalPage />} />
           <Route path="categories" element={<CategoriesPage />} />
           <Route path="restaurants" element={<RestaurantsPage />} />
           <Route path="orders" element={<OrdersPage />} />
