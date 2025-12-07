@@ -1,9 +1,10 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useCallback, useContext } from "react";
 import axios from "axios";
-import { Table, Button, Container, Row, Col, Badge, Spinner, Alert, Pagination, Form } from "react-bootstrap";
+import { Table, Button, Container, Row, Col, Badge, Spinner, Alert, Pagination, Form, Modal} from "react-bootstrap";
 import { FaEdit, FaTrash, FaPlus, FaCamera, FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
 import { AuthContext } from "../context/AuthContext";
+import AddProduct from"./AddProduct";
 const OwnerProducts = () => {
     const API_URL = "http://localhost:8080/api/owner/products";
     const [products, setProducts] = useState([]);
@@ -12,7 +13,7 @@ const OwnerProducts = () => {
     const [variant, setVariant] = useState(null);
     const { user } = useContext(AuthContext);
     const [ownerId, setOwnerId] = useState(null);
-    // States cho Lọc/Tìm kiếm/Phân trang
+
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
@@ -20,6 +21,10 @@ const OwnerProducts = () => {
     const [sortDir, setSortDir] = useState("asc");
     const [restaurants, setRestaurants] = useState([]);
     const [selectedRestaurant, setSelectedRestaurant] = useState("");
+
+
+    //thêm sản phẩm
+    const [showAddModal, setShowAddModal] = useState(false);
 
     useEffect(() => {
         if (!user) return;
@@ -131,10 +136,14 @@ const OwnerProducts = () => {
         }
     };
     const handleAdd = () => {
-        console.log("Thêm sản phẩm mới");
-        // Logic 
+       setShowAddModal(true);
     };
-
+const handleProductAdded = () => {
+        setShowAddModal(false); // Đóng modal
+        fetchProducts();        // Tải lại danh sách sản phẩm
+        setMessage("Thêm sản phẩm mới thành công!");
+        setVariant("success");
+    }
     return (
         <Container className="mt-4">
             {/* Tiêu đề */}
@@ -277,6 +286,16 @@ const OwnerProducts = () => {
                     </Pagination>
                 </Col>
             </Row>
+
+{/* Xử lý add sản phẩm */}
+            <Modal show={showAddModal} onHide={() => setShowAddModal(false)} size="xl" centered>
+                <Modal.Header closeButton>
+                    <Modal.Title>Thêm Sản Phẩm</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <AddProduct onProductAdded={handleProductAdded} /> 
+                </Modal.Body>
+            </Modal>
         </Container>
     );
 };

@@ -41,81 +41,101 @@ const ShippersPage = () => <h2>Quản lý Tài xế</h2>;
 
 function App() {
   return (
-    
-      <Routes>
-        {/* ======================================================= */}
-        {/* NHÓM 1: ADMIN (Sử dụng MainLayout có Sidebar)           */}
-        {/* ======================================================= */}
-        <Route path="/admin" element={<MainLayout />}>
-          <Route index element={<AdminDashboard />} />
-          <Route path="restaurant-approval" element={<RestaurantApprovalPage />} />
-          <Route path="categories" element={<CategoriesPage />} />
-          <Route path="restaurants" element={<RestaurantsPage />} />
-          <Route path="orders" element={<OrdersPage />} />
-          <Route path="users" element={<AdminUsersPage />} />
-          <Route path="shippers" element={<ShippersPage />} />
-        </Route>
 
-        {/* ======================================================= */}
-        {/* NHÓM 2: SHIPPER (Sử dụng ShipperLayout có Sidebar)       */}
-        {/* ======================================================= */}
-        <Route path="/shipper" element={<ShipperLayout />}>
-          <Route index element={<ShipperDashboard />} />
-          <Route path="orders" element={<ShipperOrders />} />
-          <Route path="history" element={<ShipperHistory />} />
-          <Route path="history/:orderId" element={<ShipperOrderDetail />} />
-          <Route path="map" element={<ShipperMap />} />
-          <Route path="profile" element={<ShipperProfile />} />
-        </Route>
+    <Routes>
+      {/* ======================================================= */}
+      {/* NHÓM 1: ADMIN (Sử dụng MainLayout có Sidebar)           */}
+      {/* ======================================================= */}
+      <Route path="/admin" element={<MainLayout />}>
+        <Route index element={<AdminDashboard />} />
+        <Route path="restaurant-approval" element={<RestaurantApprovalPage />} />
+        <Route path="categories" element={<CategoriesPage />} />
+        <Route path="restaurants" element={<RestaurantsPage />} />
+        <Route path="orders" element={<OrdersPage />} />
+        <Route path="users" element={<AdminUsersPage />} />
+        <Route path="shippers" element={<ShippersPage />} />
+      </Route>
 
-        {/* ======================================================= */}
-        {/* NHÓM 3: KHÁCH HÀNG (Sử dụng Header & Footer cũ)         */}
-        {/* ======================================================= */}
-        {/* Ta tạo một Route không có path để bao bọc layout khách */}
-        <Route
-          element={
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                minHeight: '100vh',
-              }}
-            >
-              <Header />
-              <div style={{ flex: 1 }}>
-                <Outlet />{' '}
-                {/* Nội dung các trang Landing, Login... sẽ hiện ở đây */}
-              </div>
-              <Footer />
+      {/* ======================================================= */}
+      {/* NHÓM 2: SHIPPER (Sử dụng ShipperLayout có Sidebar)       */}
+      {/* ======================================================= */}
+      <Route path="/shipper" element={<ShipperLayout />}>
+        <Route index element={<ShipperDashboard />} />
+        <Route path="orders" element={<ShipperOrders />} />
+        <Route path="history" element={<ShipperHistory />} />
+        <Route path="history/:orderId" element={<ShipperOrderDetail />} />
+        <Route path="map" element={<ShipperMap />} />
+        <Route path="profile" element={<ShipperProfile />} />
+      </Route>
+
+      {/* ======================================================= */}
+      {/* NHÓM 3: KHÁCH HÀNG (Sử dụng Header & Footer cũ)         */}
+      {/* ======================================================= */}
+      {/* Ta tạo một Route không có path để bao bọc layout khách */}
+      <Route
+        element={
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: '100vh',
+            }}
+          >
+            <Header />
+            <div style={{ flex: 1 }}>
+              <Outlet />{' '}
+              {/* Nội dung các trang Landing, Login... sẽ hiện ở đây */}
             </div>
-          }
-        >
-          {/* Các trang con của khách hàng nằm trong này */}
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/restaurant/:id" element={<RestaurantDetail />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/cart" element={<CartPage />} />
-          <Route path="/checkout" element={<CheckoutPage />} />
-          <Route path="/order-success" element={<OrderSuccessPage />} />
-          <Route
-            path="/restaurant-registration"
-            element={<RestaurantRegistration />}
-          />
-        </Route>
-        {/* ======================================================= */}
-        {/* NHÓM 4: CỬA HÀNG (OWNER)                                 */}
-        {/* ======================================================= */}
+            <Footer />
+          </div>
+        }
+      >
+        {/* Các trang con của khách hàng nằm trong này */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/restaurant/:id" element={<RestaurantDetail />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/cart" element={<CartPage />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/order-success" element={<OrderSuccessPage />} />
+        <Route
+          path="/restaurant-registration"
+          element={<RestaurantRegistration />}
+        />
+      </Route>
+      {/* ======================================================= */}
+      {/* NHÓM 4: CỬA HÀNG (OWNER)                                 */}
+      {/* ======================================================= */}
+
+      <Route
+        element={
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: '100vh',
+            }}
+          >
+            <Header />
+            <div style={{ flex: 1 }}>
+              <Outlet />{' '}
+              {/* Nội dung các trang Landing, Login... sẽ hiện ở đây */}
+            </div>
+            
+          </div>
+        }
+      >
         <Route path="/owner" element={<OwnerLayout />}>
           <Route index element={<OwnerDashboard />} />
           <Route path="dashboard" element={<OwnerDashboard />} />
-          <Route path="products" element={<OwnerProducts />} />    
+          <Route path="products" element={<OwnerProducts />} />
           <Route path="orders" element={<OwnerOrders />} />
           {/* <Route path="reports" element={<OwnerReports />} />       */}
         </Route>
-      </Routes>
+      </Route>
+    </Routes>
   );
 }
 
