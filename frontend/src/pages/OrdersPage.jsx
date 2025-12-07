@@ -241,7 +241,11 @@ const OrdersPage = () => {
                     dataSource={orders}
                     rowKey="id"
                     loading={loading}
-                    pagination={{ pageSize: 10 }}
+                    pagination={{ 
+                        pageSize: 5,
+                        showSizeChanger: false,
+                        showTotal: (total) => `Tổng ${total} đơn hàng`
+                    }}
                     scroll={{ x: 1000 }}
                 />
             </Card>
