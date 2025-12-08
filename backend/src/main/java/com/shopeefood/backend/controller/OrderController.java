@@ -11,10 +11,12 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/orders")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174"})
 public class OrderController {
 
     @Autowired
@@ -81,5 +83,57 @@ public class OrderController {
         }
 
         return ResponseEntity.ok("Đặt hàng thành công! Mã đơn: " + savedOrder.getId());
+    }
+
+    /**
+     * Lấy danh sách đơn hàng quá hạn cho nhà hàng
+     * GET: http://localhost:8080/api/orders/overdue?restaurantId=1
+     */
+    @GetMapping("/overdue")
+    public ResponseEntity<?> getOverdueOrders(@RequestParam(required = false) Integer restaurantId) {
+        List<Order> allOrders = orderRepository.findAll();
+        LocalDateTime now = LocalDateTime.now();
+        
+        List<Map<String, Object>> overdueOrders = allOrders.stream()
+                .filter(order -> {
+                    // Chỉ lấy đơn đang giao (SHIPPING)
+                    if (!order.getStatus().equals("SHIPPING") || order.getShippedAt() == null) {
+                        return false;
+                    }
+                    
+                    // Lọc theo restaurant nếu có
+                    if (restaurantId != null && order.getRestaurant() != null) {
+                        if (!order.getRestaurant().getId().equals(restaurantId)) {
+                            return false;
+                        }
+                    }
+                    
+                    // Kiểm tra quá hạn
+                    Integer estimatedMinutes = order.getEstimatedDeliveryTimeMinutes() != null 
+                            ? order.getEstimatedDeliveryTimeMinutes() 
+                            : 2;
+                    LocalDateTime estimatedCompletionTime = order.getShippedAt().plusMinutes(estimatedMinutes);
+                    return now.isAfter(estimatedCompletionTime);
+                })
+                .map(order -> {
+                    Map<String, Object> map = new java.util.HashMap<>();
+                    map.put("id", order.getId());
+                    map.put("restaurantName", order.getRestaurant() != null ? order.getRestaurant().getName() : "N/A");
+                    map.put("shippingAddress", order.getShippingAddress());
+                    map.put("totalAmount", order.getTotalAmount());
+                    map.put("status", order.getStatus());
+                    map.put("shippedAt", order.getShippedAt());
+                    map.put("estimatedDeliveryTimeMinutes", order.getEstimatedDeliveryTimeMinutes() != null 
+                            ? order.getEstimatedDeliveryTimeMinutes() 
+                            : 2);
+                    if (order.getShipper() != null) {
+                        map.put("shipperName", order.getShipper().getFullName());
+                        map.put("shipperId", order.getShipper().getAccountId());
+                    }
+                    return map;
+                })
+                .collect(java.util.stream.Collectors.toList());
+        
+        return ResponseEntity.ok(overdueOrders);
     }
 }
