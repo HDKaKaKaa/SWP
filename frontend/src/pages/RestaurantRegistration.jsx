@@ -220,7 +220,7 @@ const RestaurantRegistration = () => {
                 >
                   <Input
                     prefix={<UserOutlined />}
-                    placeholder="Ví dụ: Nguyễn Văn A"
+                    placeholder="Nhập họ và tên"
                   />
                 </Form.Item>
 
@@ -271,13 +271,14 @@ const RestaurantRegistration = () => {
                 >
                   <Input
                     prefix={<ShopOutlined />}
-                    placeholder="Ví dụ: Cơm Tấm Sài Gòn"
+                    placeholder="Nhập tên quán"
                   />
                 </Form.Item>
 
                 <Form.Item
                   label="Địa chỉ quán"
                   required
+                  tooltip="Vui lòng chọn vị trí chính xác trên bản đồ"
                   style={{ marginBottom: 0 }}
                 >
                   <div style={{ display: 'flex', gap: '10px' }}>
@@ -285,21 +286,32 @@ const RestaurantRegistration = () => {
                       name="address"
                       style={{ flex: 1 }}
                       rules={[
-                        { required: true, message: 'Vui lòng nhập địa chỉ!' },
+                        {
+                          required: true,
+                          message: 'Vui lòng chọn địa chỉ trên bản đồ!',
+                        },
                       ]}
                     >
                       <Input
-                        prefix={<HomeOutlined />}
-                        placeholder="Số nhà, đường, phường, quận..."
+                        prefix={<EnvironmentOutlined />}
+                        placeholder="Nhấn để chọn vị trí trên bản đồ"
+                        readOnly
+                        onClick={() => setIsMapOpen(true)}
+                        style={{
+                          cursor: 'pointer',
+                          backgroundColor: '#f5f5f5',
+                        }}
                       />
                     </Form.Item>
 
-                    <Button
+                    {/* <Button
+                      type="primary"
+                      ghost
                       icon={<EnvironmentOutlined />}
                       onClick={() => setIsMapOpen(true)}
                     >
-                      Chọn trên bản đồ
-                    </Button>
+                      Chọn Map
+                    </Button> */}
                   </div>
                   {coordinates && (
                     <div
@@ -308,10 +320,14 @@ const RestaurantRegistration = () => {
                         color: '#1890ff',
                         marginTop: '-15px',
                         marginBottom: '15px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
                       }}
                     >
-                      Đã chọn tọa độ: {coordinates.latitude.toFixed(6)},{' '}
-                      {coordinates.longitude.toFixed(6)}
+                      <span>
+                        Tọa độ: {coordinates.latitude.toFixed(6)},{' '}
+                        {coordinates.longitude.toFixed(6)}
+                      </span>
                     </div>
                   )}
                 </Form.Item>
@@ -326,7 +342,7 @@ const RestaurantRegistration = () => {
             </Row>
 
             <Divider
-              orientation="left"
+              titlePlacement="left"
               style={{
                 borderColor: '#ee4d2d',
                 color: '#ee4d2d',

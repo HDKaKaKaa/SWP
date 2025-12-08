@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, Button } from 'antd';
+import React, { useState, useEffect, useRef } from 'react';
+import { Modal } from 'antd';
 import {
   MapContainer,
   TileLayer,
@@ -11,28 +11,68 @@ import useGeolocation from '../utils/useGeolocation';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-  iconRetinaUrl:
-    'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+// --- XỬ LÝ ICON LEAFLET ---
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+
+let DefaultIcon = L.icon({
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
 });
 
-// Di chuyển map đến vị trí mới
-const FlyToPosition = ({ position }) => {
+L.Marker.prototype.options.icon = DefaultIcon;
+
+// --- HÀM KIỂM TRA TỌA ĐỘ HỢP LỆ (Quan trọng để tránh lỗi NaN) ---
+const isValidCoordinate = (lat, lng) => {
+  const isNumber = typeof lat === 'number' && typeof lng === 'number';
+  const isNotNaN = !isNaN(lat) && !isNaN(lng);
+  return isNumber && isNotNaN;
+};
+
+const MapController = ({ centerPosition, isModalOpen }) => {
   const map = useMap();
+
   useEffect(() => {
-    if (position) map.flyTo(position, 16);
-  }, [position, map]);
+    if (isModalOpen) {
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 200);
+    }
+  }, [isModalOpen, map]);
+
+  useEffect(() => {
+    // Chỉ bay nếu tọa độ HỢP LỆ (Fix lỗi Invalid LatLng object)
+    if (
+      centerPosition &&
+      isValidCoordinate(centerPosition[0], centerPosition[1])
+    ) {
+      try {
+        map.flyTo(centerPosition, 16, {
+          animate: true,
+          duration: 1.5,
+        });
+      } catch (error) {
+        console.error('Lỗi khi di chuyển map:', error);
+      }
+    }
+  }, [centerPosition, map]);
+
   return null;
 };
 
-// Xử lý click và drag marker
 const LocationMarker = ({ position, setPosition }) => {
   useMapEvents({
-    click: (e) => setPosition([e.latlng.lat, e.latlng.lng]),
+    click(e) {
+      if (isValidCoordinate(e.latlng.lat, e.latlng.lng)) {
+        setPosition([e.latlng.lat, e.latlng.lng]);
+      }
+    },
   });
+
+  // Chỉ render Marker nếu vị trí hợp lệ
+  if (!position || !isValidCoordinate(position[0], position[1])) return null;
 
   return (
     <Marker
@@ -41,7 +81,9 @@ const LocationMarker = ({ position, setPosition }) => {
       eventHandlers={{
         dragend: (e) => {
           const { lat, lng } = e.target.getLatLng();
-          setPosition([lat, lng]);
+          if (isValidCoordinate(lat, lng)) {
+            setPosition([lat, lng]);
+          }
         },
       }}
     />
@@ -50,23 +92,44 @@ const LocationMarker = ({ position, setPosition }) => {
 
 const MapModal = ({ isOpen, onClose, onConfirm }) => {
   const { location, fetchLocation } = useGeolocation();
-  // Mặc định là Hà Nội nếu không lấy được vị trí
-  const [position, setPosition] = useState([21.0285, 105.8542]);
+
+  // Mặc định Hà Nội
+  const DEFAULT_POS = [21.0285, 105.8542];
+
+  const [position, setPosition] = useState(DEFAULT_POS);
+  const [mapCenter, setMapCenter] = useState(DEFAULT_POS);
+  const hasCenteredRef = useRef(false);
 
   useEffect(() => {
     if (isOpen) {
+      hasCenteredRef.current = false;
       fetchLocation();
     }
   }, [isOpen]);
 
   useEffect(() => {
-    if (location) {
-      setPosition([location.latitude, location.longitude]);
+    // Kiểm tra kỹ location trước khi set state để tránh NaN
+    if (isOpen && location && !hasCenteredRef.current) {
+      const lat = parseFloat(location.latitude);
+      const lng = parseFloat(location.longitude);
+
+      if (isValidCoordinate(lat, lng)) {
+        const newPos = [lat, lng];
+        setPosition(newPos);
+        setMapCenter(newPos);
+        hasCenteredRef.current = true;
+      }
     }
-  }, [location]);
+  }, [location, isOpen]);
 
   const handleOk = () => {
-    onConfirm(position);
+    // Nếu position lỗi thì trả về mặc định hoặc null
+    if (position && isValidCoordinate(position[0], position[1])) {
+      onConfirm(position);
+    } else {
+      onConfirm(DEFAULT_POS);
+    }
+    onClose();
   };
 
   return (
@@ -79,25 +142,33 @@ const MapModal = ({ isOpen, onClose, onConfirm }) => {
       okText="Xác nhận vị trí này"
       cancelText="Hủy"
       centered
+      // Sửa warning: destroyOnClose -> destroyOnHidden (tùy version antd)
+      destroyOnHidden={true}
+      maskClosable={false} // Ngăn đóng khi click ra ngoài để tránh lỗi ngầm
     >
       <div style={{ height: '400px', width: '100%' }}>
         {isOpen && (
           <MapContainer
-            center={position}
+            center={mapCenter}
             zoom={13}
             style={{ height: '100%', width: '100%' }}
           >
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              attribution="&copy; OpenStreetMap contributors"
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            <FlyToPosition position={position} />
+            <MapController centerPosition={mapCenter} isModalOpen={isOpen} />
             <LocationMarker position={position} setPosition={setPosition} />
           </MapContainer>
         )}
       </div>
       <div style={{ marginTop: 10, fontStyle: 'italic', color: '#666' }}>
         * Click vào bản đồ hoặc kéo thả ghim để chọn vị trí chính xác.
+        <br />
+        Tọa độ:{' '}
+        {position && isValidCoordinate(position[0], position[1])
+          ? `${position[0].toFixed(4)}, ${position[1].toFixed(4)}`
+          : 'Đang xác định...'}
       </div>
     </Modal>
   );
