@@ -69,6 +69,9 @@ public class Order {
 
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
+
+    @Column(name = "estimated_delivery_time_minutes")
+    private Integer estimatedDeliveryTimeMinutes = 2; // Mặc định 2 phút (để test - có thể đổi lại 30 phút sau)
     // ----------------------------------
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
