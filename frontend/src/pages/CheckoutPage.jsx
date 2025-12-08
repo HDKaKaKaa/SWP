@@ -87,6 +87,45 @@ const CheckoutPage = () => {
         fetchData();
     }, [user, restaurantId]);
 
+    // Khi quay lại trang (Back, mouse button 4, Alt+←, v.v.) thì reload lại cart + profile để cập nhật địa chỉ mới
+    useEffect(() => {
+        const handleFocusOrShow = () => {
+            if (!user || !restaurantId) return;
+
+            Promise.all([
+                axios.get("http://localhost:8080/api/cart", {
+                    params: {
+                        accountId: user.id,
+                        restaurantId: restaurantId,
+                    },
+                    withCredentials: true,
+                }),
+                axios.get(`http://localhost:8080/api/customer/profile/${user.id}`),
+            ])
+                .then(([cartRes, profileRes]) => {
+                    setCart(cartRes.data);
+
+                    const profile = profileRes.data || {};
+                    setCustomerInfo({
+                        fullName: profile.fullName || "",
+                        phone: profile.phone || "",
+                    });
+                })
+                .catch((err) => {
+                    console.error(err);
+                });
+        };
+
+        window.addEventListener("focus", handleFocusOrShow);
+        window.addEventListener("pageshow", handleFocusOrShow);
+
+        return () => {
+            window.removeEventListener("focus", handleFocusOrShow);
+            window.removeEventListener("pageshow", handleFocusOrShow);
+        };
+    }, [user, restaurantId]);
+
+
     const shippingFee = useMemo(
         () => cart?.shippingFee ?? 0,
         [cart]
@@ -143,44 +182,44 @@ const CheckoutPage = () => {
         }
     };
 
-    // ===== Nút Thanh toán PayOS =====
-    const handlePayWithPayOS = async () => {
-        if (!user) {
-            navigate("/login");
-            return;
-        }
-        if (!cart || !cart.items || cart.items.length === 0) return;
-
-        const orderId = cart.orderId || cart.order?.id || cart.id || cartId;
-
-        if (!orderId) {
-            setError("Không tìm thấy mã đơn hàng (orderId) để thanh toán.");
-            return;
-        }
-
-        try {
-            setProcessing(true);
-            setError(null);
-
-            const res = await axios.post(
-                `http://localhost:8080/api/payment/create-link/${orderId}`,
-                {},
-                { withCredentials: true }
-            );
-
-            const data = res.data; // PaymentLinkDTO
-            if (data && data.checkoutUrl) {
-                window.location.href = data.checkoutUrl;
-            } else {
-                setError("Không nhận được link thanh toán từ PayOS.");
-            }
-        } catch (e) {
-            console.error(e);
-            setError("Không khởi tạo được thanh toán PayOS.");
-        } finally {
-            setProcessing(false);
-        }
-    };
+    // // ===== Nút Thanh toán PayOS =====
+    // const handlePayWithPayOS = async () => {
+    //     if (!user) {
+    //         navigate("/login");
+    //         return;
+    //     }
+    //     if (!cart || !cart.items || cart.items.length === 0) return;
+    //
+    //     const orderId = cart.orderId || cart.order?.id || cart.id || cartId;
+    //
+    //     if (!orderId) {
+    //         setError("Không tìm thấy mã đơn hàng (orderId) để thanh toán.");
+    //         return;
+    //     }
+    //
+    //     try {
+    //         setProcessing(true);
+    //         setError(null);
+    //
+    //         const res = await axios.post(
+    //             `http://localhost:8080/api/payment/create-link/${orderId}`,
+    //             {},
+    //             { withCredentials: true }
+    //         );
+    //
+    //         const data = res.data; // PaymentLinkDTO
+    //         if (data && data.checkoutUrl) {
+    //             window.location.href = data.checkoutUrl;
+    //         } else {
+    //             setError("Không nhận được link thanh toán từ PayOS.");
+    //         }
+    //     } catch (e) {
+    //         console.error(e);
+    //         setError("Không khởi tạo được thanh toán PayOS.");
+    //     } finally {
+    //         setProcessing(false);
+    //     }
+    // };
 
     // ===== Nút Giả Lập Thanh toán thành công =====
     const handleSimulatePaySuccess = async () => {
@@ -474,18 +513,18 @@ const CheckoutPage = () => {
                                 Quay lại giỏ hàng
                             </button>
 
-                            <button
-                                type="button"
-                                className="checkout-pay-btn"
-                                onClick={handlePayWithPayOS}
-                                disabled={processing}
-                            >
-                                {processing
-                                    ? "Đang xử lý..."
-                                    : `Thanh toán với PayOS - ${formatPrice(
-                                        total
-                                    )}`}
-                            </button>
+                            {/*<button*/}
+                            {/*    type="button"*/}
+                            {/*    className="checkout-pay-btn"*/}
+                            {/*    onClick={handlePayWithPayOS}*/}
+                            {/*    disabled={processing}*/}
+                            {/*>*/}
+                            {/*    {processing*/}
+                            {/*        ? "Đang xử lý..."*/}
+                            {/*        : `Thanh toán với PayOS - ${formatPrice(*/}
+                            {/*            total*/}
+                            {/*        )}`}*/}
+                            {/*</button>*/}
 
                             {/* Nút DEV: giả lập thanh toán thành công */}
                             <button

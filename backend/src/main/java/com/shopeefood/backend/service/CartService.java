@@ -171,6 +171,25 @@ public class CartService {
             return res;
         }
 
+        Order order = optCart.get();
+
+        // Đồng bộ địa chỉ
+        try {
+            Customer customer = customerRepository.findById(accountId).orElse(null);
+            if (customer != null) {
+                String address = customer.getAddress();
+                if (address != null && !address.trim().isEmpty()) {
+                    String currentShipping = order.getShippingAddress();
+                    if (currentShipping == null || !currentShipping.equals(address)) {
+                        order.setShippingAddress(address);
+                        orderRepository.save(order);
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            // Nếu có lỗi khi sync địa chỉ thì vẫn trả về giỏ hàng bình thường
+        }
+
         return mapToCartResponse(optCart.get());
     }
 
