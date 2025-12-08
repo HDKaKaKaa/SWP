@@ -1,0 +1,12 @@
+/* Style cho Switch ONLINE (màu xanh lá) */
+.shipper-online-switch.ant-switch-checked {
+    background-color: #52c41a !important;
+}
+
+.shipper-online-switch.ant-switch-checked:hover {
+    background-color: #73d13d !important;
+}
+
+
+
+

@@ -1,0 +1,132 @@
+/* --- Overlay --- */
+.confirm-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(2px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+
+    animation: fadeIn 0.2s ease-out;
+}
+
+/* --- Container --- */
+.confirm-modal-container {
+    width: 100%;
+    max-width: 420px;
+    background: #fff;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.15);
+
+    transform: scale(1);
+    animation: scaleIn 0.18s ease-out;
+}
+
+/* --- Header --- */
+.confirm-modal-header {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    background: #f8f8f8;
+    border-bottom: 1px solid #eee;
+    gap: 10px;
+}
+
+.confirm-modal-icon {
+    color: #d97706;
+    background: #fef3c7;
+    padding: 6px;
+    border-radius: 50%;
+}
+
+.confirm-modal-title {
+    font-size: 17px;
+    font-weight: 600;
+}
+
+/* --- Body --- */
+.confirm-modal-body {
+    padding: 18px 20px;
+    font-size: 15px;
+    color: #444;
+    line-height: 1.4;
+}
+
+/* --- Footer --- */
+.confirm-modal-footer {
+    padding: 12px 16px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    background: #f8f8f8;
+    border-top: 1px solid #eee;
+}
+
+/* Buttons */
+.confirm-btn-cancel {
+    padding: 8px 18px;
+    border: none;
+    background: #e5e7eb;
+    color: #374151;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.confirm-btn-cancel:hover {
+    background: #d1d5db;
+}
+
+.confirm-btn-ok {
+    padding: 8px 18px;
+    border: none;
+    background: #2563eb;
+    color: white;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.confirm-btn-ok:hover {
+    background: #1d4ed8;
+}
+
+.confirm-btn-ok:disabled,
+.confirm-btn-cancel:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Loading spinner */
+.confirm-loading-spinner {
+    width: 15px;
+    height: 15px;
+    border: 3px solid rgba(255, 255, 255, 0.4);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+/* --- Animations --- */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes scaleIn {
+    from { transform: scale(0.94); }
+    to   { transform: scale(1); }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
