@@ -97,5 +97,12 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
       @Param("to") LocalDateTime to,
       Pageable pageable);
 
+    // Đếm số đơn hàng chưa hoàn thành của quán (PENDING, PREPARING, SHIPPING)
+    // Giả sử trạng thái kết thúc là COMPLETED, CANCELLED, REJECTED
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.restaurant.id = :restaurantId " +
+            "AND o.status NOT IN ('COMPLETED', 'CANCELLED', 'REJECTED')")
+    long countActiveOrdersByRestaurant(Integer restaurantId);
+
+
 
 }

@@ -31,12 +31,12 @@ import ShipperMap from './pages/ShipperMap';
 import ShipperProfile from './pages/ShipperProfile';
 import RestaurantRegistration from './pages/RestaurantRegistration';
 import RestaurantApprovalPage from "./pages/RestaurantApprovalPage";
+import RestaurantPage from "./pages/RestaurantPage";
 import CartPage from './pages/CartPage';
 import CheckoutPage from './pages/CheckoutPage';
 import OrderSuccessPage from './pages/OrderSuccessPage';
 
 // Tạo nhanh component placeholder để menu admin bấm không bị lỗi
-const RestaurantsPage = () => <h2>Quản lý Nhà hàng</h2>;
 const ShippersPage = () => <h2>Quản lý Tài xế</h2>;
 
 function App() {
@@ -49,8 +49,8 @@ function App() {
       <Route path="/admin" element={<MainLayout />}>
         <Route index element={<AdminDashboard />} />
         <Route path="restaurant-approval" element={<RestaurantApprovalPage />} />
+        <Route path="restaurants" element={<RestaurantPage />} />
         <Route path="categories" element={<CategoriesPage />} />
-        <Route path="restaurants" element={<RestaurantsPage />} />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="users" element={<AdminUsersPage />} />
         <Route path="shippers" element={<ShippersPage />} />
