@@ -187,7 +187,7 @@ const RestaurantRegistration = () => {
 
       <div className="res-reg-card">
         <div className="res-reg-header">
-          <h2>Đăng ký Đối tác Nhà hàng</h2>
+          <h2>Đăng ký Đối tác Quán Ăn</h2>
           <p style={{ opacity: 0.8, marginTop: 5 }}>
             Hãy trở thành đối tác của Foorder ngay hôm nay
           </p>
