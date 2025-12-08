@@ -206,18 +206,25 @@ const ShipperOrderDetail = () => {
 
                     {/* Status */}
                     <div>
-                        <Tag
-                            color={order.status === 'COMPLETED' ? 'green' : 'red'}
-                            icon={order.status === 'COMPLETED' ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-                            style={{ fontSize: '16px', padding: '8px 16px' }}
-                        >
-                            {order.status}
-                        </Tag>
+                        <Space>
+                            <Tag
+                                color={order.status === 'COMPLETED' ? 'green' : 'red'}
+                                icon={order.status === 'COMPLETED' ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+                                style={{ fontSize: '16px', padding: '8px 16px' }}
+                            >
+                                {order.status}
+                            </Tag>
+                            {order.isOverdue && (
+                                <Tag color="red" style={{ fontSize: '16px', padding: '8px 16px', fontWeight: 'bold' }}>
+                                    ⚠️ QUÁ HẠN
+                                </Tag>
+                            )}
+                        </Space>
                     </div>
 
                     <Row gutter={16}>
                         {/* Left Column - Order Info */}
-                        <Col xs={24} lg={14}>
+                        <Col xs={24} lg={12}>
                             {/* Order Information */}
                             <Card title="Thông tin đơn hàng" style={{ marginBottom: 16 }}>
                                 <Descriptions column={1} bordered>
@@ -238,81 +245,9 @@ const ShipperOrderDetail = () => {
                                 </Descriptions>
                             </Card>
 
-                            {/* Restaurant Information */}
-                            {order.restaurant && (
-                                <Card
-                                    title={
-                                        <Space>
-                                            <ShopOutlined />
-                                            Thông tin nhà hàng
-                                        </Space>
-                                    }
-                                    style={{ marginBottom: 16 }}
-                                >
-                                    <Descriptions column={1} bordered>
-                                        <Descriptions.Item label="Tên nhà hàng">
-                                            {order.restaurant.name}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Địa chỉ">
-                                            {order.restaurant.address}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Số điện thoại">
-                                            {order.restaurant.phone || 'N/A'}
-                                        </Descriptions.Item>
-                                    </Descriptions>
-                                </Card>
-                            )}
-
-                            {/* Customer Information */}
-                            {order.customer && (
-                                <Card
-                                    title={
-                                        <Space>
-                                            <UserOutlined />
-                                            Thông tin khách hàng
-                                        </Space>
-                                    }
-                                    style={{ marginBottom: 16 }}
-                                >
-                                    <Descriptions column={1} bordered>
-                                        <Descriptions.Item label="Tên đăng nhập">
-                                            {order.customer.username}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Email">
-                                            {order.customer.email}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Số điện thoại">
-                                            {order.customer.phone || 'N/A'}
-                                        </Descriptions.Item>
-                                    </Descriptions>
-                                </Card>
-                            )}
-
-                            {/* Delivery Information */}
-                            <Card
-                                title={
-                                    <Space>
-                                        <EnvironmentOutlined />
-                                        Thông tin giao hàng
-                                    </Space>
-                                }
-                                style={{ marginBottom: 16 }}
-                            >
-                                <Descriptions column={1} bordered>
-                                    <Descriptions.Item label="Địa chỉ giao hàng">
-                                        {order.shippingAddress}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="Tọa độ">
-                                        {order.shippingLat && order.shippingLong
-                                            ? `${order.shippingLat}, ${order.shippingLong}`
-                                            : 'N/A'}
-                                    </Descriptions.Item>
-                                </Descriptions>
-                            </Card>
-
-                            {/* Order Items */}
+                            {/* Order Items with Payment Summary */}
                             {order.orderItems && order.orderItems.length > 0 && (
-                                <Card title="Chi tiết món ăn" style={{ marginBottom: 16 }}>
+                                <Card title="Chi tiết món ăn & Thanh toán" style={{ marginBottom: 16 }}>
                                     <Table
                                         columns={orderItemsColumns}
                                         dataSource={order.orderItems}
@@ -393,15 +328,17 @@ const ShipperOrderDetail = () => {
                             </Card>
                         </Col>
 
-                        {/* Right Column - Map */}
-                        <Col xs={24} lg={10}>
+                        {/* Right Column - Map & Other Info */}
+                        <Col xs={24} lg={12}>
+                            {/* Map & Delivery Info */}
                             <Card
                                 title={
                                     <Space>
                                         <EnvironmentOutlined />
-                                        Bản đồ giao hàng
+                                        Bản đồ & Thông tin giao hàng
                                     </Space>
                                 }
+                                style={{ marginBottom: 16 }}
                             >
                                 {order.shippingLat && order.shippingLong ? (
                                     <div>
@@ -409,15 +346,24 @@ const ShipperOrderDetail = () => {
                                             id="order-detail-map"
                                             ref={mapRef}
                                             style={{
-                                                height: '500px',
+                                                height: '300px',
                                                 width: '100%',
                                                 borderRadius: '8px',
                                                 marginBottom: 16
                                             }}
                                         />
-                                        <Descriptions column={1} size="small">
+                                        <Descriptions column={1} bordered>
                                             <Descriptions.Item label="Địa chỉ giao hàng">
                                                 {order.shippingAddress}
+                                            </Descriptions.Item>
+                                            <Descriptions.Item label="Tọa độ">
+                                                <Button
+                                                    type="link"
+                                                    onClick={() => navigate('/shipper/map')}
+                                                    style={{ padding: 0, height: 'auto' }}
+                                                >
+                                                    {order.shippingLat}, {order.shippingLong}
+                                                </Button>
                                             </Descriptions.Item>
                                             {order.restaurant && (
                                                 <Descriptions.Item label="Nhà hàng">
@@ -427,36 +373,70 @@ const ShipperOrderDetail = () => {
                                         </Descriptions>
                                     </div>
                                 ) : (
-                                    <div style={{ textAlign: 'center', padding: '50px' }}>
-                                        <Text type="secondary">Không có thông tin vị trí</Text>
-                                    </div>
+                                    <Descriptions column={1} bordered>
+                                        <Descriptions.Item label="Địa chỉ giao hàng">
+                                            {order.shippingAddress}
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="Tọa độ">
+                                            N/A
+                                        </Descriptions.Item>
+                                        {order.restaurant && (
+                                            <Descriptions.Item label="Nhà hàng">
+                                                {order.restaurant.name}
+                                            </Descriptions.Item>
+                                        )}
+                                    </Descriptions>
                                 )}
                             </Card>
 
-                            {/* Payment Summary */}
-                            <Card
-                                title={
-                                    <Space>
-                                        <DollarOutlined />
-                                        Tổng kết thanh toán
-                                    </Space>
-                                }
-                                style={{ marginTop: 16 }}
-                            >
-                                <Descriptions column={1} bordered>
-                                    <Descriptions.Item label="Tổng tiền món ăn">
-                                        {formatMoney(order.subtotal)}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="Phí vận chuyển">
-                                        {formatMoney(order.shippingFee)}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="Tổng cộng">
-                                        <Text strong style={{ fontSize: '18px', color: '#52c41a' }}>
-                                            {formatMoney(order.totalAmount)}
-                                        </Text>
-                                    </Descriptions.Item>
-                                </Descriptions>
-                            </Card>
+                            {/* Restaurant Information */}
+                            {order.restaurant && (
+                                <Card
+                                    title={
+                                        <Space>
+                                            <ShopOutlined />
+                                            Thông tin nhà hàng
+                                        </Space>
+                                    }
+                                    style={{ marginBottom: 16 }}
+                                >
+                                    <Descriptions column={1} bordered>
+                                        <Descriptions.Item label="Tên nhà hàng">
+                                            {order.restaurant.name}
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="Địa chỉ">
+                                            {order.restaurant.address}
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="Số điện thoại">
+                                            {order.restaurant.phone || 'N/A'}
+                                        </Descriptions.Item>
+                                    </Descriptions>
+                                </Card>
+                            )}
+
+                            {/* Customer Information */}
+                            {order.customer && (
+                                <Card
+                                    title={
+                                        <Space>
+                                            <UserOutlined />
+                                            Thông tin khách hàng
+                                        </Space>
+                                    }
+                                >
+                                    <Descriptions column={1} bordered>
+                                        <Descriptions.Item label="Tên đăng nhập">
+                                            {order.customer.username}
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="Email">
+                                            {order.customer.email}
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="Số điện thoại">
+                                            {order.customer.phone || 'N/A'}
+                                        </Descriptions.Item>
+                                    </Descriptions>
+                                </Card>
+                            )}
                         </Col>
                     </Row>
                 </Space>

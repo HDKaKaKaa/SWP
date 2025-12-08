@@ -7,15 +7,13 @@ import {
     SearchOutlined,
     FilterOutlined,
     ReloadOutlined,
-    EditOutlined,
-    DeleteOutlined
+    EditOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
 import {
     getMyOrders,
     updateOrderStatus,
-    editOrder,
-    deleteOrder
+    editOrder
 } from '../services/shipperService';
 import dayjs from 'dayjs';
 
@@ -31,9 +29,11 @@ const ShipperOrders = () => {
     const [searchText, setSearchText] = useState('');
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [dateRange, setDateRange] = useState(null);
+    const [overdueFilter, setOverdueFilter] = useState(false);
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [editingOrder, setEditingOrder] = useState(null);
     const [form] = Form.useForm();
+    const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
         if (user && user.id) {
@@ -51,8 +51,14 @@ const ShipperOrders = () => {
         try {
             setLoading(true);
             const data = await getMyOrders(shipperId);
-            setOrders(data);
-            setFilteredOrders(data);
+            // Sắp xếp theo thời gian tạo mới nhất lên đầu
+            const sortedData = [...data].sort((a, b) => {
+                const dateA = new Date(a.createdAt);
+                const dateB = new Date(b.createdAt);
+                return dateB - dateA; // Mới nhất lên đầu
+            });
+            setOrders(sortedData);
+            setFilteredOrders(sortedData);
         } catch (error) {
             message.error('Không thể tải danh sách đơn hàng!');
         } finally {
@@ -63,7 +69,7 @@ const ShipperOrders = () => {
     // Áp dụng filter và search
     useEffect(() => {
         applyFilters();
-    }, [orders, searchText, statusFilter, dateRange]);
+    }, [orders, searchText, statusFilter, dateRange, overdueFilter]);
 
     const applyFilters = () => {
         let filtered = [...orders];
@@ -93,6 +99,18 @@ const ShipperOrders = () => {
             });
         }
 
+        // Lọc đơn hàng quá hạn
+        if (overdueFilter) {
+            filtered = filtered.filter(order => order.isOverdue === true);
+        }
+
+        // Sắp xếp theo thời gian tạo mới nhất lên đầu
+        filtered.sort((a, b) => {
+            const dateA = new Date(a.createdAt);
+            const dateB = new Date(b.createdAt);
+            return dateB - dateA; // Mới nhất lên đầu
+        });
+
         setFilteredOrders(filtered);
     };
 
@@ -100,6 +118,7 @@ const ShipperOrders = () => {
         setSearchText('');
         setStatusFilter('ALL');
         setDateRange(null);
+        setOverdueFilter(false);
     };
 
     // Cập nhật trạng thái đơn hàng
@@ -162,25 +181,6 @@ const ShipperOrders = () => {
         }
     };
 
-    // Xóa đơn hàng
-    const handleDeleteOrder = (orderId) => {
-        Modal.confirm({
-            title: 'Xác nhận xóa đơn hàng',
-            content: 'Bạn có chắc chắn muốn xóa đơn hàng này? Hành động này không thể hoàn tác!',
-            okText: 'Xóa',
-            okType: 'danger',
-            cancelText: 'Hủy',
-            onOk: async () => {
-                try {
-                    await deleteOrder(orderId, shipperId);
-                    message.success('Xóa đơn hàng thành công!');
-                    fetchOrders();
-                } catch (error) {
-                    message.error(error.response?.data || 'Không thể xóa đơn hàng!');
-                }
-            },
-        });
-    };
 
     // Format số tiền
     const formatMoney = (amount) => {
@@ -206,6 +206,17 @@ const ShipperOrders = () => {
 
     // Định nghĩa cột cho bảng
     const columns = [
+        {
+            title: 'STT',
+            key: 'stt',
+            width: 60,
+            fixed: 'left',
+            align: 'center',
+            render: (_, __, index) => {
+                // Tính STT dựa trên trang hiện tại và index
+                return (currentPage - 1) * 5 + index + 1;
+            },
+        },
         {
             title: 'Mã đơn',
             dataIndex: 'id',
@@ -244,6 +255,11 @@ const ShipperOrders = () => {
             render: (amount) => formatMoney(amount),
             width: 120,
             align: 'right',
+            sorter: (a, b) => {
+                const amountA = parseFloat(a.totalAmount) || 0;
+                const amountB = parseFloat(b.totalAmount) || 0;
+                return amountA - amountB;
+            },
         },
         {
             title: 'Thanh toán',
@@ -256,15 +272,24 @@ const ShipperOrders = () => {
             title: 'Trạng thái',
             dataIndex: 'status',
             key: 'status',
-            render: (status) => {
+            render: (status, record) => {
                 const colorMap = {
-                    'SHIPPING': 'blue',
+                    'SHIPPING': record.isOverdue ? 'red' : 'blue',
                     'COMPLETED': 'green',
                     'CANCELLED': 'red',
                 };
-                return <Tag color={colorMap[status] || 'default'}>{status}</Tag>;
+                return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <Tag color={colorMap[status] || 'default'}>{status}</Tag>
+                        {record.isOverdue && (
+                            <Tag color="red" style={{ fontWeight: 'bold', margin: 0 }}>
+                                ⚠️ QUÁ HẠN
+                            </Tag>
+                        )}
+                    </div>
+                );
             },
-            width: 120,
+            width: 140,
         },
         {
             title: 'Thời gian tạo',
@@ -272,6 +297,11 @@ const ShipperOrders = () => {
             key: 'createdAt',
             render: (date) => formatDate(date),
             width: 160,
+            sorter: (a, b) => {
+                const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return dateA - dateB;
+            },
         },
         {
             title: 'Đánh giá',
@@ -312,24 +342,14 @@ const ShipperOrders = () => {
                         </>
                     )}
                     {(record.status === 'COMPLETED' || record.status === 'CANCELLED') && (
-                        <>
-                            <Button
-                                type="default"
-                                size="small"
-                                icon={<EditOutlined />}
-                                onClick={() => handleEditOrder(record)}
-                            >
-                                Sửa
-                            </Button>
-                            <Button
-                                danger
-                                size="small"
-                                icon={<DeleteOutlined />}
-                                onClick={() => handleDeleteOrder(record.id)}
-                            >
-                                Xóa
-                            </Button>
-                        </>
+                        <Button
+                            type="default"
+                            size="small"
+                            icon={<EditOutlined />}
+                            onClick={() => handleEditOrder(record)}
+                        >
+                            Ghi chú
+                        </Button>
                     )}
                 </Space>
             ),
@@ -405,7 +425,17 @@ const ShipperOrders = () => {
                                 <Option value="CANCELLED">CANCELLED</Option>
                             </Select>
                         </Col>
-                        <Col xs={24} sm={12} md={8} lg={8}>
+                        <Col xs={24} sm={12} md={4} lg={3}>
+                            <Button
+                                type={overdueFilter ? "primary" : "default"}
+                                danger={overdueFilter}
+                                onClick={() => setOverdueFilter(!overdueFilter)}
+                                style={{ width: '100%' }}
+                            >
+                                {overdueFilter ? '⚠️ Quá hạn' : 'Đơn quá hạn'}
+                            </Button>
+                        </Col>
+                        <Col xs={24} sm={12} md={6} lg={6}>
                             <RangePicker
                                 format="DD/MM/YYYY"
                                 onChange={(dates) => setDateRange(dates)}
@@ -440,6 +470,9 @@ const ShipperOrders = () => {
                         <Tag color="red" style={{ padding: '4px 12px', fontSize: '14px' }}>
                             CANCELLED: {filteredOrders.filter(o => o.status === 'CANCELLED').length}
                         </Tag>
+                        <Tag color="red" style={{ padding: '4px 12px', fontSize: '14px', fontWeight: 'bold' }}>
+                            ⚠️ QUÁ HẠN: {filteredOrders.filter(o => o.isOverdue === true).length}
+                        </Tag>
                     </Space>
                 </div>
 
@@ -452,11 +485,12 @@ const ShipperOrders = () => {
                         loading={loading}
                         scroll={{ x: 1200 }}
                         pagination={{
-                            pageSize: 10,
-                            showSizeChanger: true,
+                            pageSize: 5,
+                            showSizeChanger: false,
                             showTotal: (total) => `Tổng ${total} đơn hàng`,
-                            pageSizeOptions: ['5', '10', '20', '50'],
-                            style: { marginTop: 16 }
+                            style: { marginTop: 16 },
+                            current: currentPage,
+                            onChange: (page) => setCurrentPage(page),
                         }}
                         style={{ 
                             width: '100%',
@@ -467,7 +501,7 @@ const ShipperOrders = () => {
 
                 {/* Modal sửa đơn hàng */}
                 <Modal
-                    title={`Sửa đơn hàng #${editingOrder?.id}`}
+                    title={`Ghi chú đơn hàng #${editingOrder?.id}`}
                     open={editModalVisible}
                     onOk={handleSaveEdit}
                     onCancel={() => {

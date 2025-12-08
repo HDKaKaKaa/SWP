@@ -27,6 +27,9 @@ public class ShipperController {
     
     @Autowired
     private OrderItemRepository orderItemRepository;
+    
+    @Autowired
+    private CustomerRepository customerRepository;
 
     /**
      * Lấy danh sách đơn hàng chưa có shipper (PENDING)
@@ -66,6 +69,13 @@ public class ShipperController {
         
         List<Order> orders = orderRepository.findAll().stream()
                 .filter(o -> o.getShipper() != null && o.getShipper().getAccountId().equals(shipperId))
+                .sorted((o1, o2) -> {
+                    // Sắp xếp theo thời gian tạo mới nhất lên đầu
+                    if (o1.getCreatedAt() == null && o2.getCreatedAt() == null) return 0;
+                    if (o1.getCreatedAt() == null) return 1;
+                    if (o2.getCreatedAt() == null) return -1;
+                    return o2.getCreatedAt().compareTo(o1.getCreatedAt());
+                })
                 .collect(Collectors.toList());
         
         List<Map<String, Object>> result = orders.stream().map(order -> {
@@ -82,6 +92,48 @@ public class ShipperController {
             map.put("shippedAt", order.getShippedAt());
             map.put("completedAt", order.getCompletedAt());
             map.put("note", order.getNote());
+            map.put("estimatedDeliveryTimeMinutes", order.getEstimatedDeliveryTimeMinutes() != null ? order.getEstimatedDeliveryTimeMinutes() : 2);
+            // Tính toán xem đơn hàng có quá hạn không (cho cả đơn đang giao và đã hoàn thành/hủy)
+            if (order.getShippedAt() != null) {
+                Integer estimatedMinutes = order.getEstimatedDeliveryTimeMinutes() != null ? order.getEstimatedDeliveryTimeMinutes() : 2;
+                java.time.LocalDateTime estimatedCompletionTime = order.getShippedAt().plusMinutes(estimatedMinutes);
+                
+                boolean isOverdue = false;
+                if (order.getStatus().equals("SHIPPING")) {
+                    // Đơn đang giao: so sánh với thời gian hiện tại
+                    java.time.LocalDateTime now = java.time.LocalDateTime.now();
+                    isOverdue = now.isAfter(estimatedCompletionTime);
+                } else if (order.getStatus().equals("COMPLETED") && order.getCompletedAt() != null) {
+                    // Đơn đã hoàn thành: so sánh completedAt với estimatedCompletionTime
+                    isOverdue = order.getCompletedAt().isAfter(estimatedCompletionTime);
+                } else if (order.getStatus().equals("CANCELLED")) {
+                    // Đơn đã hủy: so sánh với thời gian hiện tại (nếu hủy sau khi quá hạn)
+                    java.time.LocalDateTime now = java.time.LocalDateTime.now();
+                    isOverdue = now.isAfter(estimatedCompletionTime);
+                }
+                
+                map.put("isOverdue", isOverdue);
+                map.put("estimatedCompletionTime", estimatedCompletionTime);
+            } else {
+                map.put("isOverdue", false);
+                map.put("estimatedCompletionTime", null);
+            }
+            // Thêm thông tin khách hàng
+            if (order.getCustomer() != null) {
+                Integer accountId = order.getCustomer().getId();
+                // Tìm Customer entity từ accountId
+                Customer customer = customerRepository.findById(accountId).orElse(null);
+                if (customer != null && customer.getFullName() != null) {
+                    map.put("customerName", customer.getFullName());
+                } else {
+                    // Nếu không tìm thấy Customer hoặc không có fullName, dùng username
+                    map.put("customerName", order.getCustomer().getUsername());
+                }
+                map.put("customerUsername", order.getCustomer().getUsername());
+            } else {
+                map.put("customerName", "N/A");
+                map.put("customerUsername", "N/A");
+            }
             return map;
         }).collect(Collectors.toList());
         
@@ -356,6 +408,30 @@ public class ShipperController {
         result.put("restaurantAcceptedAt", order.getRestaurantAcceptedAt());
         result.put("shippedAt", order.getShippedAt());
         result.put("completedAt", order.getCompletedAt());
+        result.put("estimatedDeliveryTimeMinutes", order.getEstimatedDeliveryTimeMinutes() != null ? order.getEstimatedDeliveryTimeMinutes() : 2);
+        
+        // Tính toán xem đơn hàng có quá hạn không
+        if (order.getShippedAt() != null) {
+            Integer estimatedMinutes = order.getEstimatedDeliveryTimeMinutes() != null ? order.getEstimatedDeliveryTimeMinutes() : 2;
+            java.time.LocalDateTime estimatedCompletionTime = order.getShippedAt().plusMinutes(estimatedMinutes);
+            
+            boolean isOverdue = false;
+            if (order.getStatus().equals("SHIPPING")) {
+                java.time.LocalDateTime now = java.time.LocalDateTime.now();
+                isOverdue = now.isAfter(estimatedCompletionTime);
+            } else if (order.getStatus().equals("COMPLETED") && order.getCompletedAt() != null) {
+                isOverdue = order.getCompletedAt().isAfter(estimatedCompletionTime);
+            } else if (order.getStatus().equals("CANCELLED")) {
+                java.time.LocalDateTime now = java.time.LocalDateTime.now();
+                isOverdue = now.isAfter(estimatedCompletionTime);
+            }
+            
+            result.put("isOverdue", isOverdue);
+            result.put("estimatedCompletionTime", estimatedCompletionTime);
+        } else {
+            result.put("isOverdue", false);
+            result.put("estimatedCompletionTime", null);
+        }
         
         // Thông tin nhà hàng
         if (order.getRestaurant() != null) {

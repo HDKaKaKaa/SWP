@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Table, Tag, message, Spin, Space, Rate, Input, DatePicker, Select, Button, Row, Col } from 'antd';
+import { Card, Table, Tag, message, Spin, Space, Rate, Input, DatePicker, Select, Button, Row, Col, Modal } from 'antd';
 import {
     HistoryOutlined,
     SearchOutlined,
@@ -11,9 +11,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
-    getMyOrders,
-    editOrder,
-    deleteOrder
+    getMyOrders
 } from '../services/shipperService';
 import dayjs from 'dayjs';
 
@@ -30,6 +28,8 @@ const ShipperHistory = () => {
     const [searchText, setSearchText] = useState('');
     const [dateRange, setDateRange] = useState(null);
     const [statusFilter, setStatusFilter] = useState('ALL');
+    const [overdueFilter, setOverdueFilter] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
         if (user && user.id) {
@@ -45,7 +45,7 @@ const ShipperHistory = () => {
 
     useEffect(() => {
         applyFilters();
-    }, [orders, searchText, dateRange, statusFilter]);
+    }, [orders, searchText, dateRange, statusFilter, overdueFilter]);
 
     const fetchOrders = async () => {
         try {
@@ -53,13 +53,20 @@ const ShipperHistory = () => {
             const data = await getMyOrders(shipperId);
             // Lấy đơn hàng đã hoàn thành hoặc đã hủy
             const historyOrders = data.filter(o => o.status === 'COMPLETED' || o.status === 'CANCELLED');
-            setOrders(historyOrders);
+            // Sắp xếp theo thời gian tạo mới nhất lên đầu
+            const sortedHistoryOrders = [...historyOrders].sort((a, b) => {
+                const dateA = new Date(a.createdAt);
+                const dateB = new Date(b.createdAt);
+                return dateB - dateA; // Mới nhất lên đầu
+            });
+            setOrders(sortedHistoryOrders);
         } catch (error) {
             message.error('Không thể tải lịch sử đơn hàng!');
         } finally {
             setLoading(false);
         }
     };
+
 
     const applyFilters = () => {
         let filtered = [...orders];
@@ -87,6 +94,18 @@ const ShipperHistory = () => {
                 return orderDate.isAfter(startDate) && orderDate.isBefore(endDate);
             });
         }
+
+        // Lọc đơn hàng quá hạn
+        if (overdueFilter) {
+            filtered = filtered.filter(order => order.isOverdue === true);
+        }
+
+        // Sắp xếp theo thời gian tạo mới nhất lên đầu
+        filtered.sort((a, b) => {
+            const dateA = new Date(a.createdAt);
+            const dateB = new Date(b.createdAt);
+            return dateB - dateA; // Mới nhất lên đầu
+        });
 
         setFilteredOrders(filtered);
     };
@@ -137,64 +156,110 @@ const ShipperHistory = () => {
     // Định nghĩa cột cho bảng
     const columns = [
         {
+            title: 'STT',
+            key: 'stt',
+            width: 60,
+            fixed: 'left',
+            align: 'center',
+            render: (_, __, index) => {
+                // Tính STT dựa trên trang hiện tại và index
+                return (currentPage - 1) * 5 + index + 1;
+            },
+        },
+        {
             title: 'Mã đơn',
             dataIndex: 'id',
             key: 'id',
-            width: 80,
+            width: 90,
+            fixed: 'left',
+            align: 'center',
         },
         {
             title: 'Nhà hàng',
             dataIndex: 'restaurantName',
             key: 'restaurantName',
+            width: 180,
+            ellipsis: {
+                showTitle: true,
+            },
         },
         {
             title: 'Địa chỉ giao hàng',
             dataIndex: 'shippingAddress',
             key: 'shippingAddress',
-            ellipsis: true,
+            width: 250,
+            ellipsis: {
+                showTitle: true,
+            },
         },
         {
             title: 'Khoảng cách',
             key: 'distance',
-            render: () => 'N/A', // Không tính khoảng cách trong lịch sử
-            width: 120,
+            render: () => <span style={{ whiteSpace: 'nowrap' }}>N/A</span>,
+            width: 110,
+            align: 'center',
         },
         {
             title: 'Thời gian giao',
             key: 'deliveryTime',
-            render: (_, record) => calculateDeliveryTime(record),
-            width: 120,
+            render: (_, record) => <span style={{ whiteSpace: 'nowrap' }}>{calculateDeliveryTime(record)}</span>,
+            width: 130,
+            align: 'center',
         },
         {
             title: 'Tổng tiền',
             dataIndex: 'totalAmount',
             key: 'totalAmount',
-            render: (amount) => formatMoney(amount),
+            render: (amount) => <span style={{ whiteSpace: 'nowrap', fontWeight: 500 }}>{formatMoney(amount)}</span>,
+            width: 140,
+            align: 'right',
+            sorter: (a, b) => {
+                const amountA = parseFloat(a.totalAmount) || 0;
+                const amountB = parseFloat(b.totalAmount) || 0;
+                return amountA - amountB;
+            },
         },
         {
             title: 'Thanh toán',
             dataIndex: 'paymentMethod',
             key: 'paymentMethod',
-            render: (method) => <Tag>{method}</Tag>,
+            render: (method) => <Tag style={{ whiteSpace: 'nowrap' }}>{method}</Tag>,
+            width: 120,
+            align: 'center',
         },
         {
             title: 'Đánh giá',
             key: 'rating',
             render: () => <Rate disabled defaultValue={5} style={{ fontSize: 14 }} />,
-            width: 150,
+            width: 130,
+            align: 'center',
+        },
+        {
+            title: 'Thời gian tạo',
+            dataIndex: 'createdAt',
+            key: 'createdAt',
+            render: (date) => <span style={{ whiteSpace: 'nowrap' }}>{formatDate(date)}</span>,
+            width: 180,
+            align: 'center',
+            sorter: (a, b) => {
+                const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return dateA - dateB;
+            },
         },
         {
             title: 'Thời gian hoàn thành',
             dataIndex: 'completedAt',
             key: 'completedAt',
-            render: (date) => formatDate(date),
+            render: (date) => <span style={{ whiteSpace: 'nowrap' }}>{formatDate(date)}</span>,
             width: 180,
+            align: 'center',
         },
         {
             title: 'Trạng thái',
             dataIndex: 'status',
             key: 'status',
-            render: (status) => {
+            render: (status, record) => {
                 const colorMap = {
                     'COMPLETED': 'green',
                     'CANCELLED': 'red',
@@ -204,25 +269,35 @@ const ShipperHistory = () => {
                     'CANCELLED': <CloseCircleOutlined />,
                 };
                 return (
-                    <Tag color={colorMap[status]} icon={iconMap[status]}>
-                        {status}
-                    </Tag>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                        <Tag color={colorMap[status]} icon={iconMap[status]} style={{ whiteSpace: 'nowrap', margin: 0 }}>
+                            {status}
+                        </Tag>
+                        {record.isOverdue && (
+                            <Tag color="red" style={{ fontWeight: 'bold', margin: 0 }}>
+                                ⚠️ QUÁ HẠN
+                            </Tag>
+                        )}
+                    </div>
                 );
             },
-            width: 120,
+            width: 140,
+            align: 'center',
         },
         {
             title: 'Thao tác',
             key: 'action',
             fixed: 'right',
             width: 120,
+            align: 'center',
             render: (_, record) => (
                 <Button
                     type="primary"
+                    size="small"
                     icon={<EyeOutlined />}
                     onClick={() => navigate(`/shipper/history/${record.id}`)}
                 >
-                    Xem chi tiết
+                    Chi tiết
                 </Button>
             ),
         },
@@ -258,6 +333,13 @@ const ShipperHistory = () => {
                                 <Option value="COMPLETED">Đã hoàn thành</Option>
                                 <Option value="CANCELLED">Đã hủy</Option>
                             </Select>
+                            <Button
+                                type={overdueFilter ? "primary" : "default"}
+                                danger={overdueFilter}
+                                onClick={() => setOverdueFilter(!overdueFilter)}
+                            >
+                                {overdueFilter ? '⚠️ Đơn quá hạn' : 'Đơn quá hạn'}
+                            </Button>
                             <RangePicker
                                 format="DD/MM/YYYY"
                                 onChange={(dates) => setDateRange(dates)}
@@ -283,6 +365,11 @@ const ShipperHistory = () => {
                                     <Tag color="red">CANCELLED: {cancelledCount}</Tag>
                                 </Col>
                                 <Col>
+                                    <Tag color="red" style={{ fontWeight: 'bold' }}>
+                                        ⚠️ QUÁ HẠN: {filteredOrders.filter(o => o.isOverdue === true).length}
+                                    </Tag>
+                                </Col>
+                                <Col>
                                     <strong style={{ marginLeft: 20 }}>Tổng doanh thu:</strong>
                                     <span style={{ color: '#52c41a', fontSize: '16px', fontWeight: 'bold', marginLeft: 8 }}>
                                         {formatMoney(totalRevenue)}
@@ -298,11 +385,14 @@ const ShipperHistory = () => {
                             dataSource={filteredOrders}
                             rowKey="id"
                             loading={loading}
-                            scroll={{ x: 1200 }}
+                            scroll={{ x: 1600 }}
+                            size="middle"
                             pagination={{
-                                pageSize: 10,
-                                showSizeChanger: true,
+                                pageSize: 5,
+                                showSizeChanger: false,
                                 showTotal: (total) => `Tổng ${total} đơn hàng`,
+                                current: currentPage,
+                                onChange: (page) => setCurrentPage(page),
                             }}
                         />
                     </div>
