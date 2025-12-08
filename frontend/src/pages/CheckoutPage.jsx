@@ -207,9 +207,18 @@ const CheckoutPage = () => {
                 {withCredentials: true}
             );
 
-            // Ở đây tuỳ bạn: có thể fetch lại cart hoặc điều hướng sang trang khác
-            alert("Đã giả lập thanh toán thành công (order đã chuyển sang PAID trong DB).");
-            navigate("/"); // hoặc navigate("/cart") / "/orders" tuỳ flow của bạn
+            // === TẠO orderCode ĐÚNG FORMAT BACKEND ===
+            const today = new Date();
+            const yyyyMMdd = today.toISOString().slice(0, 10).replace(/-/g, "");
+
+            const paddedId = orderId.toString().padStart(4, "0");
+
+            const fakeOrderCode = `FO${yyyyMMdd}${paddedId}`;
+
+            alert("Thanh toán giả lập thành công!");
+
+            // Điều hướng sang OrderSuccessPage với orderCode đúng chuẩn
+            navigate(`/order-success?code=00&orderCode=${fakeOrderCode}`);
         } catch (e) {
             console.error(e);
             setError("Không giả lập được thanh toán. Kiểm tra lại backend.");

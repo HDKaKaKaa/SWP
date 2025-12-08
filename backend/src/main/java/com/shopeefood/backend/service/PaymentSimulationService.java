@@ -114,6 +114,7 @@ public class PaymentSimulationService {
         }
 
         // Cập nhật trạng thái order
+        order.setPaymentMethod(GATEWAY_CODE_PAYOS);
         order.setStatus(ORDER_STATUS_PAID);
         orderRepository.save(order);
 
