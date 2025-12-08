@@ -16,3 +16,20 @@ export const approveRestaurant = async (id, isApproved) => {
     });
     return response.data;
 };
+
+// MỚI: Lấy danh sách quán (có search)
+export const getManagedRestaurants = async (keyword = '', status = 'ALL') => {
+    const response = await axios.get(`${API_URL}`, {
+        params: {
+            keyword,
+            status: status === 'ALL' ? null : status // Nếu ALL thì không gửi status để backend tự xử lý
+        }
+    });
+    return response.data;
+};
+
+// MỚI: Khóa/Mở khóa
+export const toggleRestaurantStatus = async (id) => {
+    const response = await axios.put(`${API_URL}/${id}/toggle-status`);
+    return response.data;
+};

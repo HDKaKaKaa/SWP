@@ -42,4 +42,27 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Integer>
     List<Restaurant> findByStatus(RestaurantStatus status);
 
     List<Restaurant> findByNameContainingAndStatus(String keyword, RestaurantStatus status);
+
+    // Tìm kiếm quán (Chỉ ACTIVE hoặc BLOCKED) theo từ khóa
+    @Query("SELECT r FROM Restaurant r WHERE " +
+            "(r.status = 'ACTIVE' OR r.status = 'BLOCKED') " + // <--- CHỈ LẤY 2 TRẠNG THÁI NÀY
+            "AND (LOWER(r.name) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "OR LOWER(r.owner.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "OR LOWER(r.address) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+    List<Restaurant> searchForAdmin(String keyword);
+
+    // Lấy tất cả (Chỉ ACTIVE hoặc BLOCKED) khi không có keyword
+    @Query("SELECT r FROM Restaurant r WHERE r.status = 'ACTIVE' OR r.status = 'BLOCKED'")
+    List<Restaurant> findAllManaged();
+
+    // QUERY TỔNG HỢP: Tìm theo danh sách trạng thái VÀ từ khóa
+    @Query("SELECT r FROM Restaurant r WHERE " +
+            "r.status IN :statuses " +  // <--- Lọc theo danh sách status truyền vào
+            "AND (LOWER(r.name) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "OR LOWER(r.owner.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "OR LOWER(r.address) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+    List<Restaurant> findByStatusesAndKeyword(
+            @Param("statuses") List<Restaurant.RestaurantStatus> statuses,
+            @Param("keyword") String keyword
+    );
 }
