@@ -95,6 +95,34 @@ const CartPage = () => {
         fetchCart();
     }, [user, restaurantId]);
 
+    // Khi quay lại trang (Back, mouse button 4, Alt+←, v.v.) thì reload lại giỏ hàng để cập nhật địa chỉ mới
+    useEffect(() => {
+       const handleFocusOrShow = () => {
+           if (!user || !restaurantId) return;
+
+           axios.get('http://localhost:8080/api/cart', {
+               params: {
+                   accountId: user.id,
+                   restaurantId: restaurantId,
+               },
+           })
+               .then((res) => {
+                   setCart(res.data);
+               })
+               .catch((err) => {
+                   console.error(err);
+               });
+       };
+
+       window.addEventListener('focus', handleFocusOrShow);
+       window.addEventListener('pageshow', handleFocusOrShow);
+
+       return () => {
+           window.removeEventListener('focus', handleFocusOrShow);
+           window.removeEventListener('pageshow', handleFocusOrShow);
+       };
+    }, [user, restaurantId]);
+
     const handleChangeQuantity = async (item, delta) => {
         if (!user) {
             navigate('/login');
