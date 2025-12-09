@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -18,8 +19,11 @@ public class AdminRestaurantController {
     // GET: Lấy danh sách quán chờ duyệt
     // URL: /api/admin/restaurants/pending
     @GetMapping("/pending")
-    public ResponseEntity<List<RestaurantDTO>> getPendingRestaurants() {
-        return ResponseEntity.ok(adminRestaurantService.getPendingRestaurants());
+    public ResponseEntity<List<RestaurantDTO>> getPendingRestaurants(
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate
+    ) {
+        return ResponseEntity.ok(adminRestaurantService.getPendingRestaurants(startDate, endDate));
     }
 
     // PUT: Duyệt hoặc Từ chối quán

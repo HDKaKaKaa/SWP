@@ -38,10 +38,9 @@ public class Restaurant {
         REJECTED
     }
 
-    @Enumerated(EnumType.STRING) // Lưu dưới dạng chuỗi "ACTIVE", "PENDING" vào DB
-    @Column(columnDefinition = "ENUM('PENDING', 'ACTIVE', 'BLOCKED', 'REJECTED')")
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status")
     private RestaurantStatus status;
-    // ----------------------------------
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

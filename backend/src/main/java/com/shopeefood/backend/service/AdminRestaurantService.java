@@ -8,6 +8,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -22,9 +25,26 @@ public class AdminRestaurantService {
 
     // 1. Lấy danh sách quán đang chờ duyệt (PENDING)
     @Transactional(readOnly = true)
-    public List<RestaurantDTO> getPendingRestaurants() {
-        // Gọi Enum nội bộ: Restaurant.RestaurantStatus.PENDING
-        List<Restaurant> pendingList = restaurantRepository.findByStatus(Restaurant.RestaurantStatus.PENDING);
+    public List<RestaurantDTO> getPendingRestaurants(LocalDate startDate, LocalDate endDate) {
+
+        // 1. Xử lý mặc định: Nếu không truyền, mặc định là HÔM NAY
+        if (startDate == null) {
+            startDate = LocalDate.now();
+        }
+        if (endDate == null) {
+            endDate = startDate; // Nếu chỉ truyền start, thì end = start
+        }
+
+        // 2. Chuyển đổi sang LocalDateTime (Đầu ngày -> Cuối ngày)
+        LocalDateTime startDateTime = startDate.atStartOfDay(); // 00:00:00
+        LocalDateTime endDateTime = endDate.atTime(LocalTime.MAX); // 23:59:59
+
+        // 3. Gọi Repository
+        List<Restaurant> pendingList = restaurantRepository.findByStatusAndCreatedAtBetween(
+                Restaurant.RestaurantStatus.PENDING,
+                startDateTime,
+                endDateTime
+        );
 
         return pendingList.stream()
                 .map(RestaurantDTO::new)

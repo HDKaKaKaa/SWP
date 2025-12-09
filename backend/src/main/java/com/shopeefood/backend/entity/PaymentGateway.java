@@ -2,7 +2,7 @@ package com.shopeefood.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import java.util.Date;
+import java.time.LocalDateTime;
 
 @Data
 @Entity
@@ -27,6 +27,5 @@ public class PaymentGateway {
     private Boolean isActive;
 
     @Column(name = "created_at")
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date createdAt;
+    private LocalDateTime createdAt;
 }
