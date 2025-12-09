@@ -9,6 +9,7 @@ import {
   ProfileOutlined,
   DownOutlined,
   ShopOutlined,
+  DashOutlined
 } from '@ant-design/icons';
 
 const Header = () => {
@@ -31,8 +32,17 @@ const Header = () => {
     {
       type: 'divider',
     },
+      {
+          key: '2',
+          label: 'Đổi mật khẩu',
+          icon: <DashOutlined />,
+          onClick: () => navigate('/change-password'),
+      },
+      {
+          type: 'divider',
+      },
     {
-      key: '2',
+      key: '3',
       label: 'Đăng ký quán ăn',
       icon: <ShopOutlined />,
       onClick: () => navigate('/restaurant-registration'),
@@ -41,7 +51,7 @@ const Header = () => {
       type: 'divider',
     },
     {
-      key: '3',
+      key: '4',
       label: 'Đăng xuất',
       icon: <LogoutOutlined />,
       danger: true,
