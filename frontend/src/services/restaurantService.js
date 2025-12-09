@@ -1,10 +1,18 @@
 import axios from 'axios';
+import dayjs from 'dayjs';
 
 const API_URL = 'http://localhost:8080/api/admin/restaurants';
 
 // Lấy danh sách quán pending
-export const getPendingRestaurants = async () => {
-    const response = await axios.get(`${API_URL}/pending`);
+export const getPendingRestaurants = async (startDate, endDate) => {
+    const startParam = startDate ? dayjs(startDate).format('YYYY-MM-DD') : null;
+    const endParam = endDate ? dayjs(endDate).format('YYYY-MM-DD') : null;
+    const response = await axios.get(`${API_URL}/pending`, {
+        params: {
+            startDate: startParam,
+            endDate: endParam
+        }
+    });
     return response.data;
 };
 

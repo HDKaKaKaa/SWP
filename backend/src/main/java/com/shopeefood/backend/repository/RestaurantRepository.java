@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.time.LocalDateTime;
 
 @Repository
 public interface RestaurantRepository extends JpaRepository<Restaurant, Integer> {
@@ -64,5 +65,11 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Integer>
     List<Restaurant> findByStatusesAndKeyword(
             @Param("statuses") List<Restaurant.RestaurantStatus> statuses,
             @Param("keyword") String keyword
+    );
+
+    List<Restaurant> findByStatusAndCreatedAtBetween(
+            Restaurant.RestaurantStatus status,
+            LocalDateTime start,
+            LocalDateTime end
     );
 }
