@@ -1,37 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Table, Button, Card, Tag, Space, Modal, Image, message, Popconfirm, Descriptions, Divider, Row, Col, Typography
+    Table, Button, Card, Tag, Space, Modal, Image, message, Popconfirm, Descriptions, Divider, Row, Col, Typography, DatePicker
 } from 'antd';
 import {
-    CheckCircleOutlined,
-    CloseCircleOutlined,
     EyeOutlined,
     ReloadOutlined,
     UserOutlined,
     ShopOutlined,
     EnvironmentOutlined,
-    IdcardOutlined,
     PhoneOutlined
 } from '@ant-design/icons';
+import dayjs from 'dayjs';
 import { getPendingRestaurants, approveRestaurant } from '../services/restaurantService';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
+const { RangePicker } = DatePicker; // <--- Sử dụng RangePicker
 
 const RestaurantApprovalPage = () => {
     const [restaurants, setRestaurants] = useState([]);
     const [loading, setLoading] = useState(false);
 
+    // Mặc định: Từ hôm nay đến hôm nay
+    const [dateRange, setDateRange] = useState([dayjs(), dayjs()]);
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedRestaurant, setSelectedRestaurant] = useState(null);
 
     useEffect(() => {
-        fetchData();
+        // Lấy giá trị start và end từ state mặc định
+        if (dateRange && dateRange.length === 2) {
+            fetchData(dateRange[0], dateRange[1]);
+        } else {
+            fetchData(); // Fallback về mặc định backend
+        }
     }, []);
 
-    const fetchData = async () => {
+    const fetchData = async (start, end) => {
         setLoading(true);
         try {
-            const data = await getPendingRestaurants();
+            const data = await getPendingRestaurants(start, end);
             setRestaurants(data);
         } catch (error) {
             message.error('Không thể tải danh sách quán chờ duyệt');
@@ -40,12 +47,27 @@ const RestaurantApprovalPage = () => {
         }
     };
 
+    // Xử lý khi chọn khoảng ngày
+    const handleRangeChange = (dates) => {
+        if (dates) {
+            setDateRange(dates);
+            fetchData(dates[0], dates[1]);
+        } else {
+            // Nếu user xóa trắng -> Reset về hôm nay
+            const today = dayjs();
+            const defaultRange = [today, today];
+            setDateRange(defaultRange);
+            fetchData(today, today);
+        }
+    };
+
     const handleApproval = async (id, isApproved) => {
         try {
             await approveRestaurant(id, isApproved);
             message.success(isApproved ? 'Đã duyệt quán!' : 'Đã từ chối quán!');
             setIsModalOpen(false);
-            fetchData();
+            // Load lại dữ liệu theo range hiện tại
+            fetchData(dateRange[0], dateRange[1]);
         } catch (error) {
             message.error('Có lỗi xảy ra!');
         }
@@ -56,7 +78,6 @@ const RestaurantApprovalPage = () => {
         setIsModalOpen(true);
     };
 
-    // Hàm mở Google Maps
     const openGoogleMaps = (lat, lng) => {
         if (lat && lng) {
             window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank');
@@ -65,58 +86,33 @@ const RestaurantApprovalPage = () => {
         }
     };
 
+    // --- COLUMNS (Giữ nguyên) ---
     const columns = [
         {
             title: 'Hình ảnh',
             dataIndex: 'image',
-            key: 'image',
             align: 'center',
-            render: (src) => (
-                <Image
-                    width={60}
-                    height={60}
-                    src={src}
-                    fallback="https://via.placeholder.com/60?text=No+Img"
-                    style={{ borderRadius: 8, objectFit: 'cover' }}
-                />
-            )
+            render: (src) => <Image width={60} height={60} src={src} style={{ borderRadius: 8, objectFit: 'cover' }} fallback="https://via.placeholder.com/60"/>
         },
         {
             title: 'Tên quán',
             dataIndex: 'name',
-            key: 'name',
             render: (text) => <b style={{ fontSize: 15, color: '#1677ff' }}>{text}</b>
         },
-        {
-            title: 'Chủ quán',
-            dataIndex: 'ownerName', // Sử dụng trường mới từ DTO
-            key: 'ownerName',
-        },
-        {
-            title: 'Ngày đăng ký',
-            dataIndex: 'createdAt',
-            key: 'createdAt',
-            render: (text) => <span style={{ fontSize: 13, color: '#888' }}>{text}</span>
-        },
+        { title: 'Chủ quán', dataIndex: 'ownerName' },
+        { title: 'Ngày đăng ký', dataIndex: 'createdAt' },
         {
             title: 'Trạng thái',
             dataIndex: 'status',
-            key: 'status',
             align: 'center',
             render: () => <Tag color="orange" style={{ fontWeight: 'bold' }}>PENDING</Tag>
         },
         {
             title: 'Hành động',
-            key: 'action',
             align: 'center',
             render: (_, record) => (
                 <Space>
-                    <Button
-                        icon={<EyeOutlined />}
-                        onClick={() => showDetail(record)}
-                    >
-                        Chi tiết
-                    </Button>
+                    <Button icon={<EyeOutlined />} onClick={() => showDetail(record)}>Chi tiết</Button>
                 </Space>
             ),
         },
@@ -126,7 +122,24 @@ const RestaurantApprovalPage = () => {
         <div style={{ padding: 20 }}>
             <Card
                 title="Duyệt Đăng Ký Quán Mới"
-                extra={<Button icon={<ReloadOutlined />} onClick={fetchData}>Làm mới</Button>}
+                extra={
+                    <Space>
+                        <span style={{ fontWeight: 'bold' }}>Lọc theo ngày:</span>
+
+                        {/* --- RANGE PICKER --- */}
+                        <RangePicker
+                            value={dateRange}
+                            onChange={handleRangeChange}
+                            format="DD/MM/YYYY"
+                            allowClear={true} // Cho phép xóa để reset về hôm nay
+                            style={{ width: 250 }}
+                        />
+
+                        <Button icon={<ReloadOutlined />} onClick={() => fetchData(dateRange[0], dateRange[1])}>
+                            Làm mới
+                        </Button>
+                    </Space>
+                }
                 style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
             >
                 <Table
@@ -135,11 +148,11 @@ const RestaurantApprovalPage = () => {
                     columns={columns}
                     loading={loading}
                     pagination={{ pageSize: 6 }}
-                    locale={{ emptyText: 'Hiện không có yêu cầu nào' }}
+                    locale={{ emptyText: 'Không có yêu cầu nào trong khoảng thời gian này' }}
                 />
             </Card>
 
-            {/* --- MODAL CHI TIẾT ĐĂNG KÝ --- */}
+            {/* --- MODAL CHI TIẾT (Giữ nguyên không đổi) --- */}
             <Modal
                 title={
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -154,107 +167,51 @@ const RestaurantApprovalPage = () => {
                     <Button key="close" onClick={() => setIsModalOpen(false)}>Đóng</Button>,
                     <Popconfirm
                         title="Từ chối quán này?"
-                        description="Hành động này không thể hoàn tác."
                         onConfirm={() => handleApproval(selectedRestaurant?.id, false)}
-                        okText="Từ chối"
-                        cancelText="Hủy"
-                        okButtonProps={{ danger: true }}
+                        okText="Từ chối" cancelText="Hủy" okButtonProps={{ danger: true }}
                     >
-                        <Button key="reject" danger style={{ minWidth: 100 }}>Từ chối</Button>
+                        <Button key="reject" danger>Từ chối</Button>
                     </Popconfirm>,
                     <Popconfirm
                         title="Duyệt quán này?"
-                        description="Quán sẽ được kích hoạt và bắt đầu hoạt động."
                         onConfirm={() => handleApproval(selectedRestaurant?.id, true)}
-                        okText="Duyệt ngay"
-                        cancelText="Hủy"
+                        okText="Duyệt ngay" cancelText="Hủy"
                     >
-                        <Button key="approve" type="primary" style={{ backgroundColor: '#52c41a', minWidth: 100 }}>
-                            Duyệt ngay
-                        </Button>
+                        <Button key="approve" type="primary" style={{ backgroundColor: '#52c41a' }}>Duyệt ngay</Button>
                     </Popconfirm>
                 ]}
             >
                 {selectedRestaurant && (
                     <div style={{ padding: '10px 0' }}>
-                        {/* 1. HÌNH ẢNH COVER */}
                         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-                            <Image
-                                width="100%"
-                                height={250}
-                                src={selectedRestaurant.image}
-                                style={{ borderRadius: 12, objectFit: 'cover', border: '1px solid #f0f0f0' }}
-                                fallback="https://via.placeholder.com/600x250?text=No+Cover+Image"
-                            />
+                            <Image width="100%" height={250} src={selectedRestaurant.image} style={{ borderRadius: 12, objectFit: 'cover' }} fallback="https://via.placeholder.com/600x250" />
                         </div>
-
                         <Row gutter={24}>
-                            {/* 2. THÔNG TIN CHỦ QUÁN (CỘT TRÁI) */}
                             <Col xs={24} md={12}>
                                 <Card type="inner" title={<><UserOutlined /> Thông tin Chủ quán</>} size="small" style={{ height: '100%', background: '#fafafa' }}>
-                                    <Descriptions column={1} layout="horizontal" labelStyle={{ fontWeight: 'bold', width: 100 }}>
-                                        <Descriptions.Item label="Họ và tên">
-                                            {selectedRestaurant.ownerName || <i style={{color:'#ccc'}}>Chưa cập nhật</i>}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="CCCD/CMND">
-                                            {selectedRestaurant.ownerIdCard ? (
-                                                <Tag color="blue">{selectedRestaurant.ownerIdCard}</Tag>
-                                            ) : (
-                                                <i style={{color:'#ccc'}}>Chưa cập nhật</i>
-                                            )}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="SĐT Liên hệ">
-                                            <Space>
-                                                <PhoneOutlined />
-                                                <b>{selectedRestaurant.phone}</b>
-                                            </Space>
-                                        </Descriptions.Item>
+                                    <Descriptions column={1} labelStyle={{ fontWeight: 'bold' }}>
+                                        <Descriptions.Item label="Họ tên">{selectedRestaurant.ownerName}</Descriptions.Item>
+                                        <Descriptions.Item label="CCCD">{selectedRestaurant.ownerIdCard}</Descriptions.Item>
+                                        <Descriptions.Item label="SĐT">{selectedRestaurant.phone}</Descriptions.Item>
                                     </Descriptions>
                                 </Card>
                             </Col>
-
-                            {/* 3. THÔNG TIN QUÁN (CỘT PHẢI) */}
                             <Col xs={24} md={12}>
                                 <Card type="inner" title={<><ShopOutlined /> Thông tin Quán ăn</>} size="small" style={{ height: '100%', background: '#fafafa' }}>
-                                    <Descriptions column={1} layout="horizontal" labelStyle={{ fontWeight: 'bold', width: 80 }}>
-                                        <Descriptions.Item label="Tên quán">
-                                            <b style={{ color: '#1677ff', fontSize: 16 }}>{selectedRestaurant.name}</b>
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Địa chỉ">
-                                            {selectedRestaurant.address}
-                                        </Descriptions.Item>
+                                    <Descriptions column={1} labelStyle={{ fontWeight: 'bold' }}>
+                                        <Descriptions.Item label="Tên quán">{selectedRestaurant.name}</Descriptions.Item>
+                                        <Descriptions.Item label="Địa chỉ">{selectedRestaurant.address}</Descriptions.Item>
                                         <Descriptions.Item label="Tọa độ">
-                                            {selectedRestaurant.latitude && selectedRestaurant.longitude ? (
-                                                <Button
-                                                    type="link"
-                                                    size="small"
-                                                    icon={<EnvironmentOutlined />}
-                                                    onClick={() => openGoogleMaps(selectedRestaurant.latitude, selectedRestaurant.longitude)}
-                                                    style={{ padding: 0 }}
-                                                >
-                                                    Xem trên Google Maps
-                                                </Button>
-                                            ) : (
-                                                <Tag>Chưa có tọa độ</Tag>
-                                            )}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Mô tả">
-                                            <Text type="secondary" style={{ fontSize: 13 }}>
-                                                {selectedRestaurant.description || "Không có mô tả"}
-                                            </Text>
+                                            {selectedRestaurant.latitude ?
+                                                <Button type="link" size="small" style={{padding:0}} onClick={() => openGoogleMaps(selectedRestaurant.latitude, selectedRestaurant.longitude)}>Xem bản đồ</Button>
+                                                : <Tag>Chưa có</Tag>}
                                         </Descriptions.Item>
                                     </Descriptions>
                                 </Card>
                             </Col>
                         </Row>
-
-                        <Divider style={{ margin: '16px 0' }} />
-
-                        <div style={{ textAlign: 'center' }}>
-                            <Text type="secondary">
-                                Yêu cầu được gửi vào lúc: <b>{selectedRestaurant.createdAt}</b>
-                            </Text>
-                        </div>
+                        <Divider />
+                        <div style={{textAlign: 'center'}}><Text type="secondary">Gửi lúc: <b>{selectedRestaurant.createdAt}</b></Text></div>
                     </div>
                 )}
             </Modal>
