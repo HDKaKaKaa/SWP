@@ -9,7 +9,7 @@ import {
   ProfileOutlined,
   DownOutlined,
   ShopOutlined,
-  DashOutlined
+  DashOutlined,
 } from '@ant-design/icons';
 
 const Header = () => {
@@ -32,15 +32,15 @@ const Header = () => {
     {
       type: 'divider',
     },
-      {
-          key: '2',
-          label: 'Đổi mật khẩu',
-          icon: <DashOutlined />,
-          onClick: () => navigate('/change-password'),
-      },
-      {
-          type: 'divider',
-      },
+    {
+      key: '2',
+      label: 'Đổi mật khẩu',
+      icon: <DashOutlined />,
+      onClick: () => navigate('/change-password'),
+    },
+    {
+      type: 'divider',
+    },
     {
       key: '3',
       label: 'Đăng ký quán ăn',
@@ -85,12 +85,6 @@ const Header = () => {
           <div className="auth-buttons">
             <Button type="text" onClick={() => navigate('/login')}>
               Đăng nhập
-            </Button>
-            <Button
-              type="text"
-              onClick={() => navigate('/restaurant-registration')}
-            >
-              Đăng ký quán ăn
             </Button>
             <Button type="primary" onClick={() => navigate('/register')}>
               Đăng ký

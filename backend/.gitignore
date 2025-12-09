@@ -32,5 +32,6 @@ build/
 ### VS Code ###
 .vscode/
 
-### User configuration
+# Ignore secret properties
 application-secret.properties
+**/application-secret.properties
