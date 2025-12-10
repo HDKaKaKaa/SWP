@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Card, Row, Col, Statistic, Button, Switch, message, Spin, List, Tag, Space } from 'antd';
+import { Card, Row, Col, Statistic, Button, Switch, message, Spin, List, Tag, Space, Pagination } from 'antd';
 import {
     ShoppingOutlined,
     CheckCircleOutlined,
@@ -14,7 +14,8 @@ import {
     getMyOrders,
     acceptOrder,
     updateShipperStatus,
-    getShipperProfile
+    getShipperProfile,
+    updateOrderStatus
 } from '../services/shipperService';
 import '../css/ShipperDashboard.css';
 
@@ -28,6 +29,8 @@ const ShipperDashboard = () => {
     const [shipperId, setShipperId] = useState(null);
     const [deliveryStartTime, setDeliveryStartTime] = useState(null); // Thời gian bắt đầu giao hàng
     const [elapsedTime, setElapsedTime] = useState(0); // Thời gian đã trôi qua (giây)
+    const [currentPage, setCurrentPage] = useState(1); // Trang hiện tại của phân trang
+    const pageSize = 2; // Số đơn hàng mỗi trang
     const mapRefs = useRef({}); // Lưu ref cho map của mỗi đơn hàng
 
     // Giả sử shipperId được lưu trong user object hoặc lấy từ API
@@ -49,9 +52,15 @@ const ShipperDashboard = () => {
     const fetchData = async () => {
         try {
             setLoading(true);
-            // Luôn lấy đơn hàng có sẵn
+            // Luôn lấy đơn hàng có sẵn và sắp xếp từ mới nhất đến cũ nhất
             const available = await getAvailableOrders();
-            setAvailableOrders(available);
+            // Sắp xếp theo createdAt (mới nhất trước)
+            const sortedAvailable = available.sort((a, b) => {
+                const dateA = new Date(a.createdAt || 0);
+                const dateB = new Date(b.createdAt || 0);
+                return dateB - dateA; // Mới nhất trước
+            });
+            setAvailableOrders(sortedAvailable);
             
             // Chỉ lấy đơn hàng của shipper nếu có shipperId
             if (shipperId) {
@@ -170,6 +179,50 @@ const ShipperDashboard = () => {
         }
     };
 
+    // Hoàn thành đơn hàng
+    const handleCompleteOrder = async (orderId) => {
+        if (!shipperId) {
+            message.warning('Vui lòng đăng nhập để sử dụng chức năng này!');
+            return;
+        }
+        try {
+            await updateOrderStatus(orderId, 'COMPLETED');
+            message.success('Đơn hàng đã được hoàn thành!');
+            // Backend sẽ tự động cập nhật shipper status về ONLINE nếu không còn đơn nào đang giao
+            // Fetch lại dữ liệu để cập nhật UI
+            await fetchData();
+        } catch (error) {
+            message.error(error.response?.data || 'Không thể hoàn thành đơn hàng!');
+        }
+    };
+
+    // Hủy đơn hàng
+    const handleCancelOrder = async (orderId) => {
+        if (!shipperId) {
+            message.warning('Vui lòng đăng nhập để sử dụng chức năng này!');
+            return;
+        }
+        try {
+            await updateOrderStatus(orderId, 'CANCELLED');
+            message.success('Đơn hàng đã được hủy!');
+            // Backend sẽ tự động cập nhật shipper status về ONLINE nếu không còn đơn nào đang giao
+            // Fetch lại dữ liệu để cập nhật UI
+            await fetchData();
+        } catch (error) {
+            message.error(error.response?.data || 'Không thể hủy đơn hàng!');
+        }
+    };
+
+    // Điều chỉnh trang khi danh sách đơn hàng thay đổi
+    useEffect(() => {
+        const totalPages = Math.ceil(availableOrders.length / pageSize);
+        if (totalPages > 0 && currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        } else if (availableOrders.length > 0 && currentPage < 1) {
+            setCurrentPage(1);
+        }
+    }, [availableOrders.length]);
+
     // Format số tiền
     const formatMoney = (amount) => {
         return new Intl.NumberFormat('vi-VN', {
@@ -208,6 +261,11 @@ const ShipperDashboard = () => {
 
     // Lọc chỉ lấy đơn hàng đang giao (SHIPPING) để hiển thị trong phần "Đơn hàng của tôi"
     const shippingOrders = (myOrders || []).filter(o => o.status === 'SHIPPING');
+    
+    // Tính toán danh sách đơn hàng có sẵn để hiển thị theo phân trang
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginatedAvailableOrders = availableOrders.slice(startIndex, endIndex);
     
     // Đếm số đơn hàng theo trạng thái
     const shippingCount = shippingOrders.length;
@@ -384,7 +442,7 @@ const ShipperDashboard = () => {
                 <Col span={shipperId ? 12 : 24}>
                     <Card title="Đơn hàng có sẵn" style={{ marginBottom: 16 }}>
                         <List
-                            dataSource={availableOrders}
+                            dataSource={paginatedAvailableOrders}
                             renderItem={(order) => (
                                 <List.Item
                                     actions={[
@@ -420,6 +478,18 @@ const ShipperDashboard = () => {
                             )}
                             locale={{ emptyText: 'Không có đơn hàng nào' }}
                         />
+                        {availableOrders.length > pageSize && (
+                            <div style={{ marginTop: 16, textAlign: 'center' }}>
+                                <Pagination
+                                    current={currentPage}
+                                    total={availableOrders.length}
+                                    pageSize={pageSize}
+                                    onChange={(page) => setCurrentPage(page)}
+                                    showSizeChanger={false}
+                                    showTotal={(total, range) => `${range[0]}-${range[1]} của ${total} đơn hàng`}
+                                />
+                            </div>
+                        )}
                     </Card>
                 </Col>
 
@@ -482,14 +552,33 @@ const ShipperDashboard = () => {
                                                                 <strong>Thanh toán:</strong> <Tag>{order.paymentMethod}</Tag>
                                                             </p>
                                                             <div style={{ marginTop: 12 }}>
-                                                                <Button
-                                                                    type="primary"
-                                                                    icon={<EyeOutlined />}
-                                                                    onClick={() => navigate(`/shipper/history/${order.id}`)}
-                                                                    block
-                                                                >
-                                                                    Xem chi tiết
-                                                                </Button>
+                                                                <Space direction="vertical" style={{ width: '100%' }} size="small">
+                                                                    <Button
+                                                                        type="primary"
+                                                                        icon={<EyeOutlined />}
+                                                                        onClick={() => navigate(`/shipper/history/${order.id}`)}
+                                                                        block
+                                                                    >
+                                                                        Xem chi tiết
+                                                                    </Button>
+                                                                    <Space style={{ width: '100%' }} size="small">
+                                                                        <Button
+                                                                            type="primary"
+                                                                            style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                                                                            onClick={() => handleCompleteOrder(order.id)}
+                                                                            block
+                                                                        >
+                                                                            Hoàn thành
+                                                                        </Button>
+                                                                        <Button
+                                                                            danger
+                                                                            onClick={() => handleCancelOrder(order.id)}
+                                                                            block
+                                                                        >
+                                                                            Hủy
+                                                                        </Button>
+                                                                    </Space>
+                                                                </Space>
                                                             </div>
                                                         </div>
                                                     </div>
