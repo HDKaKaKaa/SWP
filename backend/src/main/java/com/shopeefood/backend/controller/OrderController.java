@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -25,6 +26,10 @@ public class OrderController {
     private OrderItemRepository orderItemRepository;
     @Autowired
     private ProductRepository productRepository;
+    @Autowired
+    private FeedbackRepository feedbackRepository;
+    @Autowired
+    private CustomerRepository customerRepository;
 
     // Tạo 3 Repository giả để findById (Vì bạn đã tạo ở các bước trước rồi)
     // Nếu chưa có, Spring sẽ báo lỗi, bạn cần @Autowired AccountRepository,
@@ -135,5 +140,163 @@ public class OrderController {
                 .collect(java.util.stream.Collectors.toList());
         
         return ResponseEntity.ok(overdueOrders);
+    }
+
+    /**
+     * Lấy danh sách đơn hàng của khách hàng
+     * GET: http://localhost:8080/api/orders/customer/{customerId}
+     */
+    @GetMapping("/customer/{customerId}")
+    public ResponseEntity<?> getCustomerOrders(@PathVariable Integer customerId) {
+        try {
+            List<Order> orders = orderRepository.findByCustomerId(customerId);
+            
+            // Load các quan hệ cần thiết
+            for (Order order : orders) {
+                if (order.getOrderItems() != null) {
+                    order.getOrderItems().size(); // Force load orderItems
+                    for (var item : order.getOrderItems()) {
+                        if (item.getProduct() != null) {
+                            item.getProduct().getName(); // Force load product
+                        }
+                    }
+                }
+                if (order.getRestaurant() != null) {
+                    order.getRestaurant().getName(); // Force load restaurant
+                }
+                if (order.getShipper() != null) {
+                    order.getShipper().getFullName(); // Force load shipper
+                }
+            }
+        
+        List<Map<String, Object>> result = orders.stream()
+                .sorted((o1, o2) -> {
+                    // Sắp xếp theo thời gian tạo mới nhất lên đầu
+                    if (o1.getCreatedAt() == null && o2.getCreatedAt() == null) return 0;
+                    if (o1.getCreatedAt() == null) return 1;
+                    if (o2.getCreatedAt() == null) return -1;
+                    return o2.getCreatedAt().compareTo(o1.getCreatedAt());
+                })
+                .map(order -> {
+                    Map<String, Object> map = new java.util.HashMap<>();
+                    map.put("id", order.getId());
+                    map.put("orderNumber", order.getOrderNumber());
+                    
+                    // Chi tiết đơn hàng (danh sách món)
+                    List<Map<String, Object>> orderItems = order.getOrderItems() != null 
+                            ? order.getOrderItems().stream().map(item -> {
+                                Map<String, Object> itemMap = new java.util.HashMap<>();
+                                itemMap.put("productName", item.getProduct() != null ? item.getProduct().getName() : "N/A");
+                                itemMap.put("quantity", item.getQuantity());
+                                itemMap.put("price", item.getPrice());
+                                return itemMap;
+                            }).collect(java.util.stream.Collectors.toList())
+                            : java.util.Collections.emptyList();
+                    map.put("orderItems", orderItems);
+                    
+                    // Tổng thanh toán
+                    map.put("totalAmount", order.getTotalAmount());
+                    
+                    // Tên quán
+                    map.put("restaurantName", order.getRestaurant() != null ? order.getRestaurant().getName() : "N/A");
+                    
+                    // Tên shipper
+                    map.put("shipperName", order.getShipper() != null ? order.getShipper().getFullName() : "Chưa có");
+                    
+                    // Thời gian giao (completedAt hoặc shippedAt)
+                    if (order.getCompletedAt() != null) {
+                        map.put("deliveryTime", order.getCompletedAt());
+                    } else if (order.getShippedAt() != null) {
+                        map.put("deliveryTime", order.getShippedAt());
+                    } else {
+                        map.put("deliveryTime", null);
+                    }
+                    
+                    // Status
+                    map.put("status", order.getStatus());
+                    map.put("createdAt", order.getCreatedAt());
+                    
+                    // Lấy thông tin feedback nếu có
+                    Optional<Feedback> feedbackOpt = feedbackRepository.findByOrderId(order.getId());
+                    if (feedbackOpt.isPresent()) {
+                        Feedback feedback = feedbackOpt.get();
+                        map.put("hasFeedback", true);
+                        map.put("feedbackRating", feedback.getRating());
+                        map.put("feedbackComment", feedback.getComment());
+                        map.put("shipperRating", feedback.getShipperRating());
+                        map.put("shipperComment", feedback.getShipperComment());
+                    } else {
+                        map.put("hasFeedback", false);
+                        map.put("feedbackRating", null);
+                        map.put("feedbackComment", null);
+                        map.put("shipperRating", null);
+                        map.put("shipperComment", null);
+                    }
+                    
+                    return map;
+                })
+                .collect(java.util.stream.Collectors.toList());
+        
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Lỗi khi lấy danh sách đơn hàng: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Tạo feedback cho đơn hàng
+     * POST: http://localhost:8080/api/orders/{orderId}/feedback
+     */
+    @PostMapping("/{orderId}/feedback")
+    @Transactional
+    public ResponseEntity<?> createFeedback(
+            @PathVariable Integer orderId,
+            @RequestBody Map<String, Object> request) {
+        
+        Order order = orderRepository.findById(orderId).orElse(null);
+        if (order == null) {
+            return ResponseEntity.badRequest().body("Đơn hàng không tồn tại");
+        }
+        
+        // Kiểm tra đơn hàng đã hoàn thành chưa
+        if (!order.getStatus().equals("COMPLETED")) {
+            return ResponseEntity.badRequest().body("Chỉ có thể đánh giá đơn hàng đã hoàn thành");
+        }
+        
+        // Lấy customer từ order (nếu chưa có thì tạo mới)
+        Customer customer = customerRepository.findById(order.getCustomer().getId())
+                .orElseGet(() -> {
+                    Customer newCustomer = new Customer();
+                    newCustomer.setAccountId(order.getCustomer().getId());
+                    return customerRepository.save(newCustomer);
+                });
+        
+        // Kiểm tra đã có feedback chưa - nếu có thì cập nhật, nếu chưa thì tạo mới
+        Optional<Feedback> existingFeedbackOpt = feedbackRepository.findByOrderId(orderId);
+        Feedback feedback;
+        
+        if (existingFeedbackOpt.isPresent()) {
+            // Cập nhật feedback hiện có
+            feedback = existingFeedbackOpt.get();
+            feedback.setRating((Integer) request.get("rating"));
+            feedback.setComment((String) request.get("comment"));
+            feedback.setShipperRating((Integer) request.get("shipperRating"));
+            feedback.setShipperComment((String) request.get("shipperComment"));
+        } else {
+            // Tạo feedback mới
+            feedback = new Feedback();
+            feedback.setCustomer(customer);
+            feedback.setRestaurant(order.getRestaurant());
+            feedback.setOrder(order);
+            feedback.setRating((Integer) request.get("rating"));
+            feedback.setComment((String) request.get("comment"));
+            feedback.setShipperRating((Integer) request.get("shipperRating"));
+            feedback.setShipperComment((String) request.get("shipperComment"));
+        }
+        
+        feedbackRepository.save(feedback);
+        
+        return ResponseEntity.ok("Đánh giá thành công!");
     }
 }

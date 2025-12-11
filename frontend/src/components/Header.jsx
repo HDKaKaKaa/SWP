@@ -10,6 +10,7 @@ import {
   DownOutlined,
   ShopOutlined,
   DashOutlined,
+  ShoppingCartOutlined,
 } from '@ant-design/icons';
 
 const Header = () => {
@@ -34,6 +35,15 @@ const Header = () => {
     },
     {
       key: '2',
+      label: 'Xem chi tiết đơn hàng',
+      icon: <ShoppingCartOutlined />,
+      onClick: () => navigate('/orders'),
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: '3',
       label: 'Đổi mật khẩu',
       icon: <DashOutlined />,
       onClick: () => navigate('/change-password'),
@@ -42,7 +52,7 @@ const Header = () => {
       type: 'divider',
     },
     {
-      key: '3',
+      key: '4',
       label: 'Đăng ký quán ăn',
       icon: <ShopOutlined />,
       onClick: () => navigate('/restaurant-registration'),
@@ -60,7 +70,7 @@ const Header = () => {
       type: 'divider',
     },
     {
-      key: '4',
+      key: '5',
       label: 'Đăng xuất',
       icon: <LogoutOutlined />,
       danger: true,

@@ -99,10 +99,40 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
                         "AND o.status NOT IN ('COMPLETED', 'CANCELLED', 'REJECTED')")
         long countActiveOrdersByRestaurant(Integer restaurantId);
 
-        // Gọi sau khi cập nhập status
-        @Query("SELECT o FROM Order o " +
-                        "LEFT JOIN FETCH o.orderItems oi " +
-                        "LEFT JOIN o.customer c " +
-                        "WHERE o.id = :orderId")
-        Optional<Order> findByIdWithDetails(@Param("orderId") Integer orderId);
+    // Lấy đơn hàng của khách hàng kèm orderItems và các quan hệ
+    @Query("SELECT DISTINCT o FROM Order o " +
+            "LEFT JOIN FETCH o.orderItems oi " +
+            "LEFT JOIN FETCH oi.product " +
+            "LEFT JOIN FETCH o.restaurant " +
+            "LEFT JOIN FETCH o.shipper " +
+            "WHERE o.customer.id = :customerId " +
+            "ORDER BY o.createdAt DESC")
+    List<Order> findByCustomerIdWithDetails(@Param("customerId") Integer customerId);
+
+    /**
+     * Tìm đơn hàng có sẵn (PAID và chưa có shipper) - Tối ưu với JOIN FETCH
+     */
+    @Query("SELECT DISTINCT o FROM Order o " +
+            "LEFT JOIN FETCH o.restaurant r " +
+            "LEFT JOIN FETCH o.customer c " +
+            "WHERE o.status = 'PAID' AND o.shipper IS NULL " +
+            "ORDER BY o.createdAt DESC")
+    List<Order> findAvailableOrders();
+
+    /**
+     * Tìm đơn hàng của shipper - Tối ưu với JOIN FETCH để tránh N+1 problem
+     */
+    @Query("SELECT DISTINCT o FROM Order o " +
+            "LEFT JOIN FETCH o.restaurant r " +
+            "LEFT JOIN FETCH o.customer c " +
+            "WHERE o.shipper.accountId = :shipperId " +
+            "ORDER BY o.createdAt DESC")
+    List<Order> findOrdersByShipperId(@Param("shipperId") Integer shipperId);
+
+    // Gọi sau khi cập nhập status
+    @Query("SELECT o FROM Order o " +
+            "LEFT JOIN FETCH o.orderItems oi " +
+            "LEFT JOIN o.customer c " +
+            "WHERE o.id = :orderId")
+    Optional<Order> findByIdWithDetails(@Param("orderId") Integer orderId);
 }
