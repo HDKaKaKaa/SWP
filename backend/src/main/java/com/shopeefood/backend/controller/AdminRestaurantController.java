@@ -1,5 +1,6 @@
 package com.shopeefood.backend.controller;
 
+import com.shopeefood.backend.dto.ProductDTO;
 import com.shopeefood.backend.dto.RestaurantDTO;
 import com.shopeefood.backend.service.AdminRestaurantService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,5 +61,10 @@ public class AdminRestaurantController {
             @RequestParam(required = false) String status // Nhận thêm param này
     ) {
         return ResponseEntity.ok(adminRestaurantService.getManagedRestaurants(keyword, status));
+    }
+
+    @GetMapping("/{id}/menu")
+    public ResponseEntity<List<ProductDTO>> getRestaurantMenu(@PathVariable Integer id) {
+        return ResponseEntity.ok(adminRestaurantService.getMenuByRestaurant(id));
     }
 }
