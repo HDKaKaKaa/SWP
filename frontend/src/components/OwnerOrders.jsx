@@ -10,7 +10,6 @@ const OrderStatusBadge = ({ status }) => {
     const colors = {
         PENDING: "secondary",
         PREPARING: "info",
-        READY_FOR_PICKUP: "primary",
         SHIPPING: "warning",
         COMPLETED: "success",
         CANCELLED: "danger",
@@ -120,10 +119,9 @@ export default function OwnerOrders() {
 
     const handleAction = async (orderId, action) => {
         let newStatus = "";
-        if (action === "accept") newStatus = "PREPARING";
+        if (action === "accept") newStatus = "SHIPPING";
         else if (action === "cancel") newStatus = "CANCELLED";
-        else if (action === "complete") newStatus = "SHIPPING";
-
+        
         try {
             const res = await axios.put(`http://localhost:8080/api/owner/orders/${orderId}/status`, null, {
                 params: { status: newStatus },
@@ -175,7 +173,7 @@ export default function OwnerOrders() {
 
                 <Col md={3}>
                     <Form.Control
-                        placeholder="Tìm kiếm theo mã đơn hoặc tên khách"
+                        placeholder="Tìm kiếm theo mã đơn"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
@@ -226,7 +224,7 @@ export default function OwnerOrders() {
                         <th onClick={() => handleSort("id")} style={{ cursor: "pointer" }}>Mã đơn {getSortIcon("id")}</th>
                         <th>Đơn hàng</th>
                         <th>Ghi chú</th>
-                        <th>Khách hàng</th>
+                        {/* <th>Khách hàng</th> */}
                         <th onClick={() => handleSort("totalAmount")} style={{ cursor: "pointer" }}>
                             Tổng tiền {getSortIcon("totalAmount")}
                         </th>
@@ -264,7 +262,6 @@ export default function OwnerOrders() {
                                     )}
                                 </td>
                                 <td>{o.note || '—'}</td>
-                                <td>{o.customer?.username || '—'}</td>
                                 <td>{o.totalAmount.toLocaleString('vi-VN')}₫</td>
                                 <td>{o.paymentMethod}</td>
                                 <td>
@@ -280,14 +277,11 @@ export default function OwnerOrders() {
                                 </td>
                                 <td><OrderStatusBadge status={o.status} /></td>
                                 <td>
-                                    {o.status === "PENDING" && (
+                                    {o.status === "PAID" && (
                                         <>
-                                            <Button size="sm" variant="success" onClick={() => handleAction(o.id, "accept")}>Accept</Button>{" "}
-                                            <Button size="sm" variant="danger" onClick={() => handleAction(o.id, "cancel")}>Cancel</Button>
+                                            <Button size="sm" variant="success" onClick={() => handleAction(o.id, "accept")}>Chấp nhận</Button>{" "}
+                                            <Button size="sm" variant="danger" onClick={() => handleAction(o.id, "cancel")}>Hủy</Button>
                                         </>
-                                    )}
-                                    {o.status === "PREPARING" && (
-                                        <Button size="sm" variant="primary" onClick={() => handleAction(o.id, "complete")}>Complete</Button>
                                     )}
                                     {(o.status === "SHIPPING" || o.status === "COMPLETED" || o.status === "CANCELLED") && (
                                         <span>—</span>

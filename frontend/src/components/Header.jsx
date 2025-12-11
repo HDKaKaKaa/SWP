@@ -51,6 +51,15 @@ const Header = () => {
       type: 'divider',
     },
     {
+      key: 'history-reg',
+      label: 'Lịch sử đăng ký quán',
+      icon: <ShopOutlined />,
+      onClick: () => navigate('/my-registrations'),
+    },
+    {
+      type: 'divider',
+    },
+    {
       key: '4',
       label: 'Đăng xuất',
       icon: <LogoutOutlined />,

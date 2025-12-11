@@ -5,6 +5,7 @@ import { Table, Button, Container, Row, Col, Badge, Spinner, Alert, Pagination, 
 import { FaEdit, FaTrash, FaPlus, FaCamera, FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
 import { AuthContext } from "../context/AuthContext";
 import AddProduct from"./AddProduct";
+
 const OwnerProducts = () => {
     const API_URL = "http://localhost:8080/api/owner/products";
     const [products, setProducts] = useState([]);
@@ -43,6 +44,7 @@ const OwnerProducts = () => {
 
     // Hàm chung để tải sản phẩm 
     const fetchProducts = useCallback(async () => {
+        if (!ownerId) return;
         setLoading(true);
         try {
             const response = await axios.get(API_URL, {
@@ -85,17 +87,16 @@ const OwnerProducts = () => {
         loadRestaurants();
     }, [ownerId]);
 
-    // 2. Tải Sản phẩm khi có thay đổi (Sửa lỗi: dùng fetchProducts thay vì gọi thẳng API)
+    // 2. Tải Sản phẩm khi có thay đổi
     useEffect(() => {
-        // Chỉ gọi fetchProducts khi các dependencies thay đổi
         fetchProducts();
-    }, [fetchProducts]); // ⭐ Sử dụng fetchProducts trong dependency array
+    }, [fetchProducts]);
 
     // --- LOGIC LỌC, TÌM KIẾM & SẮP XẾP ---
 
-    // Hàm xử lý áp dụng bộ lọc (gọi khi thay đổi nhà hàng hoặc nhấn nút Lọc/Tìm kiếm)
+    // Hàm xử lý lọc
     const handleFilter = () => {
-        setPage(0); // Luôn reset về trang đầu tiên khi thay đổi bộ lọc
+        setPage(0); 
     };
 
     // Xử lý sắp xếp
@@ -138,12 +139,14 @@ const OwnerProducts = () => {
     const handleAdd = () => {
        setShowAddModal(true);
     };
-const handleProductAdded = () => {
+
+    const handleProductAdded = (successMessage) => {
         setShowAddModal(false); // Đóng modal
         fetchProducts();        // Tải lại danh sách sản phẩm
-        setMessage("Thêm sản phẩm mới thành công!");
+        setMessage(successMessage || "Thêm sản phẩm mới thành công!");
         setVariant("success");
     }
+
     return (
         <Container className="mt-4">
             {/* Tiêu đề */}
@@ -287,13 +290,16 @@ const handleProductAdded = () => {
                 </Col>
             </Row>
 
-{/* Xử lý add sản phẩm */}
             <Modal show={showAddModal} onHide={() => setShowAddModal(false)} size="xl" centered>
                 <Modal.Header closeButton>
                     <Modal.Title>Thêm Sản Phẩm</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
-                    <AddProduct onProductAdded={handleProductAdded} /> 
+                    <AddProduct 
+                        onProductAdded={handleProductAdded} 
+                        ownerId={ownerId}
+                        restaurants={restaurants}
+                    /> 
                 </Modal.Body>
             </Modal>
         </Container>

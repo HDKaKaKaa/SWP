@@ -47,4 +47,26 @@ public class Product {
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
     private List<ProductDetail> details;
+
+
+    public Integer getId() { return id; }
+    public String getName() { return name; }
+    public String getDescription() { return description; }
+    public String getImage() { return image; }
+    public Boolean getIsAvailable() { return isAvailable; }
+    public Double getPrice() { return price; }
+    public Category getCategory() { return category; }
+    public Restaurant getRestaurant() { return restaurant; }
+    public List<ProductDetail> getDetails() { return details; }
+
+    // Setters
+    public void setId(Integer id) { this.id = id; }
+    public void setName(String name) { this.name = name; }
+    public void setDescription(String description) { this.description = description; }
+    public void setImage(String image) { this.image = image; }
+    public void setIsAvailable(Boolean isAvailable) { this.isAvailable = isAvailable; }
+    public void setPrice(Double price) { this.price = price; }
+    public void setCategory(Category category) { this.category = category; }
+    public void setRestaurant(Restaurant restaurant) { this.restaurant = restaurant; }
+    public void setDetails(List<ProductDetail> details) { this.details = details; }
 }

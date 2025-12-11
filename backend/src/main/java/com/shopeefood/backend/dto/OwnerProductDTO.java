@@ -25,7 +25,7 @@ public class OwnerProductDTO {
         this.description = product.getDescription();
         this.price = product.getPrice();
         this.image = product.getImage();
-        this.isAvailable = product.getIsAvailable(); // ⭐ Cần trường này trong Entity Product
+        this.isAvailable = product.getIsAvailable(); 
 
         if (product.getCategory() != null) {
             this.categoryId = product.getCategory().getId();

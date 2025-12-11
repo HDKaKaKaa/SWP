@@ -1,9 +1,8 @@
 package com.shopeefood.backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Entity;
+
 import jakarta.persistence.*;
-import jakarta.persistence.Table;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -35,4 +34,45 @@ public class ProductDetail {
     // Số tiền cộng thêm cho lựa chọn này
     @Column(name = "price_adjustment", nullable = false)
     private BigDecimal priceAdjustment = BigDecimal.ZERO;
+
+    public Integer getId() {
+        return id;
+    }
+
+    public String getValue() {
+        return value;
+    }
+
+    public BigDecimal getPriceAdjustment() {
+        return priceAdjustment;
+    }
+
+    public Product getProduct() {
+        return product;
+    }
+
+    public CategoryAttribute getAttribute() {
+        return attribute;
+    }
+
+    // Setters
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
+    public void setValue(String value) {
+        this.value = value;
+    }
+
+    public void setPriceAdjustment(BigDecimal priceAdjustment) {
+        this.priceAdjustment = priceAdjustment;
+    }
+
+    public void setProduct(Product product) {
+        this.product = product;
+    }
+
+    public void setAttribute(CategoryAttribute attribute) {
+        this.attribute = attribute;
+    }
 }

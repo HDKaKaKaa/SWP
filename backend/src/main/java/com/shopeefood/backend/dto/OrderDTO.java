@@ -21,7 +21,7 @@ public class OrderDTO {
     private String paymentMethod;
 
     // --- Thông tin hiển thị ---
-    private String customerName; // Sẽ được Service điền
+    private String customerName;
     private String restaurantName;
     private String shipperName;
     private String shipperEmail;
@@ -76,6 +76,7 @@ public class OrderDTO {
                     .map(OrderItemDTO::new)
                     .collect(Collectors.toList());
         }
+        //Map khách hàng
         if (order.getCustomer() != null) {
             this.customerName = order.getCustomer().getUsername();
         }
