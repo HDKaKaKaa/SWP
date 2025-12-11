@@ -7,6 +7,9 @@ import com.shopeefood.backend.entity.Order;
 import com.shopeefood.backend.repository.CustomerRepository; // Import mới
 import com.shopeefood.backend.repository.OrderRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.persistence.criteria.Predicate;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,48 +30,59 @@ public class AdminOrderService {
     @Autowired
     private CustomerRepository customerRepository;
 
-    // Hàm lấy danh sách đơn hàng (Có lọc và điền thông tin khách hàng)
-    @Transactional(readOnly = true) // Quan trọng để fetch lazy data
+    // Hàm lấy danh sách đơn hàng (Sửa lại dùng Specification)
+    @Transactional(readOnly = true)
     public List<OrderDTO> getOrders(String status, LocalDate startDate, LocalDate endDate) {
-        String filterStatus = (status == null || status.equals("ALL")) ? null : status;
-        LocalDateTime startDateTime = (startDate != null) ? startDate.atStartOfDay() : null;
-        LocalDateTime endDateTime = (endDate != null) ? endDate.atTime(LocalTime.MAX) : null;
 
-        // 1. Lấy danh sách Entity Order từ DB
-        List<Order> orders = orderRepository.findOrders(filterStatus, startDateTime, endDateTime);
+        // 1. Tạo Specification (Query động)
+        Specification<Order> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
 
-        // 2. Tạo danh sách DTO để chứa kết quả
+            // Điều kiện Status
+            if (status != null && !status.isEmpty() && !"ALL".equals(status)) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+
+            // Điều kiện Ngày bắt đầu
+            if (startDate != null) {
+                LocalDateTime startDateTime = startDate.atStartOfDay();
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), startDateTime));
+            }
+
+            // Điều kiện Ngày kết thúc
+            if (endDate != null) {
+                LocalDateTime endDateTime = endDate.atTime(LocalTime.MAX);
+                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), endDateTime));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        // 2. Gọi Repository với Specification + Sắp xếp giảm dần
+        List<Order> orders = orderRepository.findAll(spec, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        // 3. Convert sang DTO và map tên khách hàng (Giữ nguyên logic cũ của bạn)
         List<OrderDTO> orderDTOs = new ArrayList<>();
 
-        // 3. Duyệt qua từng Order và xử lý thủ công
         for (Order order : orders) {
-            // Tạo DTO từ các thông tin cơ bản có sẵn trong Order entity
             OrderDTO dto = new OrderDTO(order);
 
-            // --- XỬ LÝ LẤY TÊN KHÁCH HÀNG (THỦ CÔNG) ---
-            // order.getCustomer() trả về Account entity
+            // --- XỬ LÝ LẤY TÊN KHÁCH HÀNG ---
             Account customerAccount = order.getCustomer();
             if (customerAccount != null) {
-                // Lấy ID của account
                 Integer accountId = customerAccount.getId();
-
-                // QUERY PHỤ: Tìm thông tin trong bảng customers dựa trên accountId
                 Optional<Customer> customerOpt = customerRepository.findById(accountId);
 
                 if (customerOpt.isPresent()) {
-                    // Nếu tìm thấy, lấy fullName và gán vào DTO
                     dto.setCustomerName(customerOpt.get().getFullName());
                 } else {
-                    // Trường hợp hy hữu: Có account ID nhưng chưa có record trong bảng customers
                     dto.setCustomerName("Khách hàng (Chưa cập nhật tên)");
                 }
             } else {
-                // Trường hợp hy hữu: Đơn hàng không có customer_id
                 dto.setCustomerName("Khách vãng lai");
             }
-            // -------------------------------------------
+            // --------------------------------
 
-            // Thêm DTO đã hoàn thiện vào danh sách
             orderDTOs.add(dto);
         }
 

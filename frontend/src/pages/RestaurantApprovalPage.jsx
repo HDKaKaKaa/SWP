@@ -41,7 +41,7 @@ const RestaurantApprovalPage = () => {
             const data = await getPendingRestaurants(start, end);
             setRestaurants(data);
         } catch (error) {
-            message.error('Không thể tải danh sách quán chờ duyệt');
+            message.error('Không thể tải danh sách nhà hàng chờ duyệt');
         } finally {
             setLoading(false);
         }
@@ -64,7 +64,7 @@ const RestaurantApprovalPage = () => {
     const handleApproval = async (id, isApproved) => {
         try {
             await approveRestaurant(id, isApproved);
-            message.success(isApproved ? 'Đã duyệt quán!' : 'Đã từ chối quán!');
+            message.success(isApproved ? 'Đã duyệt nhà hàng!' : 'Đã từ chối nhà hàng!');
             setIsModalOpen(false);
             // Load lại dữ liệu theo range hiện tại
             fetchData(dateRange[0], dateRange[1]);
@@ -82,7 +82,7 @@ const RestaurantApprovalPage = () => {
         if (lat && lng) {
             window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank');
         } else {
-            message.warning('Quán chưa cập nhật tọa độ bản đồ');
+            message.warning('Nhà hàng chưa cập nhật tọa độ bản đồ');
         }
     };
 
@@ -95,11 +95,11 @@ const RestaurantApprovalPage = () => {
             render: (src) => <Image width={60} height={60} src={src} style={{ borderRadius: 8, objectFit: 'cover' }} fallback="https://via.placeholder.com/60"/>
         },
         {
-            title: 'Tên quán',
+            title: 'Tên nhà hàng',
             dataIndex: 'name',
             render: (text) => <b style={{ fontSize: 15, color: '#1677ff' }}>{text}</b>
         },
-        { title: 'Chủ quán', dataIndex: 'ownerName' },
+        { title: 'Chủ nhà hàng', dataIndex: 'ownerName' },
         { title: 'Ngày đăng ký', dataIndex: 'createdAt' },
         {
             title: 'Trạng thái',
@@ -121,7 +121,7 @@ const RestaurantApprovalPage = () => {
     return (
         <div style={{ padding: 20 }}>
             <Card
-                title="Duyệt Đăng Ký Quán Mới"
+                title="Duyệt Đăng Ký Nhà Hàng Mới"
                 extra={
                     <Space>
                         <span style={{ fontWeight: 'bold' }}>Lọc theo ngày:</span>
@@ -166,14 +166,14 @@ const RestaurantApprovalPage = () => {
                 footer={[
                     <Button key="close" onClick={() => setIsModalOpen(false)}>Đóng</Button>,
                     <Popconfirm
-                        title="Từ chối quán này?"
+                        title="Từ chối nhà hàng này?"
                         onConfirm={() => handleApproval(selectedRestaurant?.id, false)}
                         okText="Từ chối" cancelText="Hủy" okButtonProps={{ danger: true }}
                     >
                         <Button key="reject" danger>Từ chối</Button>
                     </Popconfirm>,
                     <Popconfirm
-                        title="Duyệt quán này?"
+                        title="Duyệt nhà hàng này?"
                         onConfirm={() => handleApproval(selectedRestaurant?.id, true)}
                         okText="Duyệt ngay" cancelText="Hủy"
                     >
@@ -188,7 +188,7 @@ const RestaurantApprovalPage = () => {
                         </div>
                         <Row gutter={24}>
                             <Col xs={24} md={12}>
-                                <Card type="inner" title={<><UserOutlined /> Thông tin Chủ quán</>} size="small" style={{ height: '100%', background: '#fafafa' }}>
+                                <Card type="inner" title={<><UserOutlined /> Thông tin Chủ Nhà Hàng</>} size="small" style={{ height: '100%', background: '#fafafa' }}>
                                     <Descriptions column={1} labelStyle={{ fontWeight: 'bold' }}>
                                         <Descriptions.Item label="Họ tên">{selectedRestaurant.ownerName}</Descriptions.Item>
                                         <Descriptions.Item label="CCCD">{selectedRestaurant.ownerIdCard}</Descriptions.Item>
@@ -197,9 +197,9 @@ const RestaurantApprovalPage = () => {
                                 </Card>
                             </Col>
                             <Col xs={24} md={12}>
-                                <Card type="inner" title={<><ShopOutlined /> Thông tin Quán ăn</>} size="small" style={{ height: '100%', background: '#fafafa' }}>
+                                <Card type="inner" title={<><ShopOutlined /> Thông tin Nhà Hàng</>} size="small" style={{ height: '100%', background: '#fafafa' }}>
                                     <Descriptions column={1} labelStyle={{ fontWeight: 'bold' }}>
-                                        <Descriptions.Item label="Tên quán">{selectedRestaurant.name}</Descriptions.Item>
+                                        <Descriptions.Item label="Tên nhà hàng">{selectedRestaurant.name}</Descriptions.Item>
                                         <Descriptions.Item label="Địa chỉ">{selectedRestaurant.address}</Descriptions.Item>
                                         <Descriptions.Item label="Tọa độ">
                                             {selectedRestaurant.latitude ?
