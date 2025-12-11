@@ -16,6 +16,9 @@ public class CategoryAttribute {
 
     private String dataType; // TEXT, NUMBER, SELECT...
 
+    @Column(name = "is_required")
+    private Boolean isRequired = true;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     @JsonIgnore

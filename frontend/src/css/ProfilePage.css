@@ -1,103 +1,257 @@
+/* ====== NỀN GIỐNG ChangePassword (nền xám nhẹ, không banner, không overlay) ====== */
+
 .profile-page {
-    flex: 1;
+    min-height: 100vh;
+    background-color: #f5f5f5; /* Giống ChangePassword */
+    padding: 40px 20px;
     display: flex;
     justify-content: center;
     align-items: flex-start;
-    padding: 30px 0;
-    background-color: #f5f5f5;
 }
 
-.profile-card {
-    background-color: #ffffff;
+/* KHÔNG còn lớp overlay mờ, KHÔNG background ảnh */
+/* Xóa hiệu ứng ::before của bản cũ hoàn toàn */
+.profile-page::before {
+    display: none !important;
+}
+
+/* ====== Card chính ====== */
+
+.profile-wrapper {
     width: 100%;
-    max-width: 520px;
-    padding: 24px 28px;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    max-width: 900px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    padding: 28px 32px;
+    display: flex;
+    flex-direction: column;
 }
 
-.profile-title {
-    font-size: 22px;
+/* ====== Header ====== */
+
+.profile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #eee;
     margin-bottom: 20px;
-    text-align: left;
-    color: #000000;
 }
 
-.profile-form {
+.profile-header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.profile-page-title {
+    margin: 0 !important;
+    color: #222;
+    font-weight: 600;
+}
+
+.profile-page-subtitle {
+    font-size: 13px;
+    color: #888 !important;
+}
+
+.profile-header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.profile-header-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.profile-header-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* ====== Layout 2 cột ====== */
+
+.profile-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(250px, 1fr);
+    gap: 24px;
+    align-items: flex-start;
+}
+
+.profile-main {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.profile-side {
     display: flex;
     flex-direction: column;
     gap: 16px;
 }
 
-.profile-form-group {
-    display: flex;
-    flex-direction: column;
-    text-align: left;
+/* ====== Section ====== */
+
+.profile-section {
+    background: #ffffff;
+    border-radius: 10px;
+    border: 1px solid #f0f0f0;
+    padding: 18px 20px;
 }
 
-.profile-form-group label {
-    font-weight: 500;
-    margin-bottom: 6px;
-    font-size: 14px;
-    color: #000000;
+.profile-section-header {
+    margin-bottom: 12px;
 }
 
-.profile-form-group input,
-.profile-form-group textarea {
-    padding: 8px 10px;
-    border-radius: 4px;
-    border: 1px solid #ddd;
-    font-size: 14px;
-    outline: none;
+.profile-section-header h5.ant-typography {
+    margin-bottom: 2px;
+    font-weight: 600;
+    color: #222;
 }
 
-.profile-form-group input:focus,
-.profile-form-group textarea:focus {
-    border-color: #ee4d2d;
-}
-
-.profile-form-group input[readonly] {
-    background-color: #3b3b3b;
-    cursor: not-allowed;
+.profile-section-header .ant-typography.ant-typography-secondary {
+    font-size: 13px;
+    color: #888;
 }
 
 .profile-grid-2 {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 20px;
 }
 
-.profile-actions {
-    margin-top: 8px;
-    text-align: right;
+/* ====== Input Group ====== */
+
+.profile-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
-.profile-save-btn {
-    padding: 8px 20px;
-    background-color: #ee4d2d;
-    color: #ffffff;
-    border: none;
-    border-radius: 5px;
+.profile-form-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #444;
+}
+
+.profile-form-group .ant-input,
+.profile-form-group .ant-input-affix-wrapper {
+    border-radius: 8px !important;
+}
+
+/* ====== Chọn vị trí ====== */
+
+.profile-map-input {
     cursor: pointer;
-    font-weight: bold;
+    background-color: #fafafa;
+    border-radius: 8px;
 }
 
-.profile-save-btn:hover {
-    background-color: #d73211;
+.profile-address-preview {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #fafafa;
+    border: 1px dashed #ddd;
 }
 
-.profile-save-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+.profile-address-text {
+    display: block;
+    margin-top: 4px;
+    font-size: 13px;
+    color: #444;
 }
 
-@media (max-width: 600px) {
-    .profile-card {
-        margin: 0 16px;
+/* ====== Nút lưu ====== */
+.profile-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+}
+
+/* ====== Summary Card ====== */
+
+.profile-summary-card {
+    background: #ffffff;
+    border-radius: 10px;
+    border: 1px solid #f0f0f0;
+    padding: 16px 18px;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.06);
+}
+
+.profile-summary-card h5.ant-typography {
+    margin-bottom: 12px;
+    font-weight: 600;
+}
+
+.profile-summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px dashed #eee;
+    font-size: 13px;
+}
+
+.profile-summary-row:last-child {
+    border-bottom: none;
+}
+
+/* ====== Style chung cho lỗi validate ====== */
+
+.profile-error-text {
+    margin: 2px 0 0 0 !important;
+    padding: 0;
+    color: #ff4d4f !important;      /* đỏ cảnh báo giống antd */
+    font-size: 12px !important;     /* nhỏ gọn */
+    line-height: 1.2;
+    font-weight: 500;
+}
+
+/* Nếu muốn nhỏ hơn nữa (option) */
+/*
+.profile-error-text {
+  font-size: 11px !important;
+}
+*/
+
+/* Khi input có lỗi — border đỏ giống AntD */
+.profile-form-group .ant-input,
+.profile-form-group .ant-input-affix-wrapper {
+    border-color: #ff4d4f !important;
+}
+
+
+/* ====== Responsive ====== */
+
+@media (max-width: 992px) {
+    .profile-layout {
+        grid-template-columns: 1fr;
+    }
+    .profile-side {
+        order: -1;
+    }
+}
+
+@media (max-width: 768px) {
+    .profile-wrapper {
         padding: 20px 16px;
     }
-
     .profile-grid-2 {
         grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .profile-page {
+        padding: 20px 12px;
+    }
+    .profile-wrapper {
+        padding: 16px 12px;
     }
 }
