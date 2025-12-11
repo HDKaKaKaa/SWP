@@ -284,7 +284,7 @@ export default function OwnerOrders() {
                                         </>
                                     )}
                                     {(o.status === "SHIPPING" || o.status === "COMPLETED" || o.status === "CANCELLED") && (
-                                        <span>—</span>
+                                        <span></span>
                                     )}
                                 </td>
                             </tr>

@@ -292,7 +292,7 @@ const OwnerProducts = () => {
 
             <Modal show={showAddModal} onHide={() => setShowAddModal(false)} size="xl" centered>
                 <Modal.Header closeButton>
-                    <Modal.Title>Thêm Sản Phẩm</Modal.Title>
+                    <Modal.Title className="text-center w-100 font-weight-bold">Thêm Sản Phẩm</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
                     <AddProduct 

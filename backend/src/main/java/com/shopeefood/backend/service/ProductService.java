@@ -88,7 +88,7 @@ public class ProductService {
     
     // Hàm tìm kiếm Restaurants của Owner
     public List<Restaurant> getRestaurantsByOwnerAccount(Integer ownerAccountId) {
-        return restaurantRepository.findByOwnerAccount_Id(ownerAccountId);
+        return restaurantRepository.findByOwnerId(ownerAccountId);
     }
     
     // Hàm tìm Categories

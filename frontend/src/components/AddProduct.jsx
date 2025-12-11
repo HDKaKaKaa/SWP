@@ -351,7 +351,7 @@ export default function AddProduct({ onProductAdded, restaurants = [] }) {
                                                 name="isAvailable"
                                                 checked={productData.isAvailable}
                                                 onChange={handleChange}
-                                                label={`Trạng thái: ${productData.isAvailables ? 'Đang Bán' : 'Ngừng Bán'}`}
+                                                label={`${productData.isAvailable ? 'Đang Bán' : 'Ngừng Bán'}`}
                                                 className="pb-1"
                                             />
                                         </Form.Group>
@@ -401,7 +401,7 @@ export default function AddProduct({ onProductAdded, restaurants = [] }) {
                                 <Button
                                     variant="danger"
                                     type="submit"
-                                    className="w-100 mt-3"
+                                    className="w-30 mt-3 justify-content-center d-flex mx-auto"
                                     disabled={loading || loadingInitial || restaurants.length === 0}
                                 >
                                     {loading ? (
