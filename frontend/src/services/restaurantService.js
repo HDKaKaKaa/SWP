@@ -41,3 +41,9 @@ export const toggleRestaurantStatus = async (id) => {
     const response = await axios.put(`${API_URL}/${id}/toggle-status`);
     return response.data;
 };
+
+// Lấy menu của nhà hàng
+export const getRestaurantMenu = async (restaurantId) => {
+    const response = await axios.get(`${API_URL}/${restaurantId}/menu`);
+    return response.data;
+};
