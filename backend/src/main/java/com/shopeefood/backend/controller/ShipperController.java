@@ -38,7 +38,7 @@ public class ShipperController {
     @GetMapping("/orders/available")
     public ResponseEntity<List<Map<String, Object>>> getAvailableOrders() {
         List<Order> orders = orderRepository.findAll().stream()
-                .filter(o -> o.getStatus().equals("PENDING") && o.getShipper() == null)
+                .filter(o -> o.getStatus().equals("PAID") && o.getShipper() == null)
                 .collect(Collectors.toList());
         
         List<Map<String, Object>> result = orders.stream().map(order -> {
@@ -155,8 +155,8 @@ public class ShipperController {
             return ResponseEntity.badRequest().body("Đơn hàng đã được nhận bởi shipper khác");
         }
         
-        if (!order.getStatus().equals("PENDING")) {
-            return ResponseEntity.badRequest().body("Đơn hàng không ở trạng thái PENDING");
+        if (!order.getStatus().equals("PAID")) {
+            return ResponseEntity.badRequest().body("Đơn hàng không ở trạng thái PAID");
         }
         
         Shipper shipper = shipperRepository.findById(shipperId).orElse(null);

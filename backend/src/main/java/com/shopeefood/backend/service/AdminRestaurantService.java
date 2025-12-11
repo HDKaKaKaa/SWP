@@ -1,8 +1,11 @@
 package com.shopeefood.backend.service;
 
+import com.shopeefood.backend.dto.ProductDTO;
 import com.shopeefood.backend.dto.RestaurantDTO;
+import com.shopeefood.backend.entity.Product;
 import com.shopeefood.backend.entity.Restaurant;
 import com.shopeefood.backend.repository.OrderRepository;
+import com.shopeefood.backend.repository.ProductRepository;
 import com.shopeefood.backend.repository.RestaurantRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -21,6 +24,8 @@ public class AdminRestaurantService {
     private RestaurantRepository restaurantRepository;
     @Autowired
     private OrderRepository orderRepository; // <--- Inject thêm cái này
+    @Autowired
+    private ProductRepository productRepository;
 
 
     // 1. Lấy danh sách quán đang chờ duyệt (PENDING)
@@ -126,5 +131,11 @@ public class AdminRestaurantService {
         List<Restaurant> restaurants = restaurantRepository.findByStatusesAndKeyword(statuses, searchKey);
 
         return restaurants.stream().map(RestaurantDTO::new).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductDTO> getMenuByRestaurant(Integer restaurantId) {
+        List<Product> products = productRepository.findByRestaurantId(restaurantId);
+        return products.stream().map(ProductDTO::new).collect(Collectors.toList());
     }
 }
