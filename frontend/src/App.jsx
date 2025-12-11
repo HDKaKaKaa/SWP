@@ -1,9 +1,5 @@
 import React from 'react';
-import {
-  Routes,
-  Route,
-  Outlet,
-} from 'react-router-dom';
+import { Routes, Route, Outlet } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -15,7 +11,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import MainLayout from './components/MainLayout';
 import AdminDashboard from './pages/AdminDashboard';
 import ProfilePage from './pages/ProfilePage';
-import ChangePasswordPage from "./pages/ChangePasswordPage.jsx";
+import ChangePasswordPage from './pages/ChangePasswordPage.jsx';
 import AdminUsersPage from './pages/AdminUsersPage';
 import CategoriesPage from './pages/CategoriesPage';
 import OrdersPage from './pages/OrdersPage';
@@ -31,25 +27,28 @@ import ShipperOrderDetail from './pages/ShipperOrderDetail';
 import ShipperMap from './pages/ShipperMap';
 import ShipperProfile from './pages/ShipperProfile';
 import RestaurantRegistration from './pages/RestaurantRegistration';
-import RestaurantApprovalPage from "./pages/RestaurantApprovalPage";
-import RestaurantPage from "./pages/RestaurantPage";
+import RestaurantApprovalPage from './pages/RestaurantApprovalPage';
+import RestaurantPage from './pages/RestaurantPage';
 import CartPage from './pages/CartPage';
 import CheckoutPage from './pages/CheckoutPage';
 import OrderSuccessPage from './pages/OrderSuccessPage';
+import MyRegistrations from './pages/MyRegistrations';
 
 // Tạo nhanh component placeholder để menu admin bấm không bị lỗi
 const ShippersPage = () => <h2>Quản lý Tài xế</h2>;
 
 function App() {
   return (
-
     <Routes>
       {/* ======================================================= */}
       {/* NHÓM 1: ADMIN (Sử dụng MainLayout có Sidebar)           */}
       {/* ======================================================= */}
       <Route path="/admin" element={<MainLayout />}>
         <Route index element={<AdminDashboard />} />
-        <Route path="restaurant-approval" element={<RestaurantApprovalPage />} />
+        <Route
+          path="restaurant-approval"
+          element={<RestaurantApprovalPage />}
+        />
         <Route path="restaurants" element={<RestaurantPage />} />
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="orders" element={<OrdersPage />} />
@@ -106,6 +105,7 @@ function App() {
           path="/restaurant-registration"
           element={<RestaurantRegistration />}
         />
+        <Route path="/my-registrations" element={<MyRegistrations />} />
       </Route>
       {/* ======================================================= */}
       {/* NHÓM 4: CỬA HÀNG (OWNER)                                 */}
@@ -125,7 +125,6 @@ function App() {
               <Outlet />{' '}
               {/* Nội dung các trang Landing, Login... sẽ hiện ở đây */}
             </div>
-            
           </div>
         }
       >
