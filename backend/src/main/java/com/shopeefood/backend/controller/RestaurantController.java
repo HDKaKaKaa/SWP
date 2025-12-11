@@ -67,4 +67,11 @@ public class RestaurantController {
             return ResponseEntity.internalServerError().body("Lỗi hệ thống: " + e.getMessage());
         }
     }
+
+    // API lấy danh sách quán đã đăng ký của 1 user cụ thể
+    @GetMapping("/account/{accountId}")
+    public ResponseEntity<List<Restaurant>> getRestaurantsByAccountId(@PathVariable Integer accountId) {
+        List<Restaurant> list = restaurantRepository.findByOwnerId(accountId);
+        return ResponseEntity.ok(list);
+    }
 }
