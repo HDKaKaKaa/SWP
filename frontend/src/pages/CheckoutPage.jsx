@@ -1,9 +1,12 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import axios from "axios";
 import { AuthContext } from "../context/AuthContext";
+import { getCart } from "../services/cartService";
+import { getCustomerProfile } from "../services/customerService";
+import { simulatePaymentSuccess } from "../services/paymentService";
 import { MdRestaurant } from "react-icons/md";
 import { FaCreditCard, FaUserCheck } from "react-icons/fa";
+import { message } from "antd";
 import "../css/CheckoutPage.css";
 
 const CheckoutPage = () => {
@@ -58,20 +61,14 @@ const CheckoutPage = () => {
                 setLoading(true);
                 setError(null);
 
-                const [cartRes, profileRes] = await Promise.all([
-                    axios.get("http://localhost:8080/api/cart", {
-                        params: {
-                            accountId: user.id,
-                            restaurantId: restaurantId,  // LẤY ĐÚNG CART CỦA NHÀ HÀNG NÀY
-                        },
-                        withCredentials: true,
-                    }),
-                    axios.get(`http://localhost:8080/api/customer/profile/${user.id}`),
+                const [cartData, profileData] = await Promise.all([
+                    getCart(user.id, restaurantId, { withCredentials: true }),
+                    getCustomerProfile(user.id),
                 ]);
 
-                setCart(cartRes.data);
+                setCart(cartData);
 
-                const profile = profileRes.data || {};
+                const profile = profileData || {};
                 setCustomerInfo({
                     fullName: profile.fullName || "",
                     phone: profile.phone || "",
@@ -93,19 +90,13 @@ const CheckoutPage = () => {
             if (!user || !restaurantId) return;
 
             Promise.all([
-                axios.get("http://localhost:8080/api/cart", {
-                    params: {
-                        accountId: user.id,
-                        restaurantId: restaurantId,
-                    },
-                    withCredentials: true,
-                }),
-                axios.get(`http://localhost:8080/api/customer/profile/${user.id}`),
+                getCart(user.id, restaurantId, { withCredentials: true }),
+                getCustomerProfile(user.id),
             ])
-                .then(([cartRes, profileRes]) => {
-                    setCart(cartRes.data);
+                .then(([cartData, profileData]) => {
+                    setCart(cartData);
 
-                    const profile = profileRes.data || {};
+                    const profile = profileData || {};
                     setCustomerInfo({
                         fullName: profile.fullName || "",
                         phone: profile.phone || "",
@@ -240,11 +231,7 @@ const CheckoutPage = () => {
             setProcessing(true);
             setError(null);
 
-            await axios.post(
-                `http://localhost:8080/api/payment/simulate/success/${orderId}`,
-                {},
-                {withCredentials: true}
-            );
+            await simulatePaymentSuccess(orderId);
 
             // === TẠO orderCode ĐÚNG FORMAT BACKEND ===
             const today = new Date();
@@ -254,7 +241,7 @@ const CheckoutPage = () => {
 
             const fakeOrderCode = `FO${yyyyMMdd}${paddedId}`;
 
-            alert("Thanh toán giả lập thành công!");
+            message.success("Thanh toán giả lập thành công!");
 
             // Điều hướng sang OrderSuccessPage với orderCode đúng chuẩn
             navigate(`/order-success?code=00&orderCode=${fakeOrderCode}`);

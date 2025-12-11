@@ -356,6 +356,26 @@
     min-width: 130px;
 }
 
+.menu-item--soldout {
+    opacity: 0.55;
+    filter: grayscale(0.15);
+}
+
+/* Chữ “Hết món” bên phải (vị trí nút Thêm) */
+.menu-item-soldout-label {
+    font-size: 15px;                 /* bằng size label nút + Thêm */
+    font-weight: 600;                /* đậm */
+    color: #ff4d4f;                  /* đỏ cảnh báo, dễ thấy */
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    height: 38px;                    /* match chiều cao visual của btn-add-primary */
+    padding-right: 4px;              /* căn chỉnh sát mép phải như nút */
+    letter-spacing: 0.2px;
+}
+
+
+
 /* ================== Nút "Thêm" ================== */
 
 .btn-add-primary {

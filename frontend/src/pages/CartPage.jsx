@@ -1,9 +1,10 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
+import { getCart, updateCartItemByItemId } from '../services/cartService';
 import { MdRestaurant } from "react-icons/md";
 import { HiLocationMarker } from "react-icons/hi";
+import { message } from 'antd';
 import '../css/CartPage.css';
 
 const CartPage = () => {
@@ -77,13 +78,8 @@ const CartPage = () => {
             try {
                 setLoading(true);
                 setError(null);
-                const res = await axios.get('http://localhost:8080/api/cart', {
-                    params: {
-                        accountId: user.id,
-                        restaurantId: restaurantId,   // LẤY GIỎ CỦA NHÀ HÀNG NÀY
-                    },
-                });
-                setCart(res.data);
+                const data = await getCart(user.id, restaurantId);
+                setCart(data);
             } catch (err) {
                 console.error(err);
                 setError('Không tải được giỏ hàng. Vui lòng thử lại.');
@@ -100,14 +96,9 @@ const CartPage = () => {
        const handleFocusOrShow = () => {
            if (!user || !restaurantId) return;
 
-           axios.get('http://localhost:8080/api/cart', {
-               params: {
-                   accountId: user.id,
-                   restaurantId: restaurantId,
-               },
-           })
-               .then((res) => {
-                   setCart(res.data);
+           getCart(user.id, restaurantId)
+               .then((data) => {
+                   setCart(data);
                })
                .catch((err) => {
                    console.error(err);
@@ -135,22 +126,25 @@ const CartPage = () => {
 
         const currentQty = item.quantity || 0;
         const newQuantity = currentQty + delta;
+
         if (newQuantity < 0) return;
+
+        if (newQuantity > 10) {
+            message.warning('Bạn chỉ có thể đặt tối đa 10 phần cho một món.');
+            return;
+        }
 
         try {
             setUpdating(true);
 
-            const res = await axios.put(
-                'http://localhost:8080/api/cart/items/quantity',
-                {
-                    accountId: user.id,
-                    itemId: item.itemId,          // OrderItem.id
-                    quantity: newQuantity,        // newQuantity, cho phép = 0 -> xoá dòng
-                    restaurantId: cart?.restaurantId || restaurantId || null,
-                }
-            );
+            const data = await updateCartItemByItemId({
+                accountId: user.id,
+                itemId: item.itemId,
+                quantity: newQuantity,
+                restaurantId: cart?.restaurantId || restaurantId || null,
+            });
 
-            setCart(res.data);
+            setCart(data);
         } catch (err) {
             console.error(err);
             alert('Không cập nhật được số lượng. Vui lòng thử lại.');
