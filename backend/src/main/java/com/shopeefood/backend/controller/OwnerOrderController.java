@@ -37,14 +37,13 @@ public class OwnerOrderController {
 
     // Cập nhật trạng thái đơn hàng (Logic đã được đơn giản hóa)
     @PutMapping("/{orderId}/status")
-    public Order updateStatus(
+    public OrderDTO updateStatus(
             @PathVariable Integer orderId,
             @RequestParam String status) {
-        // 1. Cập nhật trạng thái
-        orderService.updateOrderStatus(orderId, status);
+        // 1. Cập nhật trạng thái, Service trả về Order Entity đã lưu
+        Order updatedOrder = orderService.updateOrderStatus(orderId, status);
 
-        // 2. Lấy đơn hàng mới nhất để trả về cho frontend
-        // Giả định orderService đã có hàm getOrderById(Integer orderId)
-        return orderService.getOrderById(orderId);
+        // 2. CHUYỂN Order Entity SANG OrderDTO TRƯỚC KHI TRẢ VỀ
+        return new OrderDTO(updatedOrder);
     }
 }
