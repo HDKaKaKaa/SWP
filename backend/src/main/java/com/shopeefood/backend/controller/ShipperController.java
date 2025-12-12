@@ -38,7 +38,9 @@ public class ShipperController {
     private CustomerRepository customerRepository;
 
     /**
-     * Lấy danh sách đơn hàng chưa có shipper (PAID)
+     * Lấy danh sách đơn hàng có sẵn cho shipper
+     * Chỉ hiển thị đơn đã được Owner duyệt (status = PREPARING) và chưa có shipper
+     * Flow: Customer đặt (PENDING) → Owner duyệt (PREPARING) → Shipper nhận (SHIPPING)
      * GET: http://localhost:8080/api/shipper/orders/available
      */
     @GetMapping("/orders/available")
@@ -133,6 +135,8 @@ public class ShipperController {
 
     /**
      * Shipper nhận đơn hàng
+     * Chỉ nhận được đơn đã được Owner duyệt (status = PREPARING)
+     * Flow: Customer đặt (PENDING) → Owner duyệt (PREPARING) → Shipper nhận (SHIPPING)
      * POST: http://localhost:8080/api/shipper/orders/{orderId}/accept
      */
     @PostMapping("/orders/{orderId}/accept")
@@ -146,8 +150,8 @@ public class ShipperController {
             return ResponseEntity.badRequest().body("Đơn hàng đã được nhận bởi shipper khác");
         }
         
-        if (!order.getStatus().equals("PAID")) {
-            return ResponseEntity.badRequest().body("Đơn hàng không ở trạng thái PAID");
+        if (!order.getStatus().equals("PREPARING")) {
+            return ResponseEntity.badRequest().body("Đơn hàng chưa được Owner duyệt. Chỉ có thể nhận đơn ở trạng thái PREPARING");
         }
         
         Shipper shipper = shipperRepository.findById(shipperId).orElse(null);

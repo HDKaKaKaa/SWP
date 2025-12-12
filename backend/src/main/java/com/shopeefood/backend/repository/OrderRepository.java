@@ -110,12 +110,15 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
     List<Order> findByCustomerIdWithDetails(@Param("customerId") Integer customerId);
 
     /**
-     * Tìm đơn hàng có sẵn (PAID và chưa có shipper) - Tối ưu với JOIN FETCH
+     * Tìm đơn hàng có sẵn cho shipper
+     * Chỉ lấy đơn đã được Owner duyệt (status = PREPARING) và chưa có shipper
+     * Flow: Customer đặt (PENDING) → Owner duyệt (PREPARING) → Shipper nhận (SHIPPING)
+     * Tối ưu với JOIN FETCH để tránh N+1 problem
      */
     @Query("SELECT DISTINCT o FROM Order o " +
             "LEFT JOIN FETCH o.restaurant r " +
             "LEFT JOIN FETCH o.customer c " +
-            "WHERE o.status = 'PAID' AND o.shipper IS NULL " +
+            "WHERE o.status = 'PREPARING' AND o.shipper IS NULL " +
             "ORDER BY o.createdAt DESC")
     List<Order> findAvailableOrders();
 
