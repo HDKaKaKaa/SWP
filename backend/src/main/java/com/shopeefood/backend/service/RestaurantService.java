@@ -73,4 +73,37 @@ public class RestaurantService {
 
         return restaurantRepository.save(restaurant);
     }
+
+    @Transactional
+    public Restaurant updateRestaurant(Integer id, RestaurantRegistrationRequest request) {
+        // 1. Tìm quán theo ID
+        Restaurant restaurant = restaurantRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy quán ăn với ID: " + id));
+
+        // 2. Cập nhật thông tin quán
+        restaurant.setName(request.getRestaurantName());
+        restaurant.setAddress(request.getAddress());
+        restaurant.setPhone(request.getPhone());
+        restaurant.setDescription(request.getDescription());
+        restaurant.setCoverImage(request.getCoverImageUrl());
+
+        // Cập nhật tọa độ nếu có (đề phòng user đổi địa chỉ map)
+        if (request.getLatitude() != null && request.getLongitude() != null) {
+            restaurant.setLatitude(request.getLatitude());
+            restaurant.setLongitude(request.getLongitude());
+        }
+
+        // 3. Cập nhật thông tin Owner (vì user có thể sửa lỗi chính tả tên/CCCD)
+        Owner owner = restaurant.getOwner();
+        if (owner != null) {
+            owner.setFullName(request.getOwnerFullName());
+            owner.setIdCardNumber(request.getIdCardNumber());
+            ownerRepository.save(owner);
+        }
+
+        // 4. QUAN TRỌNG: Reset trạng thái về PENDING để chờ duyệt lại
+        restaurant.setStatus(Restaurant.RestaurantStatus.PENDING);
+
+        return restaurantRepository.save(restaurant);
+    }
 }

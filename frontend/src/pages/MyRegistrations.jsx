@@ -1,5 +1,14 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Table, Tag, Button, Typography, message, Space, Card } from 'antd';
+import {
+  Table,
+  Tag,
+  Button,
+  Typography,
+  message,
+  Space,
+  Card,
+  Image,
+} from 'antd';
 import {
   EditOutlined,
   ClockCircleOutlined,
@@ -10,7 +19,6 @@ import {
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import moment from 'moment';
 
 const { Title } = Typography;
 
@@ -52,6 +60,20 @@ const MyRegistrations = () => {
       dataIndex: 'name',
       key: 'name',
       render: (text) => <b>{text}</b>,
+    },
+    {
+      title: 'Ảnh',
+      dataIndex: 'coverImage',
+      key: 'coverImage',
+      render: (src) => (
+        <Image
+          width={60}
+          height={60}
+          src={src}
+          style={{ objectFit: 'cover', borderRadius: '4px' }}
+          fallback="https://via.placeholder.com/60"
+        />
+      ),
     },
     {
       title: 'Địa chỉ',
@@ -119,11 +141,7 @@ const MyRegistrations = () => {
               type="primary"
               icon={<EditOutlined />}
               onClick={() => {
-                // Điều hướng đến trang sửa (bạn cần tự tạo trang này sau)
-                // navigate(`/restaurant/edit/${record.id}`);
-                message.info(
-                  `Chức năng sửa quán ID ${record.id} đang phát triển`
-                );
+                navigate(`/restaurant/edit/${record.id}`);
               }}
             >
               Sửa thông tin
@@ -132,7 +150,7 @@ const MyRegistrations = () => {
 
           {record.status === 'ACTIVE' && (
             <Button type="link" onClick={() => navigate(`/owner/dashboard`)}>
-              Vào trang quản lý
+              Quản lý
             </Button>
           )}
         </Space>

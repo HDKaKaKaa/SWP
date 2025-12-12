@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Layout, Menu, theme } from 'antd';
-import { PieChartOutlined, ShopOutlined, FileTextOutlined } from '@ant-design/icons';
+import { PieChartOutlined, ShopOutlined, FileTextOutlined,AreaChartOutlined, CommentOutlined,IssuesCloseOutlined } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 
 const { Header, Content, Sider } = Layout;
@@ -14,9 +14,11 @@ const OwnerLayout = () => {
 
     const items = [
         { key: '/owner/dashboard', icon: <PieChartOutlined />, label: 'Tổng quan' },
-        { key: '/owner/products', icon: <ShopOutlined />, label: 'Sản phẩm' },
+        { key: '/owner/products', icon: <ShopOutlined />, label: 'Các món' },
         { key: '/owner/orders', icon: <FileTextOutlined />, label: 'Đơn hàng' },
-        { key: '/owner/reports', icon: <PieChartOutlined />, label: 'Báo cáo' },
+        { key: '/owner/feedback', icon: <CommentOutlined />, label: 'Đánh giá' },
+        { key: '/owner/issues', icon: <IssuesCloseOutlined />, label: 'Sự cố' },
+        { key: '/owner/reports', icon: <AreaChartOutlined />, label: 'Báo cáo' },
     ];
 
     return (
@@ -28,7 +30,7 @@ const OwnerLayout = () => {
                 onCollapse={setCollapsed}
                 style={{}}
             >
-                <div
+                {/* <div
                     className="sider-header"
                     style={{
                         height: 48,
@@ -40,7 +42,7 @@ const OwnerLayout = () => {
                     }}
                 >
                     OWNER
-                </div>
+                </div> */}
 
                 <Menu
                     theme="dark"

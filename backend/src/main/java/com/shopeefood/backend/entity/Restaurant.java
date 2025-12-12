@@ -2,7 +2,7 @@ package com.shopeefood.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
-
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -25,6 +25,7 @@ public class Restaurant {
     private String coverImage;
 
     @OneToMany(mappedBy = "restaurant")
+    @JsonManagedReference
     private List<Product> products;
 
     @ManyToOne

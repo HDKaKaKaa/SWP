@@ -245,10 +245,10 @@ export default function AddProduct({ onProductAdded, restaurants = [] }) {
         const productRequestData = {
             name: productData.name,
             description: productData.description,
-            categoryId: productData.categoryId, 
+            categoryId: productData.categoryId,
             price: productData.price,
-            isAvailable: productData.isAvailable, 
-            restaurantId: productData.restaurantId, 
+            isAvailable: productData.isAvailable,
+            restaurantId: productData.restaurantId,
             productDetails: productDetailsList
         };
 
@@ -257,7 +257,7 @@ export default function AddProduct({ onProductAdded, restaurants = [] }) {
             'productRequest',
             new Blob([JSON.stringify(productRequestData)], { type: 'application/json' })
         );
-        formData.append('imageFile', productImage);         
+        formData.append('imageFile', productImage);
         try {
             const API_POST_PRODUCT = `${API_BASE_URL}/products`;
             await axios.post(API_POST_PRODUCT, formData, {
@@ -279,6 +279,9 @@ export default function AddProduct({ onProductAdded, restaurants = [] }) {
                 <Col md={12}>
                     <Card className="shadow">
                         <Card.Body>
+                            <h3 className="text-center mb-4 text-primary">
+                                Thêm Sản Phẩm
+                            </h3>
                             {loadingInitial && (
                                 <Alert variant="info" className="text-center">
                                     <Spinner animation="border" size="sm" className="me-2" /> Đang tải dữ liệu ban đầu...
