@@ -74,4 +74,18 @@ public class RestaurantController {
         List<Restaurant> list = restaurantRepository.findByOwnerId(accountId);
         return ResponseEntity.ok(list);
     }
+
+    // API Cập nhật quán: PUT /api/restaurants/{id}
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateRestaurant(@PathVariable Integer id,
+            @RequestBody RestaurantRegistrationRequest request) {
+        try {
+            Restaurant updatedRestaurant = restaurantService.updateRestaurant(id, request);
+            return ResponseEntity.ok(updatedRestaurant);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Lỗi hệ thống: " + e.getMessage());
+        }
+    }
 }
