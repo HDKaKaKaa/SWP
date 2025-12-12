@@ -32,7 +32,9 @@ import RestaurantPage from './pages/RestaurantPage';
 import CartPage from './pages/CartPage';
 import CheckoutPage from './pages/CheckoutPage';
 import OrderSuccessPage from './pages/OrderSuccessPage';
+import OrderDetailPage from './pages/OrderDetailPage';
 import MyRegistrations from './pages/MyRegistrations';
+import RestaurantEdit from './pages/RestaurantEdit';
 
 // Tạo nhanh component placeholder để menu admin bấm không bị lỗi
 const ShippersPage = () => <h2>Quản lý Tài xế</h2>;
@@ -101,11 +103,13 @@ function App() {
         <Route path="/cart" element={<CartPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/order-success" element={<OrderSuccessPage />} />
+        <Route path="/orders" element={<OrderDetailPage />} />
         <Route
           path="/restaurant-registration"
           element={<RestaurantRegistration />}
         />
         <Route path="/my-registrations" element={<MyRegistrations />} />
+        <Route path="/restaurant/edit/:id" element={<RestaurantEdit />} />
       </Route>
       {/* ======================================================= */}
       {/* NHÓM 4: CỬA HÀNG (OWNER)                                 */}

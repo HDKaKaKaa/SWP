@@ -11,6 +11,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class OrderService {
@@ -22,7 +23,7 @@ public class OrderService {
     public Page<OrderDTO> getOrdersForOwner(Integer ownerId, Integer restaurantId,
             int page, int size, String search,
             LocalDateTime from, LocalDateTime to, String sortField, String sortDir) {
-
+        List<String> allowedStatuses = List.of("PAID", "PREPARING", "SHIPPING", "COMPLETED", "CANCELLED");
         if (to == null)
             to = LocalDateTime.now();
 
@@ -54,34 +55,52 @@ public class OrderService {
                 searchPattern,
                 from,
                 to,
+                allowedStatuses,
                 pageable);
         return orderPage.map(OrderDTO::new);
     }
 
-    // Cập nhật trạng thái đơn hàng (Owner action)
-    public void updateOrderStatus(Integer orderId, String newStatus) {
+    // Cập nhật trạng thái đơn hàng
+    public Order updateOrderStatus(Integer orderId, String newStatus) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
         String currentStatus = order.getStatus();
 
-        switch (currentStatus) {
-            case "PENDING":
-                if (!newStatus.equals("PREPARING") && !newStatus.equals("CANCELLED")) {
-                    throw new RuntimeException("Invalid transition from PENDING");
-                }
-                break;
+        switch (newStatus) {
             case "PREPARING":
-                if (!newStatus.equals("SHIPPING")) {
-                    throw new RuntimeException("Invalid transition from PREPARING");
+                if (!currentStatus.equals("PAID")) {
+                    throw new RuntimeException(
+                            "Trạng thái chuyển đổi không hợp lệ. Chỉ đơn hàng ở trạng thái PAID mới có thể chấp nhận thành PREPARING.");
                 }
                 break;
+            case "SHIPPING":
+                if (!currentStatus.equals("PREPARING")) {
+                    throw new RuntimeException(
+                            "Trạng thái chuyển đổi không hợp lệ. Chỉ đơn hàng ở trạng thái PREPARING mới có thể chuyển sang SHIPPING.");
+                }
+                break;
+            case "CANCELLED":
+                if (!currentStatus.equals("PAID")) {
+                    throw new RuntimeException("Chỉ đơn hàng ở trạng thái PAID mới có thể chấp nhận/hủy bởi Owner.");
+                }
+                break;
+
+            case "COMPLETED":
+                if (!currentStatus.equals("SHIPPING")) {
+                    throw new RuntimeException("Chỉ đơn hàng đang SHIPPING mới có thể chuyển sang COMPLETED.");
+                }
+                break;
+
             default:
-                throw new RuntimeException("No action allowed from status: " + currentStatus);
+                throw new RuntimeException("Trạng thái chuyển đổi không hợp lệ: " + newStatus);
+
         }
 
         order.setStatus(newStatus);
-        orderRepository.save(order);
+
+        Order savedOrder = orderRepository.save(order);
+        return orderRepository.findByIdWithDetails(savedOrder.getId()).orElse(savedOrder);
     }
 
     public Order getOrderById(Integer orderId) {

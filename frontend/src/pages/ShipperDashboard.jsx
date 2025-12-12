@@ -52,45 +52,36 @@ const ShipperDashboard = () => {
     const fetchData = async () => {
         try {
             setLoading(true);
-            // Luôn lấy đơn hàng có sẵn và sắp xếp từ mới nhất đến cũ nhất
-            const available = await getAvailableOrders();
-            // Sắp xếp theo createdAt (mới nhất trước)
-            const sortedAvailable = available.sort((a, b) => {
-                const dateA = new Date(a.createdAt || 0);
-                const dateB = new Date(b.createdAt || 0);
-                return dateB - dateA; // Mới nhất trước
-            });
-            setAvailableOrders(sortedAvailable);
             
-            // Chỉ lấy đơn hàng của shipper nếu có shipperId
+            // Gọi API song song để tăng tốc độ
+            const promises = [getAvailableOrders()];
             if (shipperId) {
-                try {
-                    const my = await getMyOrders(shipperId);
-                    setMyOrders(my);
-                    
-                    // Lấy thông tin shipper để biết trạng thái hiện tại
-                    const profile = await getShipperProfile(shipperId);
-                    setShipperStatus(profile.status || 'OFFLINE');
-                    
-                    // Nếu đang BUSY và có đơn đang giao, bắt đầu đếm thời gian
-                    if (profile.status === 'BUSY' && my.some(o => o.status === 'SHIPPING')) {
-                        // Tìm đơn đang giao đầu tiên để lấy thời gian bắt đầu (dùng shippedAt)
-                        const shippingOrder = my.find(o => o.status === 'SHIPPING');
-                        if (shippingOrder && shippingOrder.shippedAt) {
-                            const startTime = new Date(shippingOrder.shippedAt).getTime();
-                            setDeliveryStartTime(startTime);
-                        } else if (shippingOrder && shippingOrder.createdAt) {
-                            // Fallback: nếu chưa có shippedAt, dùng createdAt (cho đơn hàng cũ)
-                            const startTime = new Date(shippingOrder.createdAt).getTime();
-                            setDeliveryStartTime(startTime);
-                        }
-                    } else if (profile.status !== 'BUSY') {
-                        setDeliveryStartTime(null);
-                        setElapsedTime(0);
-                    }
-                } catch (error) {
-                    console.error('Lỗi khi lấy đơn hàng của shipper:', error);
-                    setMyOrders([]);
+                promises.push(getMyOrders(shipperId), getShipperProfile(shipperId));
+            }
+            
+            const results = await Promise.all(promises);
+            const available = results[0];
+            
+            // Sắp xếp đơn hàng có sẵn (backend đã sort, nhưng đảm bảo)
+            setAvailableOrders(available.sort((a, b) => 
+                new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+            ));
+            
+            if (shipperId && results.length === 3) {
+                const [my, profile] = [results[1], results[2]];
+                setMyOrders(my);
+                setShipperStatus(profile.status || 'OFFLINE');
+                
+                // Xử lý timer cho đơn đang giao
+                const shippingOrder = my.find(o => o.status === 'SHIPPING');
+                if (profile.status === 'BUSY' && shippingOrder) {
+                    const startTime = shippingOrder.shippedAt 
+                        ? new Date(shippingOrder.shippedAt).getTime()
+                        : (shippingOrder.createdAt ? new Date(shippingOrder.createdAt).getTime() : null);
+                    setDeliveryStartTime(startTime);
+                } else {
+                    setDeliveryStartTime(null);
+                    setElapsedTime(0);
                 }
             } else {
                 setMyOrders([]);
@@ -138,6 +129,7 @@ const ShipperDashboard = () => {
     const handleToggleStatus = async (checked) => {
         if (!shipperId) {
             message.warning('Vui lòng đăng nhập để sử dụng chức năng này!');
+            console.warn('shipperId is null or undefined:', { shipperId, user });
             return;
         }
         if (shipperStatus === 'BUSY') {
@@ -145,12 +137,40 @@ const ShipperDashboard = () => {
             return;
         }
         try {
+            console.log('Updating shipper status:', { shipperId, status: checked ? 'ONLINE' : 'OFFLINE' });
             await updateShipperStatus(shipperId, checked ? 'ONLINE' : 'OFFLINE');
             setShipperStatus(checked ? 'ONLINE' : 'OFFLINE');
             message.success(checked ? 'Đã bật trạng thái ONLINE' : 'Đã tắt trạng thái ONLINE');
-            fetchData();
+            // Chỉ fetch lại profile để cập nhật status, không cần fetch toàn bộ
+            if (shipperId) {
+                const profile = await getShipperProfile(shipperId);
+                setShipperStatus(profile.status || 'OFFLINE');
+            }
         } catch (error) {
-            message.error('Không thể cập nhật trạng thái! ' + (error.response?.data || error.message));
+            // Xử lý error message đúng cách
+            let errorMsg = 'Không thể cập nhật trạng thái!';
+            if (error.response?.data) {
+                // Nếu response.data là string, dùng trực tiếp
+                if (typeof error.response.data === 'string') {
+                    errorMsg += ' ' + error.response.data;
+                } 
+                // Nếu là object, lấy message hoặc chuyển thành string
+                else if (error.response.data.message) {
+                    errorMsg += ' ' + error.response.data.message;
+                } else {
+                    errorMsg += ' ' + JSON.stringify(error.response.data);
+                }
+            } else if (error.message) {
+                errorMsg += ' ' + error.message;
+            }
+            message.error(errorMsg);
+            console.error('Error updating shipper status:', {
+                error,
+                shipperId,
+                status: checked ? 'ONLINE' : 'OFFLINE',
+                response: error.response,
+                responseData: error.response?.data
+            });
         }
     };
 
@@ -169,10 +189,9 @@ const ShipperDashboard = () => {
             message.success('Nhận đơn hàng thành công!');
             // Cập nhật trạng thái thành BUSY
             setShipperStatus('BUSY');
-            // Reset timer, fetchData sẽ set lại deliveryStartTime từ shippedAt
             setDeliveryStartTime(null);
             setElapsedTime(0);
-            // Fetch lại dữ liệu để lấy shippedAt từ server
+            setShipperStatus('BUSY');
             await fetchData();
         } catch (error) {
             message.error(error.response?.data || 'Không thể nhận đơn hàng!');
@@ -188,8 +207,6 @@ const ShipperDashboard = () => {
         try {
             await updateOrderStatus(orderId, 'COMPLETED');
             message.success('Đơn hàng đã được hoàn thành!');
-            // Backend sẽ tự động cập nhật shipper status về ONLINE nếu không còn đơn nào đang giao
-            // Fetch lại dữ liệu để cập nhật UI
             await fetchData();
         } catch (error) {
             message.error(error.response?.data || 'Không thể hoàn thành đơn hàng!');
@@ -205,8 +222,6 @@ const ShipperDashboard = () => {
         try {
             await updateOrderStatus(orderId, 'CANCELLED');
             message.success('Đơn hàng đã được hủy!');
-            // Backend sẽ tự động cập nhật shipper status về ONLINE nếu không còn đơn nào đang giao
-            // Fetch lại dữ liệu để cập nhật UI
             await fetchData();
         } catch (error) {
             message.error(error.response?.data || 'Không thể hủy đơn hàng!');
@@ -224,40 +239,12 @@ const ShipperDashboard = () => {
     }, [availableOrders.length]);
 
     // Format số tiền
-    const formatMoney = (amount) => {
-        return new Intl.NumberFormat('vi-VN', {
-            style: 'currency',
-            currency: 'VND'
-        }).format(amount);
-    };
+    const formatMoney = (amount) => 
+        new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
     // Format ngày tháng
-    const formatDate = (dateString) => {
-        if (!dateString) return 'N/A';
-        const date = new Date(dateString);
-        return date.toLocaleString('vi-VN');
-    };
-
-    // Tính khoảng cách (giả lập - trong thực tế cần API tính khoảng cách thực)
-    const calculateDistance = (order) => {
-        if (order.shippingLat && order.shippingLong) {
-            // Giả lập khoảng cách
-            return (Math.random() * 10 + 2).toFixed(1) + ' km';
-        }
-        return 'N/A';
-    };
-
-    // Tính thời gian ước tính (giả lập)
-    const calculateEstimatedTime = (order) => {
-        const distance = calculateDistance(order);
-        if (distance !== 'N/A') {
-            const km = parseFloat(distance);
-            // Giả sử tốc độ trung bình 30km/h
-            const minutes = Math.round(km * 2);
-            return `${minutes} phút`;
-        }
-        return 'N/A';
-    };
+    const formatDate = (dateString) => 
+        dateString ? new Date(dateString).toLocaleString('vi-VN') : 'N/A';
 
     // Lọc chỉ lấy đơn hàng đang giao (SHIPPING) để hiển thị trong phần "Đơn hàng của tôi"
     const shippingOrders = (myOrders || []).filter(o => o.status === 'SHIPPING');
@@ -460,14 +447,6 @@ const ShipperDashboard = () => {
                                         description={
                                             <div>
                                                 <p><strong>Địa chỉ:</strong> {order.shippingAddress}</p>
-                                                <Row gutter={16}>
-                                                    <Col span={12}>
-                                                        <p><strong>Khoảng cách:</strong> <span style={{ color: '#1890ff' }}>{calculateDistance(order)}</span></p>
-                                                    </Col>
-                                                    <Col span={12}>
-                                                        <p><strong>Thời gian ước tính:</strong> <span style={{ color: '#52c41a' }}>{calculateEstimatedTime(order)}</span></p>
-                                                    </Col>
-                                                </Row>
                                                 <p><strong>Tổng tiền:</strong> {formatMoney(order.totalAmount)}</p>
                                                 <p><strong>Thanh toán:</strong> <Tag>{order.paymentMethod}</Tag></p>
                                                 <p><strong>Thời gian:</strong> {formatDate(order.createdAt)}</p>
@@ -538,12 +517,6 @@ const ShipperDashboard = () => {
                                                             </p>
                                                             <p style={{ margin: '4px 0' }}>
                                                                 <strong>Địa chỉ:</strong> {order.shippingAddress}
-                                                            </p>
-                                                            <p style={{ margin: '4px 0' }}>
-                                                                <strong>Khoảng cách:</strong> <span style={{ color: '#1890ff' }}>{calculateDistance(order)}</span>
-                                                            </p>
-                                                            <p style={{ margin: '4px 0' }}>
-                                                                <strong>Thời gian ước tính:</strong> <span style={{ color: '#52c41a' }}>{calculateEstimatedTime(order)}</span>
                                                             </p>
                                                             <p style={{ margin: '4px 0' }}>
                                                                 <strong>Tổng tiền:</strong> {formatMoney(order.totalAmount)}

@@ -6,10 +6,10 @@ import java.util.List;
 
 @Data
 public class AddToCartRequest {
-    private Integer accountId;    // account_id của customer (đã có sẵn trong hệ thống)
-    private Integer restaurantId; // quán đang đặt
-    private Integer productId;    // món
-    private Integer quantity;     // số lượng (>=1)
+    private Integer accountId; 
+    private Integer restaurantId; 
+    private Integer productId;  
+    private Integer quantity;
 
     // Danh sách ID của ProductDetail (options) được chọn cho món này
     private List<Integer> detailIds;

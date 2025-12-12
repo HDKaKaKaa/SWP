@@ -54,7 +54,7 @@ const OrderSuccessPage = () => {
     };
 
     const handleGoToOrders = () => {
-        // tuỳ bạn: /orders, /profile?tab=orders, ...
+        // Điều hướng đến trang chi tiết đơn hàng
         navigate("/orders");
     };
 

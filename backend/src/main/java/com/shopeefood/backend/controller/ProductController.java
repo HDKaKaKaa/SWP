@@ -2,9 +2,12 @@ package com.shopeefood.backend.controller;
 
 import com.shopeefood.backend.entity.Product;
 import com.shopeefood.backend.repository.ProductRepository;
+import com.shopeefood.backend.service.ProductService;
+import com.shopeefood.backend.dto.ProductCreationRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @RestController
@@ -14,6 +17,8 @@ public class ProductController {
 
     @Autowired
     private ProductRepository productRepository;
+    @Autowired
+    private ProductService productService;
 
     @GetMapping
     public List<Product> getProducts(
@@ -29,5 +34,15 @@ public class ProductController {
         }
 
         return productRepository.findAll();
+    }
+
+    // Tạo sản phẩm
+    @PostMapping(consumes = { "multipart/form-data" })
+    public ResponseEntity<Product> createProduct(
+            @RequestPart("productRequest") ProductCreationRequest request,
+            @RequestPart("imageFile") MultipartFile imageFile) throws Exception {
+
+        Product newProduct = productService.createNewProduct(request, imageFile);
+        return ResponseEntity.ok(newProduct);
     }
 }

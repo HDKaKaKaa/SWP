@@ -30,6 +30,13 @@ public class Feedback {
     @Column(columnDefinition = "TEXT")
     private String comment;
 
+    // Đánh giá shipper và thời gian giao
+    @Column(name = "shipper_rating")
+    private Integer shipperRating;
+
+    @Column(name = "shipper_comment", columnDefinition = "TEXT")
+    private String shipperComment;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

@@ -1,7 +1,15 @@
 import { useEffect, useState, useContext, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
+import { getRestaurantById, getProductsByRestaurant } from '../services/restaurantPublicService';
+import {
+    getCart,
+    addCartItem,
+    updateCartItemByProduct,
+    updateCartItemByItemId,
+    deleteCartItemByProduct,
+    clearCartForRestaurant,
+} from '../services/cartService';
 import {
     LoginModal,
     AddressModal,
@@ -10,6 +18,7 @@ import {
     DecreaseComboModal,
 } from '../components/RestaurantDetailModals';
 import { FiShoppingBag, FiImage } from "react-icons/fi";
+import { message } from 'antd';
 import '../css/RestaurantDetail.css';
 
 /* ======================= COMPONENT CHÍNH ======================= */
@@ -108,12 +117,12 @@ const RestaurantDetail = () => {
         window.scrollTo(0, 0);
         const fetchData = async () => {
             try {
-                const [restaurantRes, productRes] = await Promise.all([
-                    axios.get(`http://localhost:8080/api/restaurants/${id}`),
-                    axios.get(`http://localhost:8080/api/products?restaurantId=${id}`),
+                const [restaurantData, productData] = await Promise.all([
+                    getRestaurantById(id),
+                    getProductsByRestaurant(id),
                 ]);
-                setRestaurant(restaurantRes.data);
-                setProducts(productRes.data || []);
+                setRestaurant(restaurantData);
+                setProducts(productData || []);
             } catch (error) {
                 console.error(error);
             }
@@ -162,13 +171,8 @@ const RestaurantDetail = () => {
                 return;
             }
             try {
-                const res = await axios.get('http://localhost:8080/api/cart', {
-                    params: {
-                        accountId: user.id,
-                        restaurantId: Number(id),      // mỗi nhà hàng một giỏ riêng
-                    },
-                });
-                buildCartStateFromResponse(res.data);
+                const data = await getCart(user.id, Number(id));
+                buildCartStateFromResponse(data);
             } catch (err) {
                 console.error(err);
                 // lỗi thì coi như không có cart
@@ -226,6 +230,25 @@ const RestaurantDetail = () => {
         return false;
     };
 
+    // Xác định attribute group nào là "bắt buộc"
+    const isRequiredAttributeGroup = (group) => {
+        if (!group || !group.attribute) return false;
+        const attr = group.attribute;
+        const name = (attr.name || '').toLowerCase();
+
+        // Nếu backend đã set isRequired = false -> không bắt buộc
+        if (attr.isRequired === false) {
+            return false;
+        }
+
+        // Topping thường là optional
+        if (name.includes('topping')) return false;
+
+        // Mặc định: còn lại (Size, Đường, Đá, ...) là bắt buộc
+        return true;
+    };
+
+
     const openOptionModal = (product) => {
         if (!product) return;
 
@@ -238,8 +261,18 @@ const RestaurantDetail = () => {
             // map từ saved -> tmpSelections
             saved.selections.forEach((sel) => {
                 const { attributeId, detailId } = sel;
-                const attr = groups.find((g) => g.attribute.id === attributeId)?.attribute;
-                if (!attr) return;
+
+                // Tìm group ứng với attribute
+                const group = groups.find((g) => g.attribute.id === attributeId);
+                if (!group) return;
+
+                // Nếu group này KHÔNG bắt buộc (isRequired = false, hoặc topping)
+                // => không auto chọn lại từ localStorage
+                if (!isRequiredAttributeGroup(group)) {
+                    return;
+                }
+
+                const attr = group.attribute;
                 const multi = isMultiAttribute(attr);
 
                 if (!initialSelections[attributeId]) {
@@ -248,6 +281,7 @@ const RestaurantDetail = () => {
                         values: [],
                     };
                 }
+
                 if (multi) {
                     initialSelections[attributeId].values.push(detailId);
                 } else {
@@ -259,9 +293,13 @@ const RestaurantDetail = () => {
             groups.forEach((g) => {
                 const attrId = g.attribute.id;
                 const multi = isMultiAttribute(g.attribute);
+                const required = isRequiredAttributeGroup(g);
+
                 initialSelections[attrId] = {
                     type: multi ? 'multi' : 'single',
-                    values: multi ? [] : (g.options[0] ? [g.options[0].id] : []),
+                    values: multi
+                        ? []
+                        : (required && g.options[0] ? [g.options[0].id] : []),
                 };
             });
         }
@@ -275,6 +313,20 @@ const RestaurantDetail = () => {
         const attrId = attribute.id;
         const multi = isMultiAttribute(attribute);
 
+        // Xác định attribute này có bắt buộc không (theo cùng logic isRequiredAttributeGroup)
+        const isRequired = (() => {
+            const name = (attribute.name || '').toLowerCase();
+
+            if (attribute.isRequired === false) return false;
+            if (attribute.isRequired === true) return true;
+
+            // Topping mặc định không bắt buộc
+            if (name.includes('topping')) return false;
+
+            // Còn lại mặc định là bắt buộc
+            return true;
+        })();
+
         setTmpSelections((prev) => {
             const current = prev[attrId] || {
                 type: multi ? 'multi' : 'single',
@@ -282,7 +334,22 @@ const RestaurantDetail = () => {
             };
 
             if (!multi) {
-                // single: chọn lại
+                // SINGLE CHOICE
+                const alreadySelected = current.values.includes(detail.id);
+
+                // Nếu KHÔNG BẮT BUỘC => cho phép click lần 2 để bỏ chọn
+                if (!isRequired) {
+                    return {
+                        ...prev,
+                        [attrId]: {
+                            ...current,
+                            type: 'single',
+                            values: alreadySelected ? [] : [detail.id],
+                        },
+                    };
+                }
+
+                // Nếu BẮT BUỘC => luôn phải có 1 lựa chọn
                 return {
                     ...prev,
                     [attrId]: {
@@ -293,14 +360,11 @@ const RestaurantDetail = () => {
                 };
             }
 
-            // multi: bật / tắt
+            // MULTI CHOICE (topping, ...): giữ logic bật / tắt như cũ
             const exists = current.values.includes(detail.id);
-            let newValues;
-            if (exists) {
-                newValues = current.values.filter((id) => id !== detail.id);
-            } else {
-                newValues = [...current.values, detail.id];
-            }
+            const newValues = exists
+                ? current.values.filter((id) => id !== detail.id)
+                : [...current.values, detail.id];
 
             return {
                 ...prev,
@@ -320,11 +384,13 @@ const RestaurantDetail = () => {
 
         // Validate: mỗi group single phải có ít nhất 1 lựa chọn
         for (const g of groups) {
+            if (!isRequiredAttributeGroup(g)) continue;
+
             const attrId = g.attribute.id;
             const current = tmpSelections[attrId];
             if (!current) continue;
             if (current.type === 'single' && current.values.length === 0) {
-                alert(`Vui lòng chọn "${g.attribute.name}"`);
+                message.warning(`Vui lòng chọn "${g.attribute.name}".`);
                 return;
             }
         }
@@ -373,9 +439,15 @@ const RestaurantDetail = () => {
             return;
         }
 
+        const currentQty = cartQuantities[product.id] || 0;
+        if (currentQty >= 10) {
+            message.warning('Bạn chỉ có thể đặt tối đa 10 phần cho một món.');
+            return;
+        }
+
         try {
             setAddingProductId(product.id);
-            const res = await axios.post('http://localhost:8080/api/cart/items', {
+            const data = await addCartItem({
                 accountId: user.id,
                 restaurantId: Number(id),
                 productId: product.id,
@@ -383,7 +455,7 @@ const RestaurantDetail = () => {
                 detailIds: detailIds || [],
             });
 
-            syncQuantitiesFromResponse(res.data);
+            syncQuantitiesFromResponse(data);
         } catch (err) {
             console.error(err);
 
@@ -412,24 +484,26 @@ const RestaurantDetail = () => {
 
         const current = cartQuantities[product.id] || 0;
         const newQty = current + delta;
+
         if (newQty < 0) return;
+
+        if (newQty > 10) {
+            message.warning('Bạn chỉ có thể đặt tối đa 20 phần cho một món.');
+            return;
+        }
 
         try {
             setAddingProductId(product.id);
-            let res;
+            let data;
 
             if (newQty === 0) {
-                res = await axios.delete(
-                    `http://localhost:8080/api/cart/items/${product.id}`,
-                    {
-                        params: {
-                            accountId: user.id,
-                            restaurantId: Number(id),
-                        },
-                    }
-                );
+                data = await deleteCartItemByProduct({
+                    accountId: user.id,
+                    productId: product.id,
+                    restaurantId: Number(id),
+                });
             } else {
-                res = await axios.put('http://localhost:8080/api/cart/items', {
+                data = await updateCartItemByProduct({
                     accountId: user.id,
                     productId: product.id,
                     quantity: newQty,
@@ -437,10 +511,10 @@ const RestaurantDetail = () => {
                 });
             }
 
-            syncQuantitiesFromResponse(res.data);
+            syncQuantitiesFromResponse(data);
         } catch (err) {
             console.error(err);
-            alert('Không cập nhật được số lượng. Vui lòng thử lại.');
+            message.error('Không cập nhật được số lượng. Vui lòng thử lại.');
         } finally {
             setAddingProductId(null);
         }
@@ -466,21 +540,18 @@ const RestaurantDetail = () => {
         try {
             setAddingProductId(cartItem.productId);
 
-            const res = await axios.put(
-                'http://localhost:8080/api/cart/items/quantity',
-                {
-                    accountId: user.id,
-                    itemId: cartItem.itemId, // id của OrderItem
-                    quantity: newQty,        // newQuantity
-                    restaurantId: Number(id),
-                }
-            );
+            const data = await updateCartItemByItemId({
+                accountId: user.id,
+                itemId: cartItem.itemId,
+                quantity: newQty,
+                restaurantId: Number(id),
+            });
 
-            syncQuantitiesFromResponse(res.data);
+            syncQuantitiesFromResponse(data);
 
             // Nếu sau khi trừ xong mà product đó chỉ còn 1 combo hoặc 0 combo
             // thì đóng modal cho gọn
-            const productItems = (res.data?.items || []).filter(
+            const productItems = (data?.items || []).filter(
                 (it) => it.productId === cartItem.productId
             );
             if (productItems.length <= 1) {
@@ -489,7 +560,7 @@ const RestaurantDetail = () => {
             }
         } catch (err) {
             console.error(err);
-            alert('Không cập nhật được số lượng. Vui lòng thử lại.');
+            message.error('Không cập nhật được số lượng. Vui lòng thử lại.');
         } finally {
             setAddingProductId(null);
         }
@@ -512,11 +583,9 @@ const RestaurantDetail = () => {
         try {
             if (user) {
                 // Xoá GIỎ CỦA NHÀ HÀNG HIỆN TẠI khi bấm "Về trang chủ"
-                await axios.delete('http://localhost:8080/api/cart', {
-                    params: {
-                        accountId: user.id,
-                        restaurantId: Number(id),
-                    },
+                await clearCartForRestaurant({
+                    accountId: user.id,
+                    restaurantId: Number(id),
                 });
             }
         } catch (error) {
@@ -577,8 +646,15 @@ const RestaurantDetail = () => {
                                     const qty = cartQuantities[p.id] || 0;
                                     const showImage = p.image && !brokenImages[p.id];
 
+                                    const isSoldOut =
+                                        p.isAvailable === false ||
+                                        p.isAvailable === 0;
+
                                     return (
-                                        <div key={p.id} className="menu-item">
+                                        <div
+                                            key={p.id}
+                                            className={`menu-item ${isSoldOut ? 'menu-item--soldout' : ''}`}
+                                        >
                                             <div className="menu-item-main">
                                                 {/* Ảnh món ăn + placeholder nếu không có / bị lỗi */}
                                                 <div className="menu-item-thumb">
@@ -608,7 +684,11 @@ const RestaurantDetail = () => {
                                             </div>
 
                                             <div className="menu-item-actions">
-                                                {qty === 0 ? (
+                                                {isSoldOut ? (
+                                                  <span className="menu-item-soldout-label">
+                                                    Hết món
+                                                  </span>
+                                                ) : qty === 0 ? (
                                                     <button
                                                         type="button"
                                                         className="btn-add-primary"
