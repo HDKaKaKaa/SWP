@@ -17,6 +17,7 @@ public interface FeedbackRepository extends JpaRepository<Feedback, Integer> {
     Double getAverageRating(@Param("restaurantId") Integer restaurantId);
 
     // Kiểm tra xem đơn hàng đã có feedback chưa
-    Optional<Feedback> findByOrderId(Integer orderId);
+    @Query("SELECT f FROM Feedback f WHERE f.order.id = :orderId")
+    Optional<Feedback> findByOrderId(@Param("orderId") Integer orderId);
 
 }
