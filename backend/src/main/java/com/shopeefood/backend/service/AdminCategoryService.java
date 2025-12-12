@@ -61,25 +61,51 @@ public class AdminCategoryService {
         category.setDescription(dto.getDescription());
         category.setImage(dto.getImage());
 
-        // --- LOGIC CẬP NHẬT THUỘC TÍNH ---
-        // Xóa danh sách cũ đi để thay bằng danh sách mới
-        // (Hibernate sẽ tự xóa các record cũ trong DB nhờ orphanRemoval=true)
-        if (category.getAttributes() == null) {
-            category.setAttributes(new ArrayList<>());
-        } else {
-            category.getAttributes().clear();
-        }
+        // --- LOGIC CẬP NHẬT THÔNG MINH (SMART MERGE) ---
 
-        // Thêm danh sách mới từ FE
-        if (dto.getAttributes() != null) {
-            for (CategoryDTO.AttributeDTO attrDto : dto.getAttributes()) {
-                CategoryAttribute attr = new CategoryAttribute();
-                attr.setName(attrDto.getName());
-                attr.setDataType(attrDto.getDataType());
+        List<CategoryDTO.AttributeDTO> incomingAttrs = dto.getAttributes();
+        List<CategoryAttribute> currentAttrs = category.getAttributes();
 
-                attr.setCategory(category); // Quan trọng
-                category.getAttributes().add(attr);
+        if (incomingAttrs != null) {
+            List<Integer> keptIds = new ArrayList<>();
+
+            for (CategoryDTO.AttributeDTO attrDto : incomingAttrs) {
+                if (attrDto.getId() != null) {
+                    // TRƯỜNG HỢP 1: UPDATE (Đã có ID)
+                    // Tìm thuộc tính cũ trong list hiện tại để sửa
+                    CategoryAttribute existingAttr = currentAttrs.stream()
+                            .filter(a -> a.getId().equals(attrDto.getId()))
+                            .findFirst()
+                            .orElse(null);
+
+                    if (existingAttr != null) {
+                        existingAttr.setName(attrDto.getName());
+                        existingAttr.setDataType(attrDto.getDataType());
+                        keptIds.add(existingAttr.getId());
+                    }
+                } else {
+                    // TRƯỜNG HỢP 2: INSERT (Mới tinh, chưa có ID)
+                    CategoryAttribute newAttr = new CategoryAttribute();
+                    newAttr.setName(attrDto.getName());
+                    newAttr.setDataType(attrDto.getDataType());
+                    newAttr.setCategory(category);
+
+                    // Thêm vào list hiện tại
+                    currentAttrs.add(newAttr);
+                }
             }
+
+            // TRƯỜNG HỢP 3: DELETE
+            // Những cái cũ không nằm trong danh sách "keptIds" và cũng không phải mới thêm -> Xóa
+            // Lưu ý: Nếu thuộc tính này đang được Product sử dụng, dòng này sẽ gây lỗi SQL 23503.
+            // Bạn có thể try-catch khối này nếu muốn thông báo lỗi thân thiện hơn.
+            currentAttrs.removeIf(attr ->
+                    attr.getId() != null && !keptIds.contains(attr.getId())
+            );
+
+        } else {
+            // Nếu gửi lên null -> Xóa hết (Sẽ lỗi nếu có ràng buộc)
+            currentAttrs.clear();
         }
 
         return categoryRepository.save(category);
