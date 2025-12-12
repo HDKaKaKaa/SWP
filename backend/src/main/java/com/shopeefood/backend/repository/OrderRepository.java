@@ -121,7 +121,7 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
 
     /**
      * Tìm đơn hàng của shipper - Tối ưu với JOIN FETCH để tránh N+1 problem
-     */
+     */ 
     @Query("SELECT DISTINCT o FROM Order o " +
             "LEFT JOIN FETCH o.restaurant r " +
             "LEFT JOIN FETCH o.customer c " +

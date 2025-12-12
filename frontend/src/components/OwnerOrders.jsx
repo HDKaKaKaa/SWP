@@ -119,7 +119,7 @@ export default function OwnerOrders() {
 
     const handleAction = async (orderId, action) => {
         let newStatus = "";
-        if (action === "accept") newStatus = "SHIPPING";
+        if (action === "accept") newStatus = "PREPARING";
         else if (action === "cancel") newStatus = "CANCELLED";
         
         try {
@@ -283,7 +283,7 @@ export default function OwnerOrders() {
                                             <Button size="sm" variant="danger" onClick={() => handleAction(o.id, "cancel")}>Hủy</Button>
                                         </>
                                     )}
-                                    {(o.status === "SHIPPING" || o.status === "COMPLETED" || o.status === "CANCELLED") && (
+                                    {(o.status === "SHIPPING" || o.status === "COMPLETED" || o.status === "CANCELLED" || o.status === "PREPARING") && (
                                         <span></span>
                                     )}
                                 </td>

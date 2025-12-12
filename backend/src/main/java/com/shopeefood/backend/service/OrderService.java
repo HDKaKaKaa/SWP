@@ -23,7 +23,7 @@ public class OrderService {
     public Page<OrderDTO> getOrdersForOwner(Integer ownerId, Integer restaurantId,
             int page, int size, String search,
             LocalDateTime from, LocalDateTime to, String sortField, String sortDir) {
-        List<String> allowedStatuses = List.of("PAID", "SHIPPING", "COMPLETED", "CANCELLED");
+        List<String> allowedStatuses = List.of("PAID", "PREPARING", "SHIPPING", "COMPLETED", "CANCELLED");
         if (to == null)
             to = LocalDateTime.now();
 
@@ -68,7 +68,18 @@ public class OrderService {
         String currentStatus = order.getStatus();
 
         switch (newStatus) {
+            case "PREPARING":
+                if (!currentStatus.equals("PAID")) {
+                    throw new RuntimeException(
+                            "Trạng thái chuyển đổi không hợp lệ. Chỉ đơn hàng ở trạng thái PAID mới có thể chấp nhận thành PREPARING.");
+                }
+                break;
             case "SHIPPING":
+                if (!currentStatus.equals("PREPARING")) {
+                    throw new RuntimeException(
+                            "Trạng thái chuyển đổi không hợp lệ. Chỉ đơn hàng ở trạng thái PREPARING mới có thể chuyển sang SHIPPING.");
+                }
+                break;
             case "CANCELLED":
                 if (!currentStatus.equals("PAID")) {
                     throw new RuntimeException("Chỉ đơn hàng ở trạng thái PAID mới có thể chấp nhận/hủy bởi Owner.");

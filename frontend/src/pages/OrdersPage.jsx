@@ -174,7 +174,28 @@ const OrdersPage = () => {
 
     // --- ĐỊNH NGHĨA CỘT CHO BẢNG CHI TIẾT MÓN ĂN ---
     const itemColumns = [
-        { title: 'Món ăn', dataIndex: 'productName', key: 'productName' },
+        {
+            title: 'Món ăn',
+            dataIndex: 'productName',
+            key: 'productName',
+            render: (text, record) => (
+                <div>
+                    {/* Tên món chính */}
+                    <Text strong>{text}</Text>
+
+                    {/* --- HIỂN THỊ TÙY CHỌN (OPTIONS) --- */}
+                    {record.options && record.options.length > 0 && (
+                        <div style={{ marginTop: 4 }}>
+                            {record.options.map((opt, index) => (
+                                <div key={index} style={{ fontSize: '12px', color: '#666' }}>
+                                    • {opt}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )
+        },
         { title: 'SL', dataIndex: 'quantity', key: 'quantity', align: 'center', width: 60 },
         {
             title: 'Đơn giá',
@@ -187,6 +208,9 @@ const OrdersPage = () => {
             title: 'Thành tiền',
             key: 'subtotal',
             align: 'right',
+            // Lưu ý: Thành tiền phải tính cả giá món + giá topping (nếu BE chưa cộng sẵn vào price)
+            // Nếu BE trả về price là giá gốc, thì logic tính tổng ở đây chỉ là tham khảo
+            // Tốt nhất BE nên trả về field `totalPrice` cho từng item thì chính xác hơn.
             render: (_, record) => formatCurrency(record.price * record.quantity)
         }
     ];
