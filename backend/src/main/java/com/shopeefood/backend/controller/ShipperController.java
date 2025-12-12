@@ -4,7 +4,10 @@ import com.shopeefood.backend.entity.*;
 import com.shopeefood.backend.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 
 import java.util.HashMap;
 import java.util.List;
@@ -28,20 +31,21 @@ public class ShipperController {
     @Autowired
     private OrderItemRepository orderItemRepository;
     
+    @PersistenceContext
+    private EntityManager entityManager;
+    
     @Autowired
     private CustomerRepository customerRepository;
 
     /**
-     * Lấy danh sách đơn hàng chưa có shipper (PENDING)
+     * Lấy danh sách đơn hàng chưa có shipper (PAID)
      * GET: http://localhost:8080/api/shipper/orders/available
      */
     @GetMapping("/orders/available")
     public ResponseEntity<List<Map<String, Object>>> getAvailableOrders() {
-        List<Order> orders = orderRepository.findAll().stream()
-                .filter(o -> o.getStatus().equals("PAID") && o.getShipper() == null)
-                .collect(Collectors.toList());
+        List<Order> orders = orderRepository.findAvailableOrders();
         
-        List<Map<String, Object>> result = orders.stream().map(order -> {
+        return ResponseEntity.ok(orders.stream().map(order -> {
             Map<String, Object> map = new HashMap<>();
             map.put("id", order.getId());
             map.put("restaurantName", order.getRestaurant() != null ? order.getRestaurant().getName() : "N/A");
@@ -51,9 +55,7 @@ public class ShipperController {
             map.put("createdAt", order.getCreatedAt());
             map.put("note", order.getNote());
             return map;
-        }).collect(Collectors.toList());
-        
-        return ResponseEntity.ok(result);
+        }).collect(Collectors.toList()));
     }
 
     /**
@@ -62,23 +64,24 @@ public class ShipperController {
      */
     @GetMapping("/orders/my-orders")
     public ResponseEntity<List<Map<String, Object>>> getMyOrders(@RequestParam Integer shipperId) {
-        Shipper shipper = shipperRepository.findById(shipperId).orElse(null);
-        if (shipper == null) {
+        if (shipperRepository.findById(shipperId).orElse(null) == null) {
             return ResponseEntity.badRequest().build();
         }
         
-        List<Order> orders = orderRepository.findAll().stream()
-                .filter(o -> o.getShipper() != null && o.getShipper().getAccountId().equals(shipperId))
-                .sorted((o1, o2) -> {
-                    // Sắp xếp theo thời gian tạo mới nhất lên đầu
-                    if (o1.getCreatedAt() == null && o2.getCreatedAt() == null) return 0;
-                    if (o1.getCreatedAt() == null) return 1;
-                    if (o2.getCreatedAt() == null) return -1;
-                    return o2.getCreatedAt().compareTo(o1.getCreatedAt());
-                })
-                .collect(Collectors.toList());
+        List<Order> orders = orderRepository.findOrdersByShipperId(shipperId);
         
-        List<Map<String, Object>> result = orders.stream().map(order -> {
+        // Load tất cả Customer một lần để tránh N+1 problem
+        List<Integer> customerIds = orders.stream()
+                .filter(o -> o.getCustomer() != null)
+                .map(o -> o.getCustomer().getId())
+                .distinct()
+                .collect(Collectors.toList());
+        Map<Integer, Customer> customerMap = customerRepository.findAllById(customerIds).stream()
+                .collect(Collectors.toMap(Customer::getAccountId, c -> c));
+        
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        
+        return ResponseEntity.ok(orders.stream().map(order -> {
             Map<String, Object> map = new HashMap<>();
             map.put("id", order.getId());
             map.put("restaurantName", order.getRestaurant() != null ? order.getRestaurant().getName() : "N/A");
@@ -93,51 +96,39 @@ public class ShipperController {
             map.put("completedAt", order.getCompletedAt());
             map.put("note", order.getNote());
             map.put("estimatedDeliveryTimeMinutes", order.getEstimatedDeliveryTimeMinutes() != null ? order.getEstimatedDeliveryTimeMinutes() : 2);
-            // Tính toán xem đơn hàng có quá hạn không (cho cả đơn đang giao và đã hoàn thành/hủy)
+            
+            // Tính toán quá hạn
             if (order.getShippedAt() != null) {
                 Integer estimatedMinutes = order.getEstimatedDeliveryTimeMinutes() != null ? order.getEstimatedDeliveryTimeMinutes() : 2;
                 java.time.LocalDateTime estimatedCompletionTime = order.getShippedAt().plusMinutes(estimatedMinutes);
-                
                 boolean isOverdue = false;
-                if (order.getStatus().equals("SHIPPING")) {
-                    // Đơn đang giao: so sánh với thời gian hiện tại
-                    java.time.LocalDateTime now = java.time.LocalDateTime.now();
+                if ("SHIPPING".equals(order.getStatus())) {
                     isOverdue = now.isAfter(estimatedCompletionTime);
-                } else if (order.getStatus().equals("COMPLETED") && order.getCompletedAt() != null) {
-                    // Đơn đã hoàn thành: so sánh completedAt với estimatedCompletionTime
+                } else if ("COMPLETED".equals(order.getStatus()) && order.getCompletedAt() != null) {
                     isOverdue = order.getCompletedAt().isAfter(estimatedCompletionTime);
-                } else if (order.getStatus().equals("CANCELLED")) {
-                    // Đơn đã hủy: so sánh với thời gian hiện tại (nếu hủy sau khi quá hạn)
-                    java.time.LocalDateTime now = java.time.LocalDateTime.now();
+                } else if ("CANCELLED".equals(order.getStatus())) {
                     isOverdue = now.isAfter(estimatedCompletionTime);
                 }
-                
                 map.put("isOverdue", isOverdue);
                 map.put("estimatedCompletionTime", estimatedCompletionTime);
             } else {
                 map.put("isOverdue", false);
                 map.put("estimatedCompletionTime", null);
             }
-            // Thêm thông tin khách hàng
+            
+            // Thông tin khách hàng
             if (order.getCustomer() != null) {
-                Integer accountId = order.getCustomer().getId();
-                // Tìm Customer entity từ accountId
-                Customer customer = customerRepository.findById(accountId).orElse(null);
-                if (customer != null && customer.getFullName() != null) {
-                    map.put("customerName", customer.getFullName());
-                } else {
-                    // Nếu không tìm thấy Customer hoặc không có fullName, dùng username
-                    map.put("customerName", order.getCustomer().getUsername());
-                }
+                Customer customer = customerMap.get(order.getCustomer().getId());
+                map.put("customerName", customer != null && customer.getFullName() != null 
+                    ? customer.getFullName() 
+                    : order.getCustomer().getUsername());
                 map.put("customerUsername", order.getCustomer().getUsername());
             } else {
                 map.put("customerName", "N/A");
                 map.put("customerUsername", "N/A");
             }
             return map;
-        }).collect(Collectors.toList());
-        
-        return ResponseEntity.ok(result);
+        }).collect(Collectors.toList()));
     }
 
     /**
@@ -284,20 +275,65 @@ public class ShipperController {
      * PUT: http://localhost:8080/api/shipper/status
      */
     @PutMapping("/status")
+    @Transactional
     public ResponseEntity<?> updateStatus(
             @RequestParam Integer shipperId,
             @RequestParam String status) {
         Shipper shipper = shipperRepository.findById(shipperId).orElse(null);
+        
+        // Nếu chưa có Shipper, tự động tạo mới
         if (shipper == null) {
-            return ResponseEntity.badRequest().body("Shipper không tồn tại");
+            // Kiểm tra xem account có tồn tại và có role SHIPPER không
+            Account account = accountRepository.findById(shipperId).orElse(null);
+            if (account == null) {
+                return ResponseEntity.badRequest().body("Tài khoản không tồn tại");
+            }
+            if (!"SHIPPER".equals(account.getRole())) {
+                return ResponseEntity.badRequest().body("Tài khoản này không phải là Shipper");
+            }
+            
+            // Đảm bảo account có ID
+            if (account.getId() == null) {
+                return ResponseEntity.badRequest().body("Tài khoản không hợp lệ");
+            }
+            
+            // Kiểm tra trạng thái hợp lệ
+            if (!status.equals("ONLINE") && !status.equals("OFFLINE") && !status.equals("BUSY")) {
+                return ResponseEntity.badRequest().body("Trạng thái không hợp lệ");
+            }
+            
+            // Tạo Shipper mới
+            shipper = new Shipper();
+            // Với @MapsId, chỉ cần set account object, Hibernate sẽ tự động lấy account.getId() làm accountId
+            shipper.setAccount(account);
+            shipper.setFullName(account.getUsername()); // Dùng username làm tên mặc định
+            shipper.setStatus(status); // Set status từ request
+            
+            // Dùng persist cho entity mới thay vì save (save sẽ merge và gây lỗi với @MapsId)
+            entityManager.persist(shipper);
+            entityManager.flush(); // Đảm bảo persist được thực thi ngay
+            
+            return ResponseEntity.ok("Cập nhật trạng thái thành công!");
         }
         
+        // Nếu đã có shipper, chỉ cập nhật status
         if (!status.equals("ONLINE") && !status.equals("OFFLINE") && !status.equals("BUSY")) {
             return ResponseEntity.badRequest().body("Trạng thái không hợp lệ");
         }
         
+        // Đảm bảo account được load đúng cách (tránh lỗi null identifier với @MapsId)
+        if (shipper.getAccount() == null) {
+            Account account = accountRepository.findById(shipperId).orElse(null);
+            if (account == null) {
+                return ResponseEntity.badRequest().body("Tài khoản không tồn tại");
+            }
+            shipper.setAccount(account);
+        }
+        
         shipper.setStatus(status);
-        shipperRepository.save(shipper);
+        // Dùng merge để đảm bảo entity được quản lý đúng cách
+        entityManager.merge(shipper);
+        entityManager.flush();
         
         return ResponseEntity.ok("Cập nhật trạng thái thành công!");
     }
