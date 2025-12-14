@@ -3,6 +3,8 @@ package com.shopeefood.backend.service;
 import com.shopeefood.backend.dto.AdminDashboardStatsDTO;
 
 import com.shopeefood.backend.dto.ChartDataDTO;
+import com.shopeefood.backend.dto.RevenueAnalysisDTO;
+import com.shopeefood.backend.entity.Restaurant;
 import com.shopeefood.backend.repository.OrderRepository;
 import com.shopeefood.backend.repository.RestaurantRepository;
 import com.shopeefood.backend.repository.ShipperRepository;
@@ -74,5 +76,51 @@ public class AdminDashboardService {
         }
 
         return result;
+    }
+
+    // 3. API Phân tích doanh thu (Filter)
+    public RevenueAnalysisDTO analyzeRevenue(LocalDate fromDate, LocalDate toDate, Integer restaurantId) {
+        // 1. Xử lý ngày mặc định: Nếu null thì lấy 7 ngày gần nhất
+        if (fromDate == null || toDate == null) {
+            toDate = LocalDate.now();
+            fromDate = toDate.minusDays(6); // 7 ngày (tính cả hôm nay)
+        }
+
+        // Chuyển sang LocalDateTime để query DB
+        LocalDateTime startDateTime = fromDate.atStartOfDay();
+        LocalDateTime endDateTime = toDate.atTime(LocalTime.MAX);
+
+        // 2. Gọi Repo lấy dữ liệu thô
+        List<Object[]> rawData = orderRepository.getRevenueByFilter(startDateTime, endDateTime, restaurantId);
+
+        // 3. Convert List Object[] sang Map<String, BigDecimal> để dễ xử lý
+        Map<String, BigDecimal> dataMap = rawData.stream().collect(Collectors.toMap(
+                row -> row[0].toString(),       // Key: 2023-10-25
+                row -> (BigDecimal) row[1]      // Value: 500000
+        ));
+
+        // 4. Tạo List kết quả đầy đủ (Lấp đầy những ngày không có đơn bằng số 0)
+        List<ChartDataDTO> chartData = new ArrayList<>();
+        BigDecimal totalPeriodRevenue = BigDecimal.ZERO;
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        // Duyệt từ ngày bắt đầu đến ngày kết thúc
+        LocalDate current = fromDate;
+        while (!current.isAfter(toDate)) {
+            String key = current.format(formatter);
+            BigDecimal value = dataMap.getOrDefault(key, BigDecimal.ZERO);
+
+            chartData.add(new ChartDataDTO(key, value));
+            totalPeriodRevenue = totalPeriodRevenue.add(value); // Cộng dồn tổng
+
+            current = current.plusDays(1); // Tăng 1 ngày
+        }
+
+        return new RevenueAnalysisDTO(totalPeriodRevenue, chartData);
+    }
+
+    // 4. Tìm nhà hàng cho Dropdown
+    public List<Restaurant> searchRestaurants(String keyword) {
+        return restaurantRepository.findByNameContainingIgnoreCase(keyword);
     }
 }

@@ -25,6 +25,11 @@ public class OrderDTO {
     private String restaurantName;
     private String shipperName;
     private String shipperEmail;
+    private String shipperPhone;    // SĐT Shipper
+    private Integer rating;         // Sao đánh giá
+    private String comment;         // Nội dung đánh giá
+    private Integer shipperRating;
+    private String shipperComment;
 
     // --- Thông tin chi tiết ---
     private String shippingAddress;
