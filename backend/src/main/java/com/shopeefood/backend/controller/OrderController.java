@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.transaction.annotation.Propagation;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -147,25 +148,30 @@ public class OrderController {
      * GET: http://localhost:8080/api/orders/customer/{customerId}
      */
     @GetMapping("/customer/{customerId}")
+    @Transactional(readOnly = true, propagation = Propagation.SUPPORTS)
     public ResponseEntity<?> getCustomerOrders(@PathVariable Integer customerId) {
         try {
+            // Sử dụng method đơn giản hơn để tránh lỗi với DISTINCT và JOIN FETCH
             List<Order> orders = orderRepository.findByCustomerId(customerId);
             
-            // Load các quan hệ cần thiết
+            // Load các quan hệ cần thiết trong transaction
             for (Order order : orders) {
+                // Force load orderItems và product
                 if (order.getOrderItems() != null) {
-                    order.getOrderItems().size(); // Force load orderItems
+                    order.getOrderItems().size(); // Force load
                     for (var item : order.getOrderItems()) {
                         if (item.getProduct() != null) {
                             item.getProduct().getName(); // Force load product
                         }
                     }
                 }
+                // Force load restaurant
                 if (order.getRestaurant() != null) {
-                    order.getRestaurant().getName(); // Force load restaurant
+                    order.getRestaurant().getName();
                 }
+                // Force load shipper
                 if (order.getShipper() != null) {
-                    order.getShipper().getFullName(); // Force load shipper
+                    order.getShipper().getFullName();
                 }
             }
         
@@ -217,15 +223,24 @@ public class OrderController {
                     map.put("createdAt", order.getCreatedAt());
                     
                     // Lấy thông tin feedback nếu có
-                    Optional<Feedback> feedbackOpt = feedbackRepository.findByOrderId(order.getId());
-                    if (feedbackOpt.isPresent()) {
-                        Feedback feedback = feedbackOpt.get();
-                        map.put("hasFeedback", true);
-                        map.put("feedbackRating", feedback.getRating());
-                        map.put("feedbackComment", feedback.getComment());
-                        map.put("shipperRating", feedback.getShipperRating());
-                        map.put("shipperComment", feedback.getShipperComment());
-                    } else {
+                    try {
+                        Optional<Feedback> feedbackOpt = feedbackRepository.findByOrderId(order.getId());
+                        if (feedbackOpt.isPresent()) {
+                            Feedback feedback = feedbackOpt.get();
+                            map.put("hasFeedback", true);
+                            map.put("feedbackRating", feedback.getRating());
+                            map.put("feedbackComment", feedback.getComment());
+                            map.put("shipperRating", feedback.getShipperRating());
+                            map.put("shipperComment", feedback.getShipperComment());
+                        } else {
+                            map.put("hasFeedback", false);
+                            map.put("feedbackRating", null);
+                            map.put("feedbackComment", null);
+                            map.put("shipperRating", null);
+                            map.put("shipperComment", null);
+                        }
+                    } catch (Exception e) {
+                        // Nếu có lỗi khi lấy feedback, set mặc định là chưa có
                         map.put("hasFeedback", false);
                         map.put("feedbackRating", null);
                         map.put("feedbackComment", null);

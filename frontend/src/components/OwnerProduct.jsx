@@ -1,10 +1,11 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useCallback, useContext } from "react";
 import axios from "axios";
-import { Table, Button, Container, Row, Col, Badge, Spinner, Alert, Pagination, Form, Modal} from "react-bootstrap";
+import { Table, Button, Container, Row, Col, Badge, Spinner, Alert, Pagination, Form, Modal } from "react-bootstrap";
 import { FaEdit, FaTrash, FaPlus, FaCamera, FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
 import { AuthContext } from "../context/AuthContext";
-import AddProduct from"./AddProduct";
+import AddProduct from "./AddProduct";
+import UpdateProduct from "./UpdateProduct";
 
 const OwnerProducts = () => {
     const API_URL = "http://localhost:8080/api/owner/products";
@@ -22,10 +23,12 @@ const OwnerProducts = () => {
     const [sortDir, setSortDir] = useState("asc");
     const [restaurants, setRestaurants] = useState([]);
     const [selectedRestaurant, setSelectedRestaurant] = useState("");
-
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [showUpdateModal, setShowUpdateModal] = useState(false);
+    const [productToUpdate, setProductToUpdate] = useState(null);
 
     //thêm sản phẩm
-    const [showAddModal, setShowAddModal] = useState(false);
+
 
     useEffect(() => {
         if (!user) return;
@@ -96,7 +99,7 @@ const OwnerProducts = () => {
 
     // Hàm xử lý lọc
     const handleFilter = () => {
-        setPage(0); 
+        setPage(0);
     };
 
     // Xử lý sắp xếp
@@ -115,9 +118,20 @@ const OwnerProducts = () => {
         return <FaSort className="ms-1 text-muted" />;
     };
 
-    const handleEdit = (productId) => {
+    const handleEdit = async (productId) => {
         console.log(`Chỉnh sửa ID: ${productId}`);
-        // Logic 
+        setMessage(null);
+        try {
+            // Lấy chi tiết sản phẩm để đổ vào form chỉnh sửa
+            const response = await axios.get(`${API_URL}/${productId}`);
+            setProductToUpdate(response.data);
+            setShowUpdateModal(true);
+        } catch (error) {
+            console.error("Lỗi khi tải chi tiết sản phẩm:", error);
+            const errorMsg = error.response?.data?.message || `Tải sản phẩm ID ${productId} thất bại.`;
+            setMessage(errorMsg);
+            setVariant('danger');
+        }
     };
 
     const handleDelete = async (productId) => {
@@ -137,16 +151,24 @@ const OwnerProducts = () => {
         }
     };
     const handleAdd = () => {
-       setShowAddModal(true);
+        setShowAddModal(true);
     };
-
-    const handleProductAdded = (successMessage) => {
-        setShowAddModal(false); // Đóng modal
-        fetchProducts();        // Tải lại danh sách sản phẩm
-        setMessage(successMessage || "Thêm sản phẩm mới thành công!");
+    //xử lý sau khi thêm/cập nhật
+    const handleProductActionSuccess = (successMessage, modalType = 'add') => {
+        if (modalType === 'add') {
+            setShowAddModal(false);
+        } else if (modalType === 'update') {
+            setShowUpdateModal(false);
+            setProductToUpdate(null);
+        }
+        fetchProducts();
+        setMessage(successMessage || "Thao tác thành công!");
         setVariant("success");
     }
-
+    const handleCloseUpdateModal = () => {
+        setShowUpdateModal(false);
+        setProductToUpdate(null);
+    };
     return (
         <Container className="mt-4">
             {/* Tiêu đề */}
@@ -292,14 +314,32 @@ const OwnerProducts = () => {
 
             <Modal show={showAddModal} onHide={() => setShowAddModal(false)} size="xl" centered>
                 <Modal.Header closeButton>
-                    <Modal.Title className="text-center w-100 font-weight-bold">Thêm Sản Phẩm</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
-                    <AddProduct 
-                        onProductAdded={handleProductAdded} 
+                    <AddProduct
+                        onProductAdded={handleProductActionSuccess}
                         ownerId={ownerId}
                         restaurants={restaurants}
-                    /> 
+                    />
+                </Modal.Body>
+            </Modal>
+
+            {/* Modal của update */}
+            <Modal show={showUpdateModal} onHide={handleCloseUpdateModal} size="xl" centered>
+                <Modal.Header closeButton>
+                </Modal.Header>
+                <Modal.Body>
+                    {productToUpdate ? (
+                        <UpdateProduct
+                            key={productToUpdate.id}
+                            onProductActionSuccess={(msg) => handleProductActionSuccess(msg, 'update')}
+                            productData={productToUpdate}
+                            ownerId={ownerId}
+                            restaurants={restaurants}
+                        />
+                    ) : (
+                        <p className="text-center">Đang tải dữ liệu sản phẩm...</p>
+                    )}
                 </Modal.Body>
             </Modal>
         </Container>
