@@ -3,8 +3,10 @@ package com.shopeefood.backend.service;
 import com.shopeefood.backend.dto.OrderDTO;
 import com.shopeefood.backend.entity.Account;
 import com.shopeefood.backend.entity.Customer;
+import com.shopeefood.backend.entity.Feedback;
 import com.shopeefood.backend.entity.Order;
 import com.shopeefood.backend.repository.CustomerRepository; // Import mới
+import com.shopeefood.backend.repository.FeedbackRepository;
 import com.shopeefood.backend.repository.OrderRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.persistence.criteria.Predicate;
@@ -29,6 +31,8 @@ public class AdminOrderService {
     // --- BỔ SUNG REPO NÀY ĐỂ LẤY TÊN KHÁCH ---
     @Autowired
     private CustomerRepository customerRepository;
+    @Autowired
+    private FeedbackRepository feedbackRepository;
 
     // Hàm lấy danh sách đơn hàng (Sửa lại dùng Specification)
     @Transactional(readOnly = true)
@@ -66,6 +70,19 @@ public class AdminOrderService {
 
         for (Order order : orders) {
             OrderDTO dto = new OrderDTO(order);
+
+            // === BỔ SUNG: LẤY FEEDBACK NẾU CÓ ===
+            if ("COMPLETED".equals(order.getStatus())) {
+                Optional<Feedback> feedbackOpt = feedbackRepository.findByOrderId(order.getId());
+                if (feedbackOpt.isPresent()) {
+                    Feedback fb = feedbackOpt.get();
+                    dto.setRating(fb.getRating());
+                    dto.setComment(fb.getComment());
+                    dto.setShipperRating(fb.getShipperRating());
+                    dto.setShipperComment(fb.getShipperComment());
+                }
+            }
+            // ====================================
 
             // --- XỬ LÝ LẤY TÊN KHÁCH HÀNG ---
             Account customerAccount = order.getCustomer();
