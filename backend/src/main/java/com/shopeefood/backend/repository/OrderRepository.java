@@ -138,4 +138,21 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
             "LEFT JOIN o.customer c " +
             "WHERE o.id = :orderId")
     Optional<Order> findByIdWithDetails(@Param("orderId") Integer orderId);
+
+    /**
+     * Query lấy doanh thu theo bộ lọc động (Native Query)
+     * COALESCE(?3, NULL) dùng để xử lý logic: Nếu tham số restaurantId là NULL thì bỏ qua điều kiện đó.
+     */
+    @Query(value = "SELECT CAST(o.created_at AS DATE) as label, SUM(o.total_amount) as value " +
+            "FROM orders o " +
+            "WHERE o.status = 'COMPLETED' " +
+            "AND o.created_at >= :startDate AND o.created_at <= :endDate " +
+            "AND (:restaurantId IS NULL OR o.restaurant_id = :restaurantId) " +
+            "GROUP BY CAST(o.created_at AS DATE) " +
+            "ORDER BY CAST(o.created_at AS DATE) ASC", nativeQuery = true)
+    List<Object[]> getRevenueByFilter(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            @Param("restaurantId") Integer restaurantId
+    );
 }
