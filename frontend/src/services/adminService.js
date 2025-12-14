@@ -51,3 +51,8 @@ export const getAdminOwners = async () => {
     const res = await axios.get(`${USERS_URL}/owners`);
     return res.data;
 };
+
+export const getAdminUserDetail = async (accountId) => {
+    const res = await axios.get(`${USERS_URL}/${accountId}/detail`);
+    return res.data;
+};

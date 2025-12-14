@@ -1,33 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-    Table,
-    Tag,
-    Button,
-    Space,
-    message,
-    Input,
-    Select,
-    Tabs,
-    Avatar,
-    Modal,
-    Descriptions,
-} from 'antd';
-import {
-    LockOutlined,
-    UnlockOutlined,
-    EyeOutlined,
-    ShopOutlined,
-} from '@ant-design/icons';
-import {
-    getAdminCustomers,
-    getAdminOwners,
-    getAdminShippers,
-    deactivateAccount,
-    activateAccount,
-} from '../services/adminService';
+import { Table, Tag, Button, Space, message, Input, Select, Tabs, Avatar, Modal, Descriptions, Spin, Divider, List, Typography } from 'antd';
+import { LockOutlined, UnlockOutlined, EyeOutlined, ShopOutlined } from '@ant-design/icons';
+import { getAdminCustomers, getAdminOwners, getAdminShippers, deactivateAccount, activateAccount, getAdminUserDetail } from '../services/adminService';
 import ConfirmModal from '../components/ConfirmModal';
 import '../css/AdminUsersPage.css';
 
+const { Text } = Typography;
 const { Search } = Input;
 const { Option } = Select;
 
@@ -66,6 +44,7 @@ const AdminUsersPage = () => {
     // Modal xem chi tiết
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [detailAccount, setDetailAccount] = useState(null);
+    const [detailLoading, setDetailLoading] = useState(false);
 
     // ============ LOAD DATA TỪ BACKEND ============
     const fetchAll = async () => {
@@ -181,9 +160,22 @@ const AdminUsersPage = () => {
         setIsModalOpen(true);
     };
 
-    const openDetailModal = (record) => {
-        setDetailAccount(record);
+    const openDetailModal = async (record) => {
+        // mở modal trước để phản hồi UI nhanh
         setIsDetailOpen(true);
+        setDetailAccount(record);
+        setDetailAccount(null);
+
+        try {
+            const data = await getAdminUserDetail(record.accountId);
+            setDetailAccount(data);
+        } catch (err) {
+            console.error(err);
+            message.error('Không tải được chi tiết người dùng');
+            setIsDetailOpen(false);
+        } finally {
+            setDetailLoading(false);
+        }
     };
 
     // ============ CONFIRM ACTION (KHÓA / MỞ) ============
@@ -246,6 +238,21 @@ const AdminUsersPage = () => {
     };
 
     // ============ COLUMNS & ACTION BUTTONS ============
+
+    const renderRestaurantStatusTag = (status) => {
+        if (!status) return null;
+
+        const map = {
+            ACTIVE: { color: 'green', label: 'Đang hoạt động' },
+            PENDING: { color: 'gold', label: 'Chờ duyệt' },
+            BLOCKED: { color: 'red', label: 'Bị khóa' },
+            REJECTED: { color: 'volcano', label: 'Bị từ chối' },
+        };
+
+        const s = map[status] || { color: 'default', label: status };
+        return <Tag color={s.color}>{s.label}</Tag>;
+    };
+
 
     const renderStatusTag = (isActive) =>
         isActive ? (
@@ -467,6 +474,14 @@ const AdminUsersPage = () => {
     // ============ RENDER CHI TIẾT TÀI KHOẢN ============
 
     const renderDetailContent = () => {
+        if (detailLoading) {
+            return (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
+                    <Spin />
+                </div>
+            );
+        }
+
         if (!detailAccount) return null;
 
         const roleCode = detailAccount.role?.toUpperCase();
@@ -479,105 +494,126 @@ const AdminUsersPage = () => {
             OWNER: 'Chủ nhà hàng',
             SHIPPER: 'Người giao hàng',
         };
-        const roleLabel =
-            roleLabelMap[roleCode] || roleCode || 'Không xác định';
+        const roleLabel = roleLabelMap[roleCode] || roleCode || 'Không xác định';
+
+        const commonBlock = (
+            <Descriptions column={1} size="small" bordered labelStyle={{ width: 150 }}>
+                <Descriptions.Item label="ID tài khoản">{detailAccount.accountId}</Descriptions.Item>
+                <Descriptions.Item label="Tên đăng nhập">{detailAccount.username}</Descriptions.Item>
+                <Descriptions.Item label="Vai trò">{roleLabel}</Descriptions.Item>
+                {detailAccount.email && <Descriptions.Item label="Email">{detailAccount.email}</Descriptions.Item>}
+                {detailAccount.phone && <Descriptions.Item label="SĐT">{detailAccount.phone}</Descriptions.Item>}
+                <Descriptions.Item label="Trạng thái">{renderStatusTag(detailAccount.isActive)}</Descriptions.Item>
+            </Descriptions>
+        );
+
+        const customerBlock = (
+            <>
+                <Divider style={{ margin: '12px 0' }} />
+                <Descriptions column={1} size="small" bordered labelStyle={{ width: 150 }}>
+                    {detailAccount.customerFullName && (
+                        <Descriptions.Item label="Họ tên">{detailAccount.customerFullName}</Descriptions.Item>
+                    )}
+                    {detailAccount.customerAddress && (
+                        <Descriptions.Item label="Địa chỉ">{detailAccount.customerAddress}</Descriptions.Item>
+                    )}
+                    {(detailAccount.customerLatitude != null || detailAccount.customerLongitude != null) && (
+                        <Descriptions.Item label="Tọa độ">
+                            <Text>
+                                {detailAccount.customerLatitude ?? '--'} , {detailAccount.customerLongitude ?? '--'}
+                            </Text>
+                        </Descriptions.Item>
+                    )}
+                </Descriptions>
+            </>
+        );
+
+        const shipperBlock = (
+            <>
+                <Divider style={{ margin: '12px 0' }} />
+                <Descriptions column={1} size="small" bordered labelStyle={{ width: 150 }}>
+                    {detailAccount.shipperFullName && (
+                        <Descriptions.Item label="Họ tên">{detailAccount.shipperFullName}</Descriptions.Item>
+                    )}
+                    {detailAccount.shipperLicensePlate && (
+                        <Descriptions.Item label="Biển số xe">{detailAccount.shipperLicensePlate}</Descriptions.Item>
+                    )}
+                    {detailAccount.shipperVehicleType && (
+                        <Descriptions.Item label="Loại xe">{detailAccount.shipperVehicleType}</Descriptions.Item>
+                    )}
+                    {detailAccount.shipperStatus && (
+                        <Descriptions.Item label="Trạng thái shipper">{detailAccount.shipperStatus}</Descriptions.Item>
+                    )}
+                    {(detailAccount.shipperCurrentLat != null || detailAccount.shipperCurrentLong != null) && (
+                        <Descriptions.Item label="Vị trí hiện tại">
+                            <Text>
+                                {detailAccount.shipperCurrentLat ?? '--'} , {detailAccount.shipperCurrentLong ?? '--'}
+                            </Text>
+                        </Descriptions.Item>
+                    )}
+                </Descriptions>
+            </>
+        );
+
+        const ownerBlock = (
+            <>
+                <Divider style={{ margin: '12px 0' }} />
+                <Descriptions column={1} size="small" bordered labelStyle={{ width: 150 }}>
+                    {detailAccount.ownerFullName && (
+                        <Descriptions.Item label="Chủ quán">{detailAccount.ownerFullName}</Descriptions.Item>
+                    )}
+                    {detailAccount.ownerIdCardNumber && (
+                        <Descriptions.Item label="CMND/CCCD">{detailAccount.ownerIdCardNumber}</Descriptions.Item>
+                    )}
+                </Descriptions>
+
+                <Divider style={{ margin: '12px 0' }} />
+                <div style={{ fontWeight: 600, marginBottom: 8 }}>Danh sách nhà hàng</div>
+
+                <List
+                    bordered
+                    locale={{ emptyText: 'Chưa có nhà hàng' }}
+                    dataSource={detailAccount.restaurants || []}
+                    renderItem={(r) => {
+                        const imgSrc = getRestaurantImageSrc(r.coverImage);
+                        return (
+                            <List.Item>
+                                <List.Item.Meta
+                                    avatar={
+                                        <Avatar
+                                            shape="square"
+                                            size={56}
+                                            src={imgSrc || undefined}
+                                            icon={!imgSrc && <ShopOutlined style={{ fontSize: 24 }} />}
+                                        />
+                                    }
+                                    title={
+                                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                            <span>{r.name || `Nhà hàng #${r.id}`}</span>
+                                            {renderRestaurantStatusTag(r.status)}
+                                        </div>
+                                    }
+                                    description={
+                                        <div>
+                                            {r.address && <div>{r.address}</div>}
+                                            {r.phone && <div>SĐT: {r.phone}</div>}
+                                        </div>
+                                    }
+                                />
+                            </List.Item>
+                        );
+                    }}
+                />
+            </>
+        );
 
         return (
-            <Descriptions
-                column={1}
-                size="small"
-                bordered
-                labelStyle={{ width: 140 }}
-            >
-                <Descriptions.Item label="ID tài khoản">
-                    {detailAccount.accountId}
-                </Descriptions.Item>
-                <Descriptions.Item label="Tên đăng nhập">
-                    {detailAccount.username}
-                </Descriptions.Item>
-                <Descriptions.Item label="Vai trò">
-                    {roleLabel}
-                </Descriptions.Item>
-                {detailAccount.fullName && (
-                    <Descriptions.Item label="Họ tên">
-                        {detailAccount.fullName}
-                    </Descriptions.Item>
-                )}
-                {detailAccount.email && (
-                    <Descriptions.Item label="Email">
-                        {detailAccount.email}
-                    </Descriptions.Item>
-                )}
-                {detailAccount.phone && (
-                    <Descriptions.Item label="SĐT">
-                        {detailAccount.phone}
-                    </Descriptions.Item>
-                )}
-                <Descriptions.Item label="Trạng thái">
-                    {renderStatusTag(detailAccount.isActive)}
-                </Descriptions.Item>
-
-                {isCustomer && detailAccount.address && (
-                    <Descriptions.Item label="Địa chỉ">
-                        {detailAccount.address}
-                    </Descriptions.Item>
-                )}
-
-                {isShipper && (
-                    <>
-                        {detailAccount.licensePlate && (
-                            <Descriptions.Item label="Biển số xe">
-                                {detailAccount.licensePlate}
-                            </Descriptions.Item>
-                        )}
-                        {detailAccount.vehicleType && (
-                            <Descriptions.Item label="Loại xe">
-                                {detailAccount.vehicleType}
-                            </Descriptions.Item>
-                        )}
-                        {detailAccount.status && (
-                            <Descriptions.Item label="Trạng thái shipper">
-                                {detailAccount.status}
-                            </Descriptions.Item>
-                        )}
-                    </>
-                )}
-
-                {isOwner && (
-                    <>
-                        {detailAccount.ownerFullName && (
-                            <Descriptions.Item label="Chủ quán">
-                                {detailAccount.ownerFullName}
-                            </Descriptions.Item>
-                        )}
-                        {detailAccount.ownerIdCardNumber && (
-                            <Descriptions.Item label="CMND/CCCD">
-                                {detailAccount.ownerIdCardNumber}
-                            </Descriptions.Item>
-                        )}
-                        {detailAccount.restaurantName && (
-                            <Descriptions.Item label="Tên quán">
-                                {detailAccount.restaurantName}
-                            </Descriptions.Item>
-                        )}
-                        {detailAccount.restaurantAddress && (
-                            <Descriptions.Item label="Địa chỉ quán">
-                                {detailAccount.restaurantAddress}
-                            </Descriptions.Item>
-                        )}
-                        {detailAccount.restaurantPhone && (
-                            <Descriptions.Item label="SĐT quán">
-                                {detailAccount.restaurantPhone}
-                            </Descriptions.Item>
-                        )}
-                        {detailAccount.restaurantStatus && (
-                            <Descriptions.Item label="Trạng thái quán">
-                                {detailAccount.restaurantStatus}
-                            </Descriptions.Item>
-                        )}
-                    </>
-                )}
-            </Descriptions>
+            <div>
+                {commonBlock}
+                {isCustomer && customerBlock}
+                {isShipper && shipperBlock}
+                {isOwner && ownerBlock}
+            </div>
         );
     };
 
@@ -643,13 +679,38 @@ const AdminUsersPage = () => {
             {/* Modal chi tiết tài khoản */}
             <Modal
                 open={isDetailOpen}
+                destroyOnClose
                 onCancel={() => {
+                    if (detailLoading) return;
                     setIsDetailOpen(false);
                     setDetailAccount(null);
                 }}
-                footer={null}
-                title="Chi tiết tài khoản"
-                width={520}
+                footer={
+                    <Button
+                        onClick={() => {
+                            if (detailLoading) return;
+                            setIsDetailOpen(false);
+                            setDetailAccount(null);
+                        }}
+                    >
+                        Đóng
+                    </Button>
+                }
+                title={(() => {
+                    if (detailLoading) return 'Đang tải chi tiết...';
+                    const role = detailAccount?.role?.toUpperCase();
+                    const roleLabel =
+                        role === 'CUSTOMER'
+                            ? 'Khách hàng'
+                            : role === 'SHIPPER'
+                                ? 'Người giao hàng'
+                                : role === 'OWNER'
+                                    ? 'Chủ nhà hàng'
+                                    : 'Người dùng';
+                    const name = detailAccount?.username ? ` - ${detailAccount.username}` : '';
+                    return `Chi tiết ${roleLabel}${name}`;
+                })()}
+                width={detailAccount?.role?.toUpperCase() === 'OWNER' ? 720 : 560}
             >
                 {renderDetailContent()}
             </Modal>
