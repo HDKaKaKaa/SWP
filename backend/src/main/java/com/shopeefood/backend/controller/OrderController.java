@@ -152,8 +152,11 @@ public class OrderController {
     public ResponseEntity<?> getCustomerOrders(@PathVariable Integer customerId) {
         try {
             // Sử dụng method đơn giản hơn để tránh lỗi với DISTINCT và JOIN FETCH
-            List<Order> orders = orderRepository.findByCustomerId(customerId);
-            
+            List<Order> orders = orderRepository.findByCustomerIdAndStatusNotIn(
+                    customerId,
+                    List.of("CART", "CART_DELETED")
+            );
+
             // Load các quan hệ cần thiết trong transaction
             for (Order order : orders) {
                 // Force load orderItems và product
@@ -174,7 +177,7 @@ public class OrderController {
                     order.getShipper().getFullName();
                 }
             }
-        
+
         List<Map<String, Object>> result = orders.stream()
                 .sorted((o1, o2) -> {
                     // Sắp xếp theo thời gian tạo mới nhất lên đầu
@@ -187,9 +190,9 @@ public class OrderController {
                     Map<String, Object> map = new java.util.HashMap<>();
                     map.put("id", order.getId());
                     map.put("orderNumber", order.getOrderNumber());
-                    
+
                     // Chi tiết đơn hàng (danh sách món)
-                    List<Map<String, Object>> orderItems = order.getOrderItems() != null 
+                    List<Map<String, Object>> orderItems = order.getOrderItems() != null
                             ? order.getOrderItems().stream().map(item -> {
                                 Map<String, Object> itemMap = new java.util.HashMap<>();
                                 itemMap.put("productName", item.getProduct() != null ? item.getProduct().getName() : "N/A");
@@ -199,16 +202,16 @@ public class OrderController {
                             }).collect(java.util.stream.Collectors.toList())
                             : java.util.Collections.emptyList();
                     map.put("orderItems", orderItems);
-                    
+
                     // Tổng thanh toán
                     map.put("totalAmount", order.getTotalAmount());
-                    
+
                     // Tên quán
                     map.put("restaurantName", order.getRestaurant() != null ? order.getRestaurant().getName() : "N/A");
-                    
+
                     // Tên shipper
                     map.put("shipperName", order.getShipper() != null ? order.getShipper().getFullName() : "Chưa có");
-                    
+
                     // Thời gian giao (completedAt hoặc shippedAt)
                     if (order.getCompletedAt() != null) {
                         map.put("deliveryTime", order.getCompletedAt());
@@ -217,11 +220,11 @@ public class OrderController {
                     } else {
                         map.put("deliveryTime", null);
                     }
-                    
+
                     // Status
                     map.put("status", order.getStatus());
                     map.put("createdAt", order.getCreatedAt());
-                    
+
                     // Lấy thông tin feedback nếu có
                     try {
                         Optional<Feedback> feedbackOpt = feedbackRepository.findByOrderId(order.getId());
@@ -247,11 +250,11 @@ public class OrderController {
                         map.put("shipperRating", null);
                         map.put("shipperComment", null);
                     }
-                    
+
                     return map;
                 })
                 .collect(java.util.stream.Collectors.toList());
-        
+
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             e.printStackTrace();

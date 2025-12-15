@@ -20,7 +20,10 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
         // Hàm tìm đơn hàng của một khách hàng (Để sau này làm trang Lịch sử đơn hàng)
         List<Order> findByCustomerId(Integer customerId);
 
-        /**
+        // Lấy lịch sử đơn hàng của khách (loại CART và CART_DELETED)
+        List<Order> findByCustomerIdAndStatusNotIn(Integer customerId, List<String> statuses);
+
+    /**
          * 1. Tính TỔNG DOANH THU toàn hệ thống.
          * Chỉ tính những đơn đã hoàn thành (COMPLETED).
          */
@@ -96,7 +99,7 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
                         Pageable pageable);
 
         @Query("SELECT COUNT(o) FROM Order o WHERE o.restaurant.id = :restaurantId " +
-                        "AND o.status NOT IN ('COMPLETED', 'CANCELLED', 'REJECTED')")
+                        "AND o.status NOT IN ('COMPLETED', 'CANCELLED', 'REJECTED', 'CART', 'CART_DELETED')")
         long countActiveOrdersByRestaurant(Integer restaurantId);
 
     // Lấy đơn hàng của khách hàng kèm orderItems và các quan hệ

@@ -351,7 +351,7 @@ public class CartService {
             order.getOrderItems().clear();
         }
 
-        order.setStatus("CANCELLED");
+        order.setStatus("CART_DELETED");
         order.setSubtotal(BigDecimal.ZERO);
         order.setShippingFee(BigDecimal.ZERO);
         order.setTotalAmount(BigDecimal.ZERO);
