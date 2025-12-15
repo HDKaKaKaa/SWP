@@ -30,6 +30,9 @@ public class Shipper {
     // Trạng thái: OFFLINE, ONLINE, BUSY
     private String status;
 
+    @Column(name = "avatar")
+    private String avatar; // URL ảnh đại diện của shipper
+
     @OneToOne
     @MapsId
     @JoinColumn(name = "account_id")

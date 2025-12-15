@@ -2,13 +2,18 @@ package com.shopeefood.backend.controller;
 
 import com.shopeefood.backend.entity.*;
 import com.shopeefood.backend.repository.*;
+import com.shopeefood.backend.service.CloudinaryService;
+import com.shopeefood.backend.dto.ChangePasswordRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +41,12 @@ public class ShipperController {
     
     @Autowired
     private CustomerRepository customerRepository;
+
+    @Autowired
+    private CloudinaryService cloudinaryService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     /**
      * Lấy danh sách đơn hàng có sẵn cho shipper
@@ -88,13 +99,35 @@ public class ShipperController {
             map.put("id", order.getId());
             map.put("restaurantName", order.getRestaurant() != null ? order.getRestaurant().getName() : "N/A");
             map.put("shippingAddress", order.getShippingAddress());
-            map.put("shippingLat", order.getShippingLat());
-            map.put("shippingLong", order.getShippingLong());
+            
+            // Lấy tọa độ: ưu tiên từ đơn hàng, nếu không có thì lấy từ Customer
+            Double shippingLat = order.getShippingLat();
+            Double shippingLong = order.getShippingLong();
+            
+            // Nếu đơn hàng chưa có tọa độ, thử lấy từ Customer
+            if ((shippingLat == null || shippingLong == null) && order.getCustomer() != null) {
+                Customer customer = customerMap.get(order.getCustomer().getId());
+                if (customer != null) {
+                    if (customer.getLatitude() != null && customer.getLongitude() != null) {
+                        shippingLat = customer.getLatitude();
+                        shippingLong = customer.getLongitude();
+                        
+                        // Tự động cập nhật tọa độ vào đơn hàng để lần sau không phải lấy lại
+                        order.setShippingLat(shippingLat);
+                        order.setShippingLong(shippingLong);
+                        orderRepository.save(order);
+                    }
+                }
+            }
+            
+            map.put("shippingLat", shippingLat);
+            map.put("shippingLong", shippingLong);
             map.put("totalAmount", order.getTotalAmount());
             map.put("status", order.getStatus());
             map.put("paymentMethod", order.getPaymentMethod());
             map.put("createdAt", order.getCreatedAt());
-            map.put("shippedAt", order.getShippedAt());
+            map.put("shippedAt", order.getShippedAt()); // Thời gian shipper nhận đơn
+            map.put("deliveryStartedAt", order.getDeliveryStartedAt()); // Thời gian bắt đầu giao hàng
             map.put("completedAt", order.getCompletedAt());
             map.put("note", order.getNote());
             map.put("estimatedDeliveryTimeMinutes", order.getEstimatedDeliveryTimeMinutes() != null ? order.getEstimatedDeliveryTimeMinutes() : 2);
@@ -165,8 +198,9 @@ public class ShipperController {
         
         order.setShipper(shipper);
         order.setStatus("SHIPPING");
-        // Set thời gian bắt đầu giao hàng
+        // Set thời gian shipper nhận đơn (chưa bắt đầu giao)
         order.setShippedAt(java.time.LocalDateTime.now());
+        // deliveryStartedAt sẽ được set khi shipper bắt đầu giao hàng
         orderRepository.save(order);
         
         // Cập nhật shipper status thành BUSY
@@ -174,6 +208,34 @@ public class ShipperController {
         shipperRepository.save(shipper);
         
         return ResponseEntity.ok("Nhận đơn hàng thành công!");
+    }
+
+    /**
+     * Shipper bắt đầu giao hàng (từ nhà hàng đi giao)
+     * POST: http://localhost:8080/api/shipper/orders/{orderId}/start-delivery
+     */
+    @PostMapping("/orders/{orderId}/start-delivery")
+    @Transactional
+    public ResponseEntity<?> startDelivery(@PathVariable Integer orderId, @RequestParam Integer shipperId) {
+        Order order = orderRepository.findById(orderId).orElse(null);
+        if (order == null) {
+            return ResponseEntity.badRequest().body("Đơn hàng không tồn tại");
+        }
+        
+        // Kiểm tra shipper có quyền với đơn này không
+        if (order.getShipper() == null || !order.getShipper().getAccountId().equals(shipperId)) {
+            return ResponseEntity.badRequest().body("Bạn không có quyền với đơn hàng này");
+        }
+        
+        if (!order.getStatus().equals("SHIPPING")) {
+            return ResponseEntity.badRequest().body("Chỉ có thể bắt đầu giao hàng với đơn ở trạng thái SHIPPING");
+        }
+        
+        // Set thời gian bắt đầu giao hàng
+        order.setDeliveryStartedAt(java.time.LocalDateTime.now());
+        orderRepository.save(order);
+        
+        return ResponseEntity.ok("Đã bắt đầu giao hàng!");
     }
 
     /**
@@ -193,12 +255,15 @@ public class ShipperController {
             return ResponseEntity.badRequest().body("Trạng thái không hợp lệ");
         }
         
-        order.setStatus(status);
-        
-        // Nếu hoàn thành, set thời gian hoàn thành
+        // Kiểm tra: Chỉ cho phép hoàn thành đơn hàng nếu đã bắt đầu giao hàng
         if (status.equals("COMPLETED")) {
+            if (order.getDeliveryStartedAt() == null) {
+                return ResponseEntity.badRequest().body("Không thể hoàn thành đơn hàng. Vui lòng bắt đầu giao hàng trước!");
+            }
             order.setCompletedAt(java.time.LocalDateTime.now());
         }
+        
+        order.setStatus(status);
         
         orderRepository.save(order);
         
@@ -233,6 +298,7 @@ public class ShipperController {
         result.put("currentLat", shipper.getCurrentLat());
         result.put("currentLong", shipper.getCurrentLong());
         result.put("status", shipper.getStatus());
+        result.put("avatar", shipper.getAvatar());
         if (shipper.getAccount() != null) {
             result.put("email", shipper.getAccount().getEmail());
             result.put("phone", shipper.getAccount().getPhone());
@@ -246,6 +312,7 @@ public class ShipperController {
      * PUT: http://localhost:8080/api/shipper/profile
      */
     @PutMapping("/profile")
+    @Transactional
     public ResponseEntity<?> updateProfile(
             @RequestParam Integer shipperId,
             @RequestBody Map<String, Object> updates) {
@@ -254,6 +321,7 @@ public class ShipperController {
             return ResponseEntity.badRequest().body("Shipper không tồn tại");
         }
         
+        // Cập nhật thông tin Shipper
         if (updates.containsKey("fullName")) {
             shipper.setFullName((String) updates.get("fullName"));
         }
@@ -263,6 +331,9 @@ public class ShipperController {
         if (updates.containsKey("vehicleType")) {
             shipper.setVehicleType((String) updates.get("vehicleType"));
         }
+        if (updates.containsKey("avatar")) {
+            shipper.setAvatar((String) updates.get("avatar"));
+        }
         if (updates.containsKey("currentLat")) {
             shipper.setCurrentLat(((Number) updates.get("currentLat")).doubleValue());
         }
@@ -270,8 +341,110 @@ public class ShipperController {
             shipper.setCurrentLong(((Number) updates.get("currentLong")).doubleValue());
         }
         
+        // Cập nhật thông tin Account (email, phone)
+        Account account = shipper.getAccount();
+        if (account != null) {
+            // Kiểm tra email không trùng với tài khoản khác
+            if (updates.containsKey("email")) {
+                String newEmail = (String) updates.get("email");
+                if (newEmail != null && !newEmail.isEmpty()) {
+                    java.util.Optional<Account> existingAccount = accountRepository.findByEmail(newEmail);
+                    if (existingAccount.isPresent() && !existingAccount.get().getId().equals(shipperId)) {
+                        return ResponseEntity.badRequest().body("Email đã được sử dụng bởi tài khoản khác");
+                    }
+                    account.setEmail(newEmail);
+                }
+            }
+            
+            // Cập nhật số điện thoại
+            if (updates.containsKey("phone")) {
+                account.setPhone((String) updates.get("phone"));
+            }
+            
+            accountRepository.save(account);
+        }
+        
         shipperRepository.save(shipper);
         return ResponseEntity.ok("Cập nhật thông tin thành công!");
+    }
+
+    /**
+     * Upload ảnh đại diện cho shipper
+     * POST: http://localhost:8080/api/shipper/profile/avatar
+     */
+    @PostMapping("/profile/avatar")
+    @Transactional
+    public ResponseEntity<?> uploadAvatar(
+            @RequestParam Integer shipperId,
+            @RequestParam("file") MultipartFile file) {
+        try {
+            if (file.isEmpty()) {
+                return ResponseEntity.badRequest().body("Vui lòng chọn ảnh!");
+            }
+
+            Shipper shipper = shipperRepository.findById(shipperId).orElse(null);
+            if (shipper == null) {
+                return ResponseEntity.badRequest().body("Shipper không tồn tại");
+            }
+
+            // Upload ảnh lên Cloudinary
+            String imageUrl = cloudinaryService.uploadImage(file);
+            
+            // Lưu URL ảnh vào database
+            shipper.setAvatar(imageUrl);
+            shipperRepository.save(shipper);
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("message", "Upload ảnh thành công!");
+            result.put("avatar", imageUrl);
+            return ResponseEntity.ok(result);
+        } catch (IOException e) {
+            return ResponseEntity.internalServerError().body("Lỗi khi upload ảnh: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Đổi mật khẩu cho shipper
+     * PUT: http://localhost:8080/api/shipper/change-password
+     */
+    @PutMapping("/change-password")
+    @Transactional
+    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request) {
+        try {
+            // Kiểm tra dữ liệu
+            if (request.getAccountId() == null) {
+                return ResponseEntity.badRequest().body("Thiếu ID tài khoản!");
+            }
+            if (request.getOldPassword() == null || request.getOldPassword().isEmpty()) {
+                return ResponseEntity.badRequest().body("Chưa nhập mật khẩu cũ!");
+            }
+            if (request.getNewPassword() == null || request.getNewPassword().isEmpty()) {
+                return ResponseEntity.badRequest().body("Chưa nhập mật khẩu mới!");
+            }
+            if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+                return ResponseEntity.badRequest().body("Mật khẩu xác nhận không khớp!");
+            }
+
+            // Tìm Account
+            Account account = accountRepository.findById(request.getAccountId())
+                    .orElse(null);
+            if (account == null) {
+                return ResponseEntity.badRequest().body("Tài khoản không tồn tại!");
+            }
+
+            // Kiểm tra mật khẩu cũ
+            if (!passwordEncoder.matches(request.getOldPassword(), account.getPassword())) {
+                return ResponseEntity.badRequest().body("Mật khẩu cũ không chính xác!");
+            }
+
+            // Lưu mật khẩu mới
+            account.setPassword(passwordEncoder.encode(request.getNewPassword()));
+            accountRepository.save(account);
+
+            return ResponseEntity.ok("Đổi mật khẩu thành công!");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Lỗi hệ thống: " + e.getMessage());
+        }
     }
 
     /**

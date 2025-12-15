@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Spin, message, DatePicker, Select, Card, Row, Col, Empty, Typography } from 'antd';
 import { getDashboardStats } from '../services/adminService'; // Giữ hàm cũ cho Stats Card
 import axios from 'axios';
-import debounce from 'lodash/debounce';
+import { debounce } from 'lodash';
 import dayjs from 'dayjs';
 
 // Import components con
