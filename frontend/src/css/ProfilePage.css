@@ -28,6 +28,20 @@
     flex-direction: column;
 }
 
+/* Nút quay về */
+.profile-back-wrapper {
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: flex-start; /* ép sang bên trái */
+}
+
+.profile-back-btn {
+    padding: 0 12px;
+    height: 36px;
+    font-weight: 500;
+}
+
+
 /* ====== Header ====== */
 
 .profile-header {
