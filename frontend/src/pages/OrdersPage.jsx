@@ -150,7 +150,7 @@ const OrdersPage = () => {
         {
             title: 'Đánh giá',
             key: 'rating',
-            width: 120,
+            width: 150, // 1. Tăng chiều rộng cột
             align: 'center',
             render: (_, record) => {
                 if (record.status !== 'COMPLETED') return <span style={{color: '#ccc'}}>-</span>;
@@ -158,8 +158,11 @@ const OrdersPage = () => {
 
                 return (
                     <Tooltip title={record.comment || "Không có lời nhắn"}>
-                        <div>
-                            <Rate disabled defaultValue={record.rating} style={{ fontSize: 12 }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            {/* 2. Thêm style whiteSpace nowrap để ép sao không xuống dòng */}
+                            <div style={{ whiteSpace: 'nowrap' }}>
+                                <Rate disabled defaultValue={record.rating} style={{ fontSize: 13 }} />
+                            </div>
                             <div style={{fontSize: 10, color: '#888'}}>({record.rating} sao)</div>
                         </div>
                     </Tooltip>
@@ -170,7 +173,7 @@ const OrdersPage = () => {
             title: 'Thời gian giao',
             key: 'deliveryTime',
             align: 'center',
-            width: 110,
+            width: 170,
             render: (_, record) => (
                 <TimerDisplay
                     status={record.status}

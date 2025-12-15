@@ -22,9 +22,10 @@ public class AdminRestaurantController {
     @GetMapping("/pending")
     public ResponseEntity<List<RestaurantDTO>> getPendingRestaurants(
             @RequestParam(required = false) LocalDate startDate,
-            @RequestParam(required = false) LocalDate endDate
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false) String keyword // <--- Thêm param này
     ) {
-        return ResponseEntity.ok(adminRestaurantService.getPendingRestaurants(startDate, endDate));
+        return ResponseEntity.ok(adminRestaurantService.getPendingRestaurants(startDate, endDate, keyword));
     }
 
     // PUT: Duyệt hoặc Từ chối quán

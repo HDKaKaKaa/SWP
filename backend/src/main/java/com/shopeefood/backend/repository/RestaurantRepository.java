@@ -73,4 +73,15 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Integer>
 
     // Tìm nhà hàng theo tên để hiển thị trong Dropdown filter
     List<Restaurant> findByNameContainingIgnoreCase(String keyword);
+
+    @Query("SELECT r FROM Restaurant r WHERE r.status = 'PENDING' " +
+            "AND (:keyword IS NULL OR LOWER(CAST(r.name AS text)) LIKE :keyword) " +
+            "AND (CAST(:start AS timestamp) IS NULL OR r.createdAt >= :start) " +
+            "AND (CAST(:end AS timestamp) IS NULL OR r.createdAt <= :end) " +
+            "ORDER BY r.createdAt DESC")
+    List<Restaurant> findPendingRestaurants(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("keyword") String keyword
+    );
 }

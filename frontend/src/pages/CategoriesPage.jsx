@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
     Table, Button, Modal, Form, Input, Space, message, Popconfirm, Card, Image, Upload, Tag, Divider
-} from 'antd'; // <-- Đã thêm Tag, Divider
+} from 'antd';
 import {
     PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, MinusCircleOutlined
-} from '@ant-design/icons'; // <-- Đã thêm MinusCircleOutlined
+} from '@ant-design/icons';
 import {
     getAllCategories, createCategory, updateCategory, deleteCategory, uploadImage
 } from '../services/categoryService';
@@ -57,11 +57,11 @@ const CategoriesPage = () => {
         setIsModalOpen(true);
     };
 
-    // --- VALIDATE FILE 10MB ---
+    // --- SỬA LOGIC VALIDATE TẠI ĐÂY (10MB -> 5MB) ---
     const beforeUpload = (file) => {
-        const isLt10M = file.size / 1024 / 1024 < 10;
-        if (!isLt10M) {
-            message.error('Ảnh phải nhỏ hơn 10MB!');
+        const isLt5M = file.size / 1024 / 1024 < 5; // Đổi 10 thành 5
+        if (!isLt5M) {
+            message.error('Ảnh phải nhỏ hơn 5MB!'); // Cập nhật thông báo
             return Upload.LIST_IGNORE;
         }
         return true;
@@ -84,9 +84,7 @@ const CategoriesPage = () => {
     };
 
     const handleFinish = async (values) => {
-        // Log để kiểm tra dữ liệu gửi đi
         console.log("Submit values:", values);
-
         try {
             if (editingCategory) {
                 await updateCategory(editingCategory.id, values);
@@ -98,7 +96,6 @@ const CategoriesPage = () => {
             setIsModalOpen(false);
             fetchData();
         } catch (error) {
-            // Xử lý thông báo lỗi an toàn
             let errorMsg = 'Có lỗi xảy ra!';
             if (error.response && error.response.data) {
                 if (typeof error.response.data === 'string') {
@@ -144,7 +141,6 @@ const CategoriesPage = () => {
             width: 200,
             render: (text) => <strong style={{ color: '#1677ff', fontSize: 15 }}>{text}</strong>
         },
-        // --- CỘT THUỘC TÍNH MỚI ---
         {
             title: 'Thuộc tính',
             dataIndex: 'attributes',
@@ -215,7 +211,7 @@ const CategoriesPage = () => {
                 open={isModalOpen}
                 onCancel={() => setIsModalOpen(false)}
                 footer={null}
-                width={600} // Mở rộng modal một chút
+                width={600}
             >
                 <Form form={form} layout="vertical" onFinish={handleFinish}>
                     <Form.Item
@@ -239,7 +235,8 @@ const CategoriesPage = () => {
                         <Input />
                     </Form.Item>
 
-                    <Form.Item label="Chọn ảnh từ máy (Max 10MB)">
+                    {/* --- CẬP NHẬT LABEL TẠI ĐÂY --- */}
+                    <Form.Item label="Chọn ảnh từ máy (Max 5MB)">
                         <Upload
                             listType="picture-card"
                             maxCount={1}
@@ -260,7 +257,6 @@ const CategoriesPage = () => {
 
                     <Divider />
 
-                    {/* --- PHẦN QUẢN LÝ THUỘC TÍNH --- */}
                     <div style={{ marginBottom: 16 }}>
                         <strong>Cấu hình thuộc tính sản phẩm:</strong>
                         <div style={{ fontSize: 12, color: '#888' }}>
@@ -273,8 +269,6 @@ const CategoriesPage = () => {
                             <>
                                 {fields.map(({ key, name, ...restField }) => (
                                     <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
-
-                                        {/* Input ẩn chứa ID để Backend biết là Update */}
                                         <Form.Item
                                             {...restField}
                                             name={[name, 'id']}
@@ -292,7 +286,6 @@ const CategoriesPage = () => {
                                             <Input placeholder="Tên thuộc tính (VD: Size)" />
                                         </Form.Item>
 
-                                        {/* Input ẩn DataType mặc định là TEXT */}
                                         <Form.Item
                                             {...restField}
                                             name={[name, 'dataType']}
@@ -317,7 +310,6 @@ const CategoriesPage = () => {
                             </>
                         )}
                     </Form.List>
-                    {/* ---------------------------------- */}
 
                     <div style={{ textAlign: 'right', marginTop: 20 }}>
                         <Space>
