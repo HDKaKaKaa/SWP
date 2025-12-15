@@ -10,6 +10,7 @@ import {
   PhoneOutlined,
   SmileOutlined,
 } from '@ant-design/icons';
+import { motion } from 'framer-motion';
 
 const { Title } = Typography;
 
@@ -41,12 +42,19 @@ const RegisterPage = () => {
   return (
     <div className="auth-page-container">
       <div className="auth-overlay"></div>
-      <div className="auth-card" style={{ maxWidth: '500px' }}>
-        {' '}
-        {/* Form đăng ký */}
+
+      <motion.div
+        className="auth-card"
+        style={{ maxWidth: '500px' }}
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4 }}
+      >
         <Title level={2} className="auth-title">
-          Đăng ký tài khoản
+          Tạo tài khoản mới
         </Title>
+        <div className="auth-subtitle">Tham gia cộng đồng ẩm thực lớn nhất</div>
+
         <Form
           name="register"
           onFinish={onFinish}
@@ -57,34 +65,29 @@ const RegisterPage = () => {
           <Form.Item
             name="username"
             label="Tên đăng nhập"
-            normalize={(value) => value?.replace(/\s/g, '')}
+            normalize={(v) => v?.replace(/\s/g, '')}
             rules={[
-              { required: true, message: 'Vui lòng nhập Username!' },
-              { min: 4, message: 'Tên đăng nhập phải từ 4 ký tự!' },
+              { required: true, message: 'Nhập Username!' },
+              { min: 4, message: 'Tối thiểu 4 ký tự!' },
             ]}
           >
-            <Input prefix={<UserOutlined />} placeholder="Ví dụ: user123" />
+            <Input prefix={<UserOutlined />} placeholder="user123" />
           </Form.Item>
 
           <Form.Item
             name="fullName"
             label="Họ và tên"
-            normalize={(value) => value?.trimStart()}
-            rules={[{ required: true, message: 'Vui lòng nhập Họ tên!' }]}
+            rules={[{ required: true, message: 'Nhập họ tên!' }]}
           >
-            <Input
-              prefix={<SmileOutlined />}
-              placeholder="Ví dụ: Nguyễn Văn A"
-            />
+            <Input prefix={<SmileOutlined />} placeholder="Nguyễn Văn A" />
           </Form.Item>
 
           <Form.Item
             name="email"
             label="Email"
-            normalize={(value) => value?.trim()}
             rules={[
-              { type: 'email', message: 'Email không hợp lệ!' },
-              { required: true, message: 'Vui lòng nhập Email!' },
+              { type: 'email', message: 'Email sai định dạng!' },
+              { required: true, message: 'Nhập Email!' },
             ]}
           >
             <Input prefix={<MailOutlined />} placeholder="user@example.com" />
@@ -93,13 +96,9 @@ const RegisterPage = () => {
           <Form.Item
             name="phone"
             label="Số điện thoại"
-            normalize={(value) => value?.replace(/\s/g, '')}
             rules={[
-              { required: true, message: 'Vui lòng nhập SĐT!' },
-              {
-                pattern: /^0\d{9}$/,
-                message: 'SĐT phải bắt đầu bằng 0 và có 10 số!',
-              },
+              { required: true, message: 'Nhập SĐT!' },
+              { pattern: /^0\d{9}$/, message: 'SĐT không hợp lệ!' },
             ]}
           >
             <Input
@@ -112,52 +111,51 @@ const RegisterPage = () => {
           <Form.Item
             name="password"
             label="Mật khẩu"
-            normalize={(value) => value?.replace(/\s/g, '')}
             rules={[
-              { required: true, message: 'Vui lòng nhập mật khẩu!' },
-              { min: 6, message: 'Mật khẩu ít nhất 6 ký tự!' },
+              { required: true, message: 'Nhập mật khẩu!' },
+              { min: 6, message: 'Tối thiểu 6 ký tự!' },
             ]}
             hasFeedback
           >
-            <Input.Password prefix={<LockOutlined />} />
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder="Nhập mật khẩu"
+            />
           </Form.Item>
 
           <Form.Item
             name="confirmPassword"
             label="Nhập lại mật khẩu"
-            normalize={(value) => value?.replace(/\s/g, '')}
             dependencies={['password']}
             hasFeedback
             rules={[
-              { required: true, message: 'Vui lòng xác nhận mật khẩu!' },
+              { required: true, message: 'Xác nhận mật khẩu!' },
               ({ getFieldValue }) => ({
                 validator(_, value) {
-                  if (!value || getFieldValue('password') === value) {
+                  if (!value || getFieldValue('password') === value)
                     return Promise.resolve();
-                  }
-                  return Promise.reject(
-                    new Error('Mật khẩu nhập lại không khớp!')
-                  );
+                  return Promise.reject(new Error('Mật khẩu không khớp!'));
                 },
               }),
             ]}
           >
-            <Input.Password prefix={<LockOutlined />} />
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder="Nhập lại mật khẩu"
+            />
           </Form.Item>
 
-          <Form.Item>
+          <Form.Item style={{ marginBottom: 0 }}>
             <Button type="primary" htmlType="submit" block loading={loading}>
-              Đăng ký
+              ĐĂNG KÝ NGAY
             </Button>
           </Form.Item>
         </Form>
+
         <div className="auth-footer">
-          Đã có tài khoản?{' '}
-          <Link to="/login" style={{ color: '#ee4d2d', fontWeight: 'bold' }}>
-            Đăng nhập ngay
-          </Link>
+          Đã có tài khoản? <Link to="/login">Đăng nhập ngay</Link>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };

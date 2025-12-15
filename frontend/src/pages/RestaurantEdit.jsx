@@ -26,16 +26,17 @@ import {
   SaveOutlined,
 } from '@ant-design/icons';
 import MapModal from '../components/MapModal';
+import { motion } from 'framer-motion';
 
 const { TextArea } = Input;
 
 const RestaurantEdit = () => {
-  const { id } = useParams(); // Lấy ID quán từ URL (ví dụ: /restaurant/edit/5)
+  const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
 
   const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(true); // State để hiển thị loading khi đang lấy dữ liệu cũ
+  const [fetching, setFetching] = useState(true);
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [coordinates, setCoordinates] = useState(null);
 
@@ -105,7 +106,6 @@ const RestaurantEdit = () => {
     }
   }, [id, user, form, navigate]);
 
-  // ... (Các hàm xử lý ảnh handlePreview, handleRemoveImage... giữ nguyên như trang Registration)
   const handlePreview = async (file) => {
     if (!file.url && !file.preview) {
       file.preview = await getBase64(file.originFileObj);
@@ -220,16 +220,22 @@ const RestaurantEdit = () => {
     );
 
   return (
-    <div className="res-reg-container">
-      <div className="res-reg-overlay"></div>
-      <div className="res-reg-card">
-        <div className="res-reg-header" style={{ background: '#1890ff' }}>
-          {' '}
-          {/* Đổi màu header chút để phân biệt */}
+    <div className="modern-page-container">
+      <motion.div
+        className="modern-card"
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div
+          className="modern-header"
+          style={{
+            background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+          }}
+        >
+          {/* Header màu xanh dương để phân biệt trang Edit */}
           <h2>Cập nhật thông tin Quán</h2>
-          <p style={{ opacity: 0.8, marginTop: 5 }}>
-            Chỉnh sửa thông tin - Quán sẽ cần được duyệt lại
-          </p>
+          <p>Chỉnh sửa thông tin - Quán sẽ cần được duyệt lại</p>
         </div>
 
         <MapModal
@@ -238,16 +244,13 @@ const RestaurantEdit = () => {
           onConfirm={handleMapConfirm}
         />
 
-        <div className="res-reg-body">
+        <div className="modern-body">
           <Form form={form} layout="vertical" onFinish={onFinish} size="large">
-            {/* ... COPY Y NGUYÊN PHẦN FORM ITEM TỪ FILE RestaurantRegistration.jsx VÀO ĐÂY ... */}
-            {/* CHÚ Ý: Copy toàn bộ nội dung bên trong <Form>...</Form> của file cũ */}
-            {/* Bao gồm: Row, Col, các Form.Item (ownerFullName, idCardNumber, phone, restaurantName, address, description) */}
-
-            {/* Tôi viết tắt phần UI Form ở đây để code đỡ dài, bạn copy paste vào nhé */}
             <Row gutter={40}>
               <Col xs={24} md={12}>
-                <div className="section-title">Thông tin chủ quán</div>
+                <div className="section-title" style={{ color: '#1890ff' }}>
+                  Thông tin chủ quán
+                </div>
                 <Form.Item
                   name="ownerFullName"
                   label="Họ tên"
@@ -271,7 +274,9 @@ const RestaurantEdit = () => {
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <div className="section-title">Thông tin quán</div>
+                <div className="section-title" style={{ color: '#1890ff' }}>
+                  Thông tin quán
+                </div>
                 <Form.Item
                   name="restaurantName"
                   label="Tên quán"
@@ -288,7 +293,7 @@ const RestaurantEdit = () => {
                     prefix={<EnvironmentOutlined />}
                     readOnly
                     onClick={() => setIsMapOpen(true)}
-                    placeholder="Chọn lại vị trí nếu muốn đổi"
+                    style={{ cursor: 'pointer' }}
                   />
                 </Form.Item>
                 <Form.Item name="description" label="Mô tả">
@@ -297,7 +302,16 @@ const RestaurantEdit = () => {
               </Col>
             </Row>
 
-            <Divider>HÌNH ẢNH</Divider>
+            <Divider
+              orientation="left"
+              style={{
+                borderColor: '#ffe6de',
+                color: '#ff6b35',
+                fontSize: '14px',
+              }}
+            >
+              HÌNH ẢNH ĐẠI DIỆN
+            </Divider>
             <Row justify="center">
               <Col span={24}>
                 <Form.Item style={{ textAlign: 'center' }}>
@@ -305,11 +319,10 @@ const RestaurantEdit = () => {
                     listType="picture-card"
                     className="avatar-uploader"
                     showUploadList={false}
-                    beforeUpload={beforeUpload}
                     onChange={handleChange}
                     maxCount={1}
+                    style={{ width: '100%', height: '400px' }}
                   >
-                    {/* Logic hiển thị ảnh preview (tương tự file cũ) */}
                     {fileList.length > 0 ? (
                       <div
                         style={{
@@ -325,6 +338,7 @@ const RestaurantEdit = () => {
                             width: '100%',
                             height: '100%',
                             objectFit: 'cover',
+                            borderRadius: '16px',
                           }}
                         />
                         <Button
@@ -334,13 +348,12 @@ const RestaurantEdit = () => {
                           icon={<DeleteOutlined />}
                           size="small"
                           onClick={handleRemoveImage}
-                          style={{ position: 'absolute', top: 5, right: 5 }}
+                          style={{ position: 'absolute', top: 10, right: 10 }}
                         />
                       </div>
                     ) : (
                       <div>
-                        <PlusOutlined />{' '}
-                        <div style={{ marginTop: 8 }}>Tải ảnh mới</div>
+                        <PlusOutlined /> <div>Thay đổi ảnh</div>
                       </div>
                     )}
                   </Upload>
@@ -348,7 +361,6 @@ const RestaurantEdit = () => {
               </Col>
             </Row>
 
-            {/* NÚT SUBMIT THAY ĐỔI THÀNH LƯU */}
             <Form.Item style={{ marginTop: 20 }}>
               <Button
                 type="primary"
@@ -356,14 +368,14 @@ const RestaurantEdit = () => {
                 block
                 loading={loading}
                 icon={<SaveOutlined />}
-                style={{ height: '50px', fontSize: '18px', fontWeight: 'bold' }}
+                style={{ background: '#1890ff', borderColor: '#1890ff' }}
               >
                 LƯU THAY ĐỔI
               </Button>
             </Form.Item>
           </Form>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };

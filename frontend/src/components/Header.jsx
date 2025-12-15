@@ -83,7 +83,7 @@ const Header = () => {
       <div className="header-container">
         {/* LOGO */}
         <div className="header-logo" onClick={() => navigate('/')}>
-          <span style={{ fontSize: '30px' }}>🍲</span> Foorder
+          <span style={{ fontSize: '30px' }}>🍲</span> Food Order
         </div>
 
         {/* USER INFO */}
