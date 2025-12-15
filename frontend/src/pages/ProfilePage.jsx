@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { getCustomerProfile, updateCustomerProfile } from '../services/customerService';
 import {
@@ -32,6 +32,9 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ProfilePage = () => {
     const { user, login } = useContext(AuthContext);
     const navigate = useNavigate();
+    const location = useLocation();
+
+    const returnInfo = location.state?.returnTo || null;
 
     const [form, setForm] = useState({
         username: '',
@@ -64,6 +67,69 @@ const ProfilePage = () => {
         if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
         return [lat, lng];
     }, [form.latitude, form.longitude]);
+
+    // lưu returnTo vào sessionStorage để dùng sau refresh
+    useEffect(() => {
+        if (returnInfo?.path) {
+            sessionStorage.setItem("profile_returnTo", JSON.stringify(returnInfo));
+        }
+    }, [returnInfo]);
+
+    const isAllowedReturnPath = (path) => {
+        if (!path) return false;
+
+        if (path === '/') return true;
+        if (path === '/cart') return true;
+
+        // match /restaurant/{id}
+        if (path.startsWith('/restaurant/')) return true;
+
+        return false;
+    };
+
+    const handleBack = () => {
+        const saved = (() => {
+            try {
+                return JSON.parse(sessionStorage.getItem("profile_returnTo") || "null");
+            } catch {
+                return null;
+            }
+        })();
+
+        const candidate = returnInfo?.path
+            ? returnInfo
+            : saved;
+
+        if (candidate?.path && isAllowedReturnPath(candidate.path)) {
+            navigate(candidate.path, { state: candidate.state });
+        } else {
+            navigate('/'); // fallback tuyệt đối
+        }
+    };
+
+
+    // Nếu user refresh ở Profile rồi bấm nút Back của browser/mouse button 4
+    // thì history có thể không còn state -> ta chủ động điều hướng về returnTo đã lưu
+    useEffect(() => {
+        const onPopState = () => {
+            const saved = (() => {
+                try {
+                    return JSON.parse(sessionStorage.getItem("profile_returnTo") || "null");
+                } catch {
+                    return null;
+                }
+            })();
+
+            if (saved?.path && isAllowedReturnPath(saved.path)) {
+                navigate(saved.path, { state: saved.state, replace: true });
+            } else {
+                navigate('/', { replace: true });
+            }
+        };
+
+        window.addEventListener('popstate', onPopState);
+        return () => window.removeEventListener('popstate', onPopState);
+    }, [navigate]);
 
     // Lấy profile khi vào trang
     useEffect(() => {
@@ -282,6 +348,11 @@ const ProfilePage = () => {
     return (
         <div className="profile-page">
             <div className="profile-wrapper">
+                <div className="profile-back-wrapper">
+                    <Button className="profile-back-btn" onClick={handleBack}>
+                        ← Quay về
+                    </Button>
+                </div>
                 {/* Header */}
                 <div className="profile-header">
                     <div className="profile-header-left">

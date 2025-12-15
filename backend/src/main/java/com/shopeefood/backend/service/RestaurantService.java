@@ -37,18 +37,13 @@ public class RestaurantService {
         // 1. Kiểm tra Account tồn tại không
         Account account = accountRepository.findById(request.getAccountId())
                 .orElseThrow(() -> new RuntimeException("Tài khoản không tồn tại!"));
-
-        // 2. Xử lý thông tin Owner
-        // Kiểm tra xem Account này đã là Owner chưa
         Owner owner = ownerRepository.findById(request.getAccountId()).orElse(null);
 
         if (owner == null) {
-            // Chưa là Owner -> Tạo mới
             owner = new Owner();
             owner.setAccount(account);
             owner.setFullName(request.getOwnerFullName());
             owner.setIdCardNumber(request.getIdCardNumber());
-            // Lưu Owner trước
             owner = ownerRepository.save(owner);
 
         } else {

@@ -15,7 +15,7 @@ import ChangePasswordPage from './pages/ChangePasswordPage.jsx';
 import AdminUsersPage from './pages/AdminUsersPage';
 import CategoriesPage from './pages/CategoriesPage';
 import OrdersPage from './pages/OrdersPage';
-import OwnerDashboard from './pages/OwnerDashboard';
+import OwnerRestaurantPage from './components/OwnerRestaurantPage';
 import OwnerOrders from './components/OwnerOrders';
 import OwnerLayout from './components/OwnerLayout';
 import OwnerProducts from './components/OwnerProduct';
@@ -120,31 +120,15 @@ function App() {
       {/* NHÓM 4: CỬA HÀNG (OWNER)                                 */}
       {/* ======================================================= */}
 
-      <Route
-        element={
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: '100vh',
-            }}
-          >
-            <Header />
-            <div style={{ flex: 1 }}>
-              <Outlet />{' '}
-              {/* Nội dung các trang Landing, Login... sẽ hiện ở đây */}
-            </div>
-          </div>
-        }
-      >
+      
         <Route path="/owner" element={<OwnerLayout />}>
-          <Route index element={<OwnerDashboard />} />
-          <Route path="dashboard" element={<OwnerDashboard />} />
+          <Route index element={<OwnerRestaurantPage />} />
+          <Route path="dashboard" element={<OwnerRestaurantPage />} />
           <Route path="products" element={<OwnerProducts />} />
           <Route path="orders" element={<OwnerOrders />} />
           {/* <Route path="reports" element={<OwnerReports />} />       */}
         </Route>
-      </Route>
+     
     </Routes>
   );
 }

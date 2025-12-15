@@ -33,6 +33,7 @@ public class Restaurant {
     private Owner owner;
 
     public enum RestaurantStatus {
+        CLOSE,
         PENDING,
         ACTIVE,
         BLOCKED,

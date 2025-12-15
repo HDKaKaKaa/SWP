@@ -180,7 +180,10 @@ const CartPage = () => {
     };
 
     const handleChangeAddress = () => {
-        navigate('/profile');
+        navigate('/profile', {
+            state: { returnTo: { path: location.pathname, state: location.state } }
+        });
+
     };
 
     const handleBackToRestaurant = () => {

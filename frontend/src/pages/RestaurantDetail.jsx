@@ -1,5 +1,5 @@
 import { useEffect, useState, useContext, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { getRestaurantById, getProductsByRestaurant } from '../services/restaurantPublicService';
 import {
@@ -27,6 +27,10 @@ const RestaurantDetail = () => {
     const { id } = useParams();
     const { user } = useContext(AuthContext);
     const navigate = useNavigate();
+    const location = useLocation();
+
+    const userRole = (user?.role || '').toUpperCase();
+    const canOrder = !!user && (userRole === 'CUSTOMER' || userRole === 'OWNER');
 
     const [restaurant, setRestaurant] = useState(null);
     const [products, setProducts] = useState([]);
@@ -439,6 +443,12 @@ const RestaurantDetail = () => {
             return;
         }
 
+        // Nếu có đăng nhập nhưng role không được phép order
+        if (!canOrder) {
+            message.warning('Tài khoản này không được phép đặt món.');
+            return;
+        }
+
         const currentQty = cartQuantities[product.id] || 0;
         if (currentQty >= 10) {
             message.warning('Bạn chỉ có thể đặt tối đa 10 phần cho một món.');
@@ -479,6 +489,12 @@ const RestaurantDetail = () => {
     const handleChangeQuantity = async (product, delta) => {
         if (!user) {
             navigate('/login');
+            return;
+        }
+
+        // Nếu có đăng nhập nhưng role không được phép order
+        if (!canOrder) {
+            message.warning('Tài khoản này không được phép đặt món.');
             return;
         }
 
@@ -533,6 +549,12 @@ const RestaurantDetail = () => {
             return;
         }
 
+        // Nếu có đăng nhập nhưng role không được phép order
+        if (!canOrder) {
+            message.warning('Tài khoản này không được phép đặt món.');
+            return;
+        }
+
         const current = cartItem.quantity || 0;
         const newQty = current - 1;
         if (newQty < 0) return;
@@ -571,6 +593,13 @@ const RestaurantDetail = () => {
             navigate('/login');
             return;
         }
+
+        // Nếu có đăng nhập nhưng role không được phép order
+        if (!canOrder) {
+            message.warning('Tài khoản này không được phép đặt món.');
+            return;
+        }
+
         if (totalCartItems === 0) return;
 
         // Chỉ điều hướng, KHÔNG đánh dấu để xoá cart nữa
@@ -685,48 +714,35 @@ const RestaurantDetail = () => {
 
                                             <div className="menu-item-actions">
                                                 {isSoldOut ? (
-                                                  <span className="menu-item-soldout-label">
-                                                    Hết món
-                                                  </span>
+                                                    <span className="menu-item-soldout-label">Hết món</span>
+                                                ) : user && !canOrder ? (
+                                                    // Đã đăng nhập nhưng role không được phép đặt món -> ẩn nút, chỉ hiện label
+                                                    <span className="menu-item-soldout-label">Không thể đặt món</span>
                                                 ) : qty === 0 ? (
                                                     <button
                                                         type="button"
                                                         className="btn-add-primary"
                                                         onClick={() => {
                                                             const hasOptions = p.details && p.details.length > 0;
-                                                            if (hasOptions) {
-                                                                // Món có options -> luôn mở modal chọn options
-                                                                openOptionModal(p);
-                                                            } else {
-                                                                // Món không có options -> add thẳng
-                                                                handleAddToCart(p);
-                                                            }
+                                                            if (hasOptions) openOptionModal(p);
+                                                            else handleAddToCart(p);
                                                         }}
                                                         disabled={addingProductId === p.id}
                                                     >
-                                                        {addingProductId === p.id
-                                                            ? 'Đang thêm...'
-                                                            : '+ Thêm'}
+                                                        {addingProductId === p.id ? 'Đang thêm...' : '+ Thêm'}
                                                     </button>
                                                 ) : (
                                                     <div className="menu-qty-group">
-                                                        {/* Nút "-" với logic mới */}
                                                         <button
                                                             type="button"
                                                             className="menu-qty-btn"
                                                             onClick={() => {
                                                                 const productItems = cartItemsByProduct[p.id] || [];
-
-                                                                if (productItems.length === 0) {
-                                                                    // Không có combo nào trong giỏ → không làm gì
-                                                                    return;
-                                                                }
+                                                                if (productItems.length === 0) return;
 
                                                                 if (productItems.length === 1) {
-                                                                    // Chỉ có 1 combo (1 OrderItem) → trừ trực tiếp combo đó bằng itemId
                                                                     handleDecreaseOneForItem(productItems[0]);
                                                                 } else {
-                                                                    // Có >= 2 combo options → mở modal cho user chọn combo để trừ
                                                                     openDecreaseModal(p);
                                                                 }
                                                             }}
@@ -734,27 +750,21 @@ const RestaurantDetail = () => {
                                                         >
                                                             −
                                                         </button>
+
                                                         <span className="menu-qty-value">{qty}</span>
-                                                        {/* Nút "+" giữ logic: nếu có options -> mở modal, không thì tăng thẳng */}
+
                                                         <button
                                                             type="button"
                                                             className="menu-qty-btn"
                                                             onClick={() => {
                                                                 const hasOptions = p.details && p.details.length > 0;
-
-                                                                if (hasOptions) {
-                                                                    // Món có options → mỗi lần nhấn + mở modal
-                                                                    openOptionModal(p);
-                                                                } else {
-                                                                    // Không có options → tăng số lượng như bình thường
-                                                                    handleChangeQuantity(p, +1);
-                                                                }
+                                                                if (hasOptions) openOptionModal(p);
+                                                                else handleChangeQuantity(p, +1);
                                                             }}
                                                             disabled={addingProductId === p.id}
                                                         >
                                                             +
                                                         </button>
-
                                                     </div>
                                                 )}
                                             </div>
@@ -792,18 +802,19 @@ const RestaurantDetail = () => {
                                     </div>
                                 </div>
 
-                                {!user && (
-                                    <p className="detail-cart-note">
-                                        Vui lòng đăng nhập để đặt món.
-                                    </p>
-                                )}
+                                {!user ? (
+                                    <p className="detail-cart-note">Vui lòng đăng nhập để đặt món.</p>
+                                ) : !canOrder ? (
+                                    <p className="detail-cart-note">Tài khoản này không được phép đặt món.</p>
+                                ) : null}
+
                             </div>
 
                             <button
                                 type="button"
                                 className="detail-cart-button"
                                 onClick={handleGoToCart}
-                                disabled={!user || totalCartItems === 0}
+                                disabled={!canOrder || totalCartItems === 0}
                             >
                                 Giao hàng
                             </button>
@@ -827,7 +838,9 @@ const RestaurantDetail = () => {
                 onClose={() => setAddressModalOpen(false)}
                 onGoProfile={() => {
                     setAddressModalOpen(false);
-                    navigate('/profile');
+                    navigate('/profile', {
+                        state: { returnTo: { path: location.pathname, state: location.state } }
+                    });
                 }}
             />
 

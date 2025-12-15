@@ -49,6 +49,9 @@ public class CartService {
     @Autowired
     private OrderItemOptionRepository orderItemOptionRepository;
 
+    @Autowired
+    private OwnerRepository ownerRepository;
+
     // ----------------- ADD TO CART -----------------
     @Transactional
     public CartResponse addToCart(AddToCartRequest request) {
@@ -58,8 +61,22 @@ public class CartService {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new RuntimeException("Account not found"));
 
+        // Chỉ CUSTOMER hoặc OWNER mới được phép đặt món
+        String role = account.getRole();
+        boolean canOrder = role != null && (role.equalsIgnoreCase("CUSTOMER") || role.equalsIgnoreCase("OWNER"));
+        if (!canOrder) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ACCOUNT_ROLE_NOT_ALLOWED_TO_ORDER");
+        }
+
+        // Bảng customers dùng account_id làm PK. Với OWNER có thể chưa có dòng customer -> tạo "shadow" record
         Customer customer = customerRepository.findById(accountId)
-                .orElseThrow(() -> new RuntimeException("Customer not found"));
+                .orElseGet(() -> {
+                    Customer c = new Customer();
+                    c.setAccountId(accountId);
+                    // fullName không bắt buộc, set tạm để tránh null quá nhiều
+                    c.setFullName(account.getUsername());
+                    return customerRepository.save(c);
+                });
 
         // Bắt buộc phải có địa chỉ giao hàng
         if (customer.getAddress() == null || customer.getAddress().trim().isEmpty()) {
