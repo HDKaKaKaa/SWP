@@ -252,9 +252,22 @@ public class IssueService {
         ensureAccess(account, issue, order);
 
         List<IssueEvent> events = issueEventRepository.findByIssueIdOrderByCreatedAtAsc(issueId);
+
+        Map<String, Object> orderSummary = new HashMap<>();
+        orderSummary.put("id", order.getId());
+        orderSummary.put("orderNumber", order.getOrderNumber());
+        orderSummary.put("status", order.getStatus());
+        orderSummary.put("paymentMethod", order.getPaymentMethod());
+        orderSummary.put("subtotal", order.getSubtotal());
+        orderSummary.put("shippingFee", order.getShippingFee());
+        orderSummary.put("totalAmount", order.getTotalAmount());
+        orderSummary.put("createdAt", order.getCreatedAt());
+        orderSummary.put("completedAt", order.getCompletedAt());
+
         Map<String, Object> res = new HashMap<>();
         res.put("issue", issue);
         res.put("events", events);
+        res.put("orderSummary", orderSummary);
         return res;
     }
 
