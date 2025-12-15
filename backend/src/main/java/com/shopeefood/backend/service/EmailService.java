@@ -15,7 +15,7 @@ public class EmailService {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom("hoangnguyen26804@gmail.com");
         message.setTo(toEmail);
-        message.setSubject("Foorder - Cấp lại mật khẩu");
+        message.setSubject("Food Order - Cấp lại mật khẩu");
         message.setText("Xin chào,\n\nMật khẩu mới của bạn là: " + newPassword
                 + "\n\nVui lòng đăng nhập và đổi lại mật khẩu ngay.");
 

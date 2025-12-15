@@ -4,6 +4,7 @@ import axios from 'axios';
 import '../css/LoginPage.css';
 import { Form, Input, Button, message, Typography, Alert } from 'antd';
 import { MailOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { motion } from 'framer-motion';
 
 const { Title, Paragraph } = Typography;
 
@@ -33,12 +34,21 @@ const ForgotPasswordPage = () => {
   return (
     <div className="auth-page-container">
       <div className="auth-overlay"></div>
-      <div className="auth-card">
-        <Title level={3} className="auth-title">
+
+      <motion.div
+        className="auth-card"
+        initial={{ opacity: 0, x: -50 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <Title level={2} className="auth-title">
           Khôi phục mật khẩu
         </Title>
-        <Paragraph style={{ textAlign: 'center', marginBottom: 20 }}>
-          Nhập email của bạn, chúng tôi sẽ gửi mật khẩu mới.
+        <Paragraph
+          style={{ textAlign: 'center', marginBottom: 30, color: '#666' }}
+        >
+          Đừng lo lắng! Hãy nhập email của bạn, chúng tôi sẽ gửi hướng dẫn khôi
+          phục mật khẩu.
         </Paragraph>
 
         {successMsg && (
@@ -47,15 +57,21 @@ const ForgotPasswordPage = () => {
             description={successMsg}
             type="success"
             showIcon
-            style={{ marginBottom: 20 }}
+            style={{ marginBottom: 20, borderRadius: '12px' }}
           />
         )}
 
-        <Form name="forgot-password" onFinish={onFinish} size="large">
+        <Form
+          name="forgot-password"
+          onFinish={onFinish}
+          size="large"
+          layout="vertical"
+        >
           <Form.Item
             name="email"
+            label="Email đăng ký"
             rules={[
-              { type: 'email', message: 'Email không đúng định dạng!' },
+              { type: 'email', message: 'Email không hợp lệ!' },
               { required: true, message: 'Vui lòng nhập Email!' },
             ]}
           >
@@ -64,17 +80,29 @@ const ForgotPasswordPage = () => {
 
           <Form.Item>
             <Button type="primary" htmlType="submit" block loading={loading}>
-              Gửi yêu cầu
+              GỬI YÊU CẦU
             </Button>
           </Form.Item>
         </Form>
 
-        <div className="auth-footer">
-          <Link to="/login" style={{ color: '#555' }}>
+        <div
+          className="auth-footer"
+          style={{ borderTop: 'none', paddingTop: 10 }}
+        >
+          <Link
+            to="/login"
+            style={{
+              color: '#666',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '5px',
+            }}
+          >
             <ArrowLeftOutlined /> Quay lại đăng nhập
           </Link>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };
