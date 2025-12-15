@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Card, Table, Tag, Space, DatePicker, Select, Button, Typography, Row, Col, message,
-    Drawer, Descriptions, Timeline, Divider, Tooltip
+    Drawer, Descriptions, Timeline, Divider, Tooltip, Rate
 } from 'antd';
 import {
-    ReloadOutlined, EyeOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined
+    ReloadOutlined, EyeOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined,
+    PhoneOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import axios from 'axios';
@@ -103,10 +104,27 @@ const OrdersPage = () => {
             key: 'customerRestaurant',
             render: (_, record) => (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <Text strong>{record.customerName || 'Khách lẻ'}</Text>
-                    <Text type="secondary" style={{ fontSize: '12px' }} ellipsis={{ tooltip: record.restaurantName }}>
-                        {record.restaurantName}
-                    </Text>
+                    {/* Tên khách hàng (Có thể thêm SĐT khách nếu muốn) */}
+                    <div>
+                        <Text strong>{record.customerName || 'Khách lẻ'}</Text>
+                        {record.customerPhone && (
+                            <span style={{ fontSize: 11, color: '#666', marginLeft: 6 }}>
+                                <PhoneOutlined /> {record.customerPhone}
+                            </span>
+                        )}
+                    </div>
+
+                    {/* Tên quán (Có thể thêm SĐT quán nếu muốn) */}
+                    <div style={{ marginTop: 2, borderTop: '1px dashed #eee', paddingTop: 2 }}>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                            {record.restaurantName}
+                        </Text>
+                        {record.restaurantPhone && (
+                            <span style={{ fontSize: 11, color: '#888', marginLeft: 6 }}>
+                                <PhoneOutlined /> {record.restaurantPhone}
+                            </span>
+                        )}
+                    </div>
                 </div>
             ),
         },
@@ -114,12 +132,39 @@ const OrdersPage = () => {
         {
             title: 'Shipper',
             key: 'shipper',
+            width: 170, // Set width
             render: (_, record) => record.shipperName ? (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <Text>{record.shipperName}</Text>
-                    <Text type="secondary" style={{ fontSize: '11px' }}>{record.shipperEmail}</Text>
+                    <Text strong>{record.shipperName}</Text>
+                    {/* Check if shipperPhone exists */}
+                    {record.shipperPhone ? (
+                        <div style={{ fontSize: '11px', color: '#1677ff' }}>
+                            <PhoneOutlined /> {record.shipperPhone}
+                        </div>
+                    ) : (
+                        <Text type="secondary" style={{ fontSize: '11px' }}>{record.shipperEmail}</Text>
+                    )}
                 </div>
             ) : <Text type="secondary" italic>-</Text>,
+        },
+        {
+            title: 'Đánh giá',
+            key: 'rating',
+            width: 120,
+            align: 'center',
+            render: (_, record) => {
+                if (record.status !== 'COMPLETED') return <span style={{color: '#ccc'}}>-</span>;
+                if (!record.rating) return <span style={{color: '#999', fontSize: 11}}>Chưa đánh giá</span>;
+
+                return (
+                    <Tooltip title={record.comment || "Không có lời nhắn"}>
+                        <div>
+                            <Rate disabled defaultValue={record.rating} style={{ fontSize: 12 }} />
+                            <div style={{fontSize: 10, color: '#888'}}>({record.rating} sao)</div>
+                        </div>
+                    </Tooltip>
+                );
+            }
         },
         {
             title: 'Thời gian giao',

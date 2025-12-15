@@ -70,4 +70,7 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Integer>
                         Restaurant.RestaurantStatus status,
                         LocalDateTime start,
                         LocalDateTime end);
+
+    // Tìm nhà hàng theo tên để hiển thị trong Dropdown filter
+    List<Restaurant> findByNameContainingIgnoreCase(String keyword);
 }
