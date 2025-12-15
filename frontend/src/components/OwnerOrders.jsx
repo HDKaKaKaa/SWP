@@ -20,7 +20,7 @@ const OrderStatusBadge = ({ status }) => {
 export default function OwnerOrders() {
     const { user } = useContext(AuthContext);
     const [ownerId, setOwnerId] = useState(null);
-
+    const accountId = user ? user.id : null;
     const [orders, setOrders] = useState([]);
     const [restaurants, setRestaurants] = useState([]);
     const [selectedRestaurant, setSelectedRestaurant] = useState(null);
@@ -58,12 +58,12 @@ export default function OwnerOrders() {
     }, [user]);
 
     useEffect(() => {
-        if (!ownerId) return;
+        if (!accountId) return;
 
         const loadRestaurants = async () => {
             try {
                 const res = await axios.get("http://localhost:8080/api/owner/restaurants", {
-                    params: { ownerId },
+                    params: { accountId },
                 });
                 setRestaurants(res.data);
             } catch (err) {
@@ -72,7 +72,7 @@ export default function OwnerOrders() {
         };
 
         loadRestaurants();
-    }, [ownerId]);
+    }, [accountId]);
 
     const fetchOrders = useCallback(async () => {
         if (!ownerId) return;
@@ -121,7 +121,7 @@ export default function OwnerOrders() {
         let newStatus = "";
         if (action === "accept") newStatus = "PREPARING";
         else if (action === "cancel") newStatus = "CANCELLED";
-        
+
         try {
             const res = await axios.put(`http://localhost:8080/api/owner/orders/${orderId}/status`, null, {
                 params: { status: newStatus },
