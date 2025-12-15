@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 import java.time.LocalDateTime;
 
 @Repository
@@ -73,4 +74,7 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Integer>
 
     // Tìm nhà hàng theo tên để hiển thị trong Dropdown filter
     List<Restaurant> findByNameContainingIgnoreCase(String keyword);
+
+    Optional<Restaurant> findByIdAndOwnerAccountId(Integer id, Integer ownerAccountId);
+    Optional<Restaurant> findByIdAndOwnerId(Integer id, Integer ownerId);
 }
