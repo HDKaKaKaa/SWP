@@ -401,14 +401,20 @@ public class IssueService {
 
         BigDecimal amount = null;
         if ("APPROVED".equals(decision)) {
-            if (req.getAmount() == null || req.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
-                throw new IllegalArgumentException("amount is required when APPROVED");
+            if (req.getAmount() == null || req.getAmount().compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException("amount must be >= 0 when APPROVED");
             }
             amount = req.getAmount();
             issue.setAdminCreditAmount(amount);
-        } else {
-            issue.setAdminCreditAmount(null);
         }
+
+        if ("APPROVED".equals(decision)) {
+            issue.setStatus("RESOLVED");
+        } else {
+            issue.setStatus("REJECTED");
+        }
+        issue.setResolvedAt(LocalDateTime.now());
+        issue.setResolvedReason(req.getNote());
 
         String old = issue.getAdminCreditStatus();
         issue.setAdminCreditStatus(decision);

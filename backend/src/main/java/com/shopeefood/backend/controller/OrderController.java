@@ -212,6 +212,12 @@ public class OrderController {
                     // Tên shipper
                     map.put("shipperName", order.getShipper() != null ? order.getShipper().getFullName() : "Chưa có");
 
+                    // THÊM: shipperId để frontend khiếu nại shipper
+                    map.put("shipperId", order.getShipper() != null ? order.getShipper().getAccountId() : null);
+
+                    // THÊM: restaurantId để frontend khiếu nại quán (optional nhưng nên có)
+                    map.put("restaurantId", order.getRestaurant() != null ? order.getRestaurant().getId() : null);
+
                     // Thời gian giao (completedAt hoặc shippedAt)
                     if (order.getCompletedAt() != null) {
                         map.put("deliveryTime", order.getCompletedAt());

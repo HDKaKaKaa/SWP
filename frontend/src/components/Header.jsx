@@ -70,6 +70,24 @@ const Header = () => {
       type: 'divider',
     },
     {
+      key: 'support',
+      label: 'Yêu cầu hỗ trợ / Khiếu nại',
+      icon: <ProfileOutlined />,
+      onClick: () => navigate('/support/new'),
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: 'support-history',
+      label: 'Lịch sử yêu cầu hỗ trợ',
+      icon: <ShoppingCartOutlined />,
+      onClick: () => navigate('/support'),
+    },
+    {
+      type: 'divider',
+    },
+    {
       key: '5',
       label: 'Đăng xuất',
       icon: <LogoutOutlined />,

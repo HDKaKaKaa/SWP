@@ -1,0 +1,48 @@
+.issue-create-page {
+    padding: 24px 12px;
+    display: flex;
+    justify-content: center;
+}
+
+.issue-create-card {
+    width: 100%;
+    max-width: 860px;
+    border-radius: 12px;
+}
+
+.issue-create-header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.issue-create-title {
+    margin: 0 !important;
+}
+
+.issue-create-order-hint {
+    margin: -6px 0 14px;
+}
+
+.issue-create-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+@media (max-width: 768px) {
+    .issue-create-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.issue-create-uploader {
+    border-radius: 10px;
+}
+
+.issue-create-actions {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
