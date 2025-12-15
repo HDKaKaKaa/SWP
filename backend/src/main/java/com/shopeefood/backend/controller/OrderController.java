@@ -61,6 +61,17 @@ public class OrderController {
         order.setRestaurant(res);
 
         order.setShippingAddress(request.getAddress());
+        
+        // Lấy tọa độ từ Customer entity nếu có (để hiển thị trên bản đồ)
+        Optional<Customer> customerOpt = customerRepository.findById(request.getAccountId());
+        if (customerOpt.isPresent()) {
+            Customer customer = customerOpt.get();
+            if (customer.getLatitude() != null && customer.getLongitude() != null) {
+                order.setShippingLat(customer.getLatitude());
+                order.setShippingLong(customer.getLongitude());
+            }
+        }
+        
         order.setSubtotal(BigDecimal.valueOf(totalAmount));
         order.setShippingFee(BigDecimal.valueOf(15000)); // Phí ship cứng
         order.setTotalAmount(BigDecimal.valueOf(totalAmount + 15000));
