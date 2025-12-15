@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Table, Button, Tag, message, Modal, Rate, Input, Space } from 'antd';
-import { StarOutlined } from '@ant-design/icons';
+import { Card, Table, Button, Tag, message, Modal, Rate, Input, Space, Row, Col, Select, DatePicker } from 'antd';
+import { StarOutlined, SearchOutlined, FilterOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
 import { getCustomerOrders, createFeedback } from '../services/orderService';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
+const { RangePicker } = DatePicker;
+const { Option } = Select;
 
 const OrderDetailPage = () => {
     const { user } = useAuth();
     const [orders, setOrders] = useState([]);
+    const [filteredOrders, setFilteredOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState(null);
@@ -17,6 +20,12 @@ const OrderDetailPage = () => {
     const [comment, setComment] = useState('');
     const [shipperRating, setShipperRating] = useState(5);
     const [shipperComment, setShipperComment] = useState('');
+    
+    // Filter và search states
+    const [searchText, setSearchText] = useState('');
+    const [statusFilter, setStatusFilter] = useState('ALL');
+    const [dateRange, setDateRange] = useState(null);
+    const [ratingFilter, setRatingFilter] = useState('ALL');
 
     useEffect(() => {
         if (user && user.id) {
@@ -29,11 +38,77 @@ const OrderDetailPage = () => {
             setLoading(true);
             const data = await getCustomerOrders(user.id);
             setOrders(data);
+            setFilteredOrders(data);
         } catch (error) {
             message.error('Không thể tải danh sách đơn hàng!');
         } finally {
             setLoading(false);
         }
+    };
+
+    // Áp dụng filter và search
+    useEffect(() => {
+        applyFilters();
+    }, [orders, searchText, statusFilter, dateRange, ratingFilter]);
+
+    const applyFilters = () => {
+        let filtered = [...orders];
+
+        // Lọc theo từ khóa tìm kiếm
+        if (searchText) {
+            const searchLower = searchText.toLowerCase();
+            filtered = filtered.filter(order => {
+                // Tìm theo mã đơn hàng
+                const orderNumber = (order.orderNumber || order.id?.toString() || '').toLowerCase();
+                // Tìm theo tên quán
+                const restaurantName = (order.restaurantName || '').toLowerCase();
+                // Tìm theo tên món
+                const productNames = order.orderItems?.map(item => item.productName?.toLowerCase() || '').join(' ') || '';
+                
+                return orderNumber.includes(searchLower) ||
+                       restaurantName.includes(searchLower) ||
+                       productNames.includes(searchLower);
+            });
+        }
+
+        // Lọc theo trạng thái
+        if (statusFilter !== 'ALL') {
+            filtered = filtered.filter(order => order.status === statusFilter);
+        }
+
+        // Lọc theo khoảng thời gian
+        if (dateRange && dateRange.length === 2) {
+            const startDate = dateRange[0].startOf('day');
+            const endDate = dateRange[1].endOf('day');
+            filtered = filtered.filter(order => {
+                const orderDate = dayjs(order.createdAt);
+                return orderDate.isAfter(startDate.subtract(1, 'day')) && orderDate.isBefore(endDate.add(1, 'day'));
+            });
+        }
+
+        // Lọc theo đánh giá
+        if (ratingFilter === 'HAS_RATING') {
+            filtered = filtered.filter(order => order.hasFeedback && order.feedbackRating);
+        } else if (ratingFilter === 'NO_RATING') {
+            filtered = filtered.filter(order => !order.hasFeedback || !order.feedbackRating);
+        }
+
+        // Sắp xếp theo thời gian tạo mới nhất lên đầu
+        filtered.sort((a, b) => {
+            if (a.createdAt == null && b.createdAt == null) return 0;
+            if (a.createdAt == null) return 1;
+            if (b.createdAt == null) return -1;
+            return new Date(b.createdAt) - new Date(a.createdAt);
+        });
+
+        setFilteredOrders(filtered);
+    };
+
+    const handleResetFilters = () => {
+        setSearchText('');
+        setStatusFilter('ALL');
+        setDateRange(null);
+        setRatingFilter('ALL');
     };
 
     // Format số tiền
@@ -244,10 +319,92 @@ const OrderDetailPage = () => {
 
     return (
         <div style={{ padding: '24px', minHeight: '100vh', backgroundColor: '#f0f2f5' }}>
-            <Card title="Danh sách đơn hàng của tôi" bordered={false}>
+            <Card 
+                title="Danh sách đơn hàng của tôi" 
+                bordered={false}
+                extra={
+                    <Button 
+                        icon={<ReloadOutlined />} 
+                        onClick={fetchOrders}
+                        title="Làm mới"
+                    >
+                        Làm mới
+                    </Button>
+                }
+            >
+                {/* Filter và Search Section */}
+                <div style={{ marginBottom: 16, padding: 16, backgroundColor: '#fafafa', borderRadius: 6 }}>
+                    <Row gutter={[16, 16]}>
+                        {/* Search */}
+                        <Col xs={24} sm={24} md={12} lg={8}>
+                            <Input
+                                placeholder="Tìm theo mã đơn, tên quán, món ăn..."
+                                prefix={<SearchOutlined />}
+                                value={searchText}
+                                onChange={(e) => setSearchText(e.target.value)}
+                                allowClear
+                            />
+                        </Col>
+                        
+                        {/* Status Filter */}
+                        <Col xs={24} sm={12} md={6} lg={4}>
+                            <Select
+                                placeholder="Trạng thái"
+                                value={statusFilter}
+                                onChange={setStatusFilter}
+                                style={{ width: '100%' }}
+                            >
+                                <Option value="ALL">Tất cả</Option>
+                                <Option value="PENDING">Chờ xác nhận</Option>
+                                <Option value="PAID">Đã thanh toán</Option>
+                                <Option value="PREPARING">Đang chuẩn bị</Option>
+                                <Option value="SHIPPING">Đang giao</Option>
+                                <Option value="COMPLETED">Hoàn thành</Option>
+                                <Option value="CANCELLED">Đã hủy</Option>
+                            </Select>
+                        </Col>
+                        
+                        {/* Rating Filter */}
+                        <Col xs={24} sm={12} md={6} lg={4}>
+                            <Select
+                                placeholder="Đánh giá"
+                                value={ratingFilter}
+                                onChange={setRatingFilter}
+                                style={{ width: '100%' }}
+                            >
+                                <Option value="ALL">Tất cả</Option>
+                                <Option value="HAS_RATING">Đã đánh giá</Option>
+                                <Option value="NO_RATING">Chưa đánh giá</Option>
+                            </Select>
+                        </Col>
+                        
+                        {/* Date Range */}
+                        <Col xs={24} sm={12} md={6} lg={6}>
+                            <RangePicker
+                                style={{ width: '100%' }}
+                                placeholder={['Từ ngày', 'Đến ngày']}
+                                value={dateRange}
+                                onChange={setDateRange}
+                                format="DD/MM/YYYY"
+                            />
+                        </Col>
+                        
+                        {/* Reset Button */}
+                        <Col xs={24} sm={12} md={6} lg={2}>
+                            <Button
+                                icon={<ReloadOutlined />}
+                                onClick={handleResetFilters}
+                                style={{ width: '100%' }}
+                            >
+                                Reset
+                            </Button>
+                        </Col>
+                    </Row>
+                </div>
+
                 <Table
                     columns={columns}
-                    dataSource={orders}
+                    dataSource={filteredOrders}
                     loading={loading}
                     rowKey="id"
                     scroll={{ x: 1200 }}

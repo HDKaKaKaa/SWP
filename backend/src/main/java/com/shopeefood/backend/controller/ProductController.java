@@ -4,6 +4,8 @@ import com.shopeefood.backend.entity.Product;
 import com.shopeefood.backend.repository.ProductRepository;
 import com.shopeefood.backend.service.ProductService;
 import com.shopeefood.backend.dto.ProductCreationRequest;
+import com.shopeefood.backend.dto.ProductUpdateRequestDTO;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -44,5 +46,17 @@ public class ProductController {
 
         Product newProduct = productService.createNewProduct(request, imageFile);
         return ResponseEntity.ok(newProduct);
+    }
+
+    // Cập nhật sản phẩm
+    @PutMapping(value = "/{id}", consumes = { "multipart/form-data" })
+    public ResponseEntity<Product> updateProduct(
+            @PathVariable Long id,
+            @RequestPart("productRequest") ProductUpdateRequestDTO request,
+            @RequestPart(value = "imageFile", required = false) MultipartFile imageFile) throws Exception {
+
+        request.setId(id.intValue());
+        Product updatedProduct = productService.updateProduct(request, imageFile);
+        return ResponseEntity.ok(updatedProduct);
     }
 }

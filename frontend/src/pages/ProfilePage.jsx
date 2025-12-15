@@ -93,8 +93,7 @@ const ProfilePage = () => {
 
         const fetchProfile = async () => {
             try {
-                const res = await getCustomerProfile(accountId);
-                const data = res.data;
+                const data = await getCustomerProfile(accountId);
 
                 setForm({
                     username: data.username || '',
@@ -139,8 +138,8 @@ const ProfilePage = () => {
             newErrors.fullName = 'Vui lòng nhập họ tên.';
         } else if (name.length < 3) {
             newErrors.fullName = 'Họ tên phải từ 3 ký tự trở lên.';
-        } else if (name.length > 35) {
-            newErrors.fullName = 'Họ tên không được dài quá 35 ký tự.';
+        } else if (name.length > 25) {
+            newErrors.fullName = 'Họ tên không được dài quá 25 ký tự.';
         }
 
         // Số điện thoại: bắt buộc, pattern VN

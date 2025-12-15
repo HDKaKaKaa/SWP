@@ -110,12 +110,15 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
     List<Order> findByCustomerIdWithDetails(@Param("customerId") Integer customerId);
 
     /**
-     * Tìm đơn hàng có sẵn (PAID và chưa có shipper) - Tối ưu với JOIN FETCH
+     * Tìm đơn hàng có sẵn cho shipper
+     * Chỉ lấy đơn đã được Owner duyệt (status = PREPARING) và chưa có shipper
+     * Flow: Customer đặt (PENDING) → Owner duyệt (PREPARING) → Shipper nhận (SHIPPING)
+     * Tối ưu với JOIN FETCH để tránh N+1 problem
      */
     @Query("SELECT DISTINCT o FROM Order o " +
             "LEFT JOIN FETCH o.restaurant r " +
             "LEFT JOIN FETCH o.customer c " +
-            "WHERE o.status = 'PAID' AND o.shipper IS NULL " +
+            "WHERE o.status = 'PREPARING' AND o.shipper IS NULL " +
             "ORDER BY o.createdAt DESC")
     List<Order> findAvailableOrders();
 
@@ -135,4 +138,21 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
             "LEFT JOIN o.customer c " +
             "WHERE o.id = :orderId")
     Optional<Order> findByIdWithDetails(@Param("orderId") Integer orderId);
+
+    /**
+     * Query lấy doanh thu theo bộ lọc động (Native Query)
+     * COALESCE(?3, NULL) dùng để xử lý logic: Nếu tham số restaurantId là NULL thì bỏ qua điều kiện đó.
+     */
+    @Query(value = "SELECT CAST(o.created_at AS DATE) as label, SUM(o.total_amount) as value " +
+            "FROM orders o " +
+            "WHERE o.status = 'COMPLETED' " +
+            "AND o.created_at >= :startDate AND o.created_at <= :endDate " +
+            "AND (:restaurantId IS NULL OR o.restaurant_id = :restaurantId) " +
+            "GROUP BY CAST(o.created_at AS DATE) " +
+            "ORDER BY CAST(o.created_at AS DATE) ASC", nativeQuery = true)
+    List<Object[]> getRevenueByFilter(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            @Param("restaurantId") Integer restaurantId
+    );
 }

@@ -1,14 +1,11 @@
 package com.shopeefood.backend.entity;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-
-import java.util.ArrayList;
 import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonBackReference;
 
 @Data
 @Entity
@@ -34,7 +31,7 @@ public class Product {
 
     @ManyToOne
     @JoinColumn(name = "restaurant_id")
-    @JsonIgnore
+    @JsonBackReference
     private Restaurant restaurant;
 
     // ===== THÊM MỚI =====
@@ -42,7 +39,7 @@ public class Product {
             mappedBy = "product",
             cascade = CascadeType.ALL,
             orphanRemoval = true,
-            fetch = FetchType.LAZY // Để mặc định KHÔNG load details nếu không cần
+            fetch = FetchType.LAZY 
     )
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
