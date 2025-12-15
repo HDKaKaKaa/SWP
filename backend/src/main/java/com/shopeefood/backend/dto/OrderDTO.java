@@ -22,7 +22,9 @@ public class OrderDTO {
 
     // --- Thông tin hiển thị ---
     private String customerName;
+    private String customerPhone;
     private String restaurantName;
+    private String restaurantPhone;
     private String shipperName;
     private String shipperEmail;
     private String shipperPhone;    // SĐT Shipper

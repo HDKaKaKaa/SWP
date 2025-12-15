@@ -62,8 +62,18 @@ const RestaurantsPage = () => {
     const handleToggleStatus = async (restaurant) => {
         try {
             await toggleRestaurantStatus(restaurant.id);
-            const newStatus = restaurant.status === 'ACTIVE' ? 'BLOCKED' : 'ACTIVE';
-            message.success(`Đã ${newStatus === 'BLOCKED' ? 'KHÓA' : 'MỞ KHÓA'} nhà hàng thành công!`);
+
+            // --- SỬA DÒNG NÀY ---
+            // Logic cũ: restaurant.status === 'ACTIVE' ? 'BLOCKED' : 'ACTIVE';
+
+            // Logic mới: Nếu đang BLOCKED -> chuyển thành ACTIVE.
+            // Còn lại (ACTIVE hoặc CLOSE) -> đều chuyển thành BLOCKED.
+            const newStatus = restaurant.status === 'BLOCKED' ? 'ACTIVE' : 'BLOCKED';
+
+            // Cập nhật thông báo cho đúng ngữ nghĩa
+            const actionName = newStatus === 'BLOCKED' ? 'KHÓA' : 'MỞ KHÓA';
+            message.success(`Đã ${actionName} nhà hàng thành công!`);
+
             fetchData(keyword, statusFilter);
         } catch (error) {
             const errorMsg = error.response?.data || 'Có lỗi xảy ra!';
@@ -188,7 +198,10 @@ const RestaurantsPage = () => {
             dataIndex: 'status',
             align: 'center',
             render: (status) => {
-                let color = status === 'ACTIVE' ? 'green' : 'red';
+                let color = 'default';
+                if (status === 'ACTIVE') color = 'green';       // Đang hoạt động
+                else if (status === 'BLOCKED') color = 'red';   // Bị khóa
+                else if (status === 'CLOSE') color = 'orange';
                 return <Tag color={color}>{status}</Tag>;
             }
         },
@@ -211,21 +224,26 @@ const RestaurantsPage = () => {
                     </Tooltip>
 
                     <Popconfirm
-                        title={record.status === 'ACTIVE' ? "Khóa nhà hàng này?" : "Mở khóa nhà hàng?"}
-                        description={record.status === 'ACTIVE'
-                            ? "Nhà hàng sẽ không thể nhận đơn mới. Chỉ khóa được khi không còn đơn hàng nào."
-                            : "Nhà hàng sẽ hoạt động trở lại."}
+                        // Sửa tiêu đề: Nếu đang BLOCKED thì hỏi Mở, ngược lại (ACTIVE/CLOSE) thì hỏi Khóa
+                        title={record.status === 'BLOCKED' ? "Mở khóa nhà hàng?" : "Khóa nhà hàng này?"}
+                        description={record.status === 'ACTIVE' || record.status === 'CLOSE'
+                            ? "Nhà hàng sẽ bị vô hiệu hóa và không thể truy cập."
+                            : "Nhà hàng sẽ được hoạt động trở lại."}
                         onConfirm={() => handleToggleStatus(record)}
-                        okText={record.status === 'ACTIVE' ? "Khóa ngay" : "Mở khóa"}
+
+                        // Sửa text nút OK
+                        okText={record.status === 'BLOCKED' ? "Mở khóa" : "Khóa ngay"}
                         cancelText="Hủy"
-                        okButtonProps={{ danger: record.status === 'ACTIVE' }}
+                        // Chỉ hiện màu đỏ (danger) khi hành động là Khóa (tức là status hiện tại KHÔNG PHẢI BLOCKED)
+                        okButtonProps={{ danger: record.status !== 'BLOCKED' }}
                     >
                         <Button
-                            type={record.status === 'ACTIVE' ? 'default' : 'primary'}
-                            danger={record.status === 'ACTIVE'}
-                            icon={record.status === 'ACTIVE' ? <LockOutlined /> : <UnlockOutlined />}
+                            // Nếu đang BLOCKED thì nút Primary (Xanh), còn lại là Default hoặc Danger
+                            type={record.status === 'BLOCKED' ? 'primary' : 'default'}
+                            danger={record.status !== 'BLOCKED'} // Đỏ nếu đang ACTIVE hoặc CLOSE
+                            icon={record.status === 'BLOCKED' ? <UnlockOutlined /> : <LockOutlined />}
                         >
-                            {record.status === 'ACTIVE' ? 'Khóa' : 'Mở'}
+                            {record.status === 'BLOCKED' ? 'Mở' : 'Khóa'}
                         </Button>
                     </Popconfirm>
                 </Space>
@@ -248,6 +266,7 @@ const RestaurantsPage = () => {
                             <Option value="ALL">Tất cả trạng thái</Option>
                             <Option value="ACTIVE">Đang hoạt động</Option>
                             <Option value="BLOCKED">Đã khóa</Option>
+                            <Option value="CLOSE">Đóng cửa</Option>
                         </Select>
 
                         <Search

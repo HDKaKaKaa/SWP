@@ -56,7 +56,7 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Integer>
         List<Restaurant> searchForAdmin(String keyword);
 
         // Lấy tất cả (Chỉ ACTIVE hoặc BLOCKED) khi không có keyword
-        @Query("SELECT r FROM Restaurant r WHERE r.status = 'ACTIVE' OR r.status = 'BLOCKED'")
+        @Query("SELECT r FROM Restaurant r WHERE r.status = 'ACTIVE' OR r.status = 'BLOCKED' OR r.status = 'CLOSE'")
         List<Restaurant> findAllManaged();
 
         // QUERY TỔNG HỢP: Tìm theo danh sách trạng thái VÀ từ khóa

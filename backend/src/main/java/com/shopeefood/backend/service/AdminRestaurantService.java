@@ -88,19 +88,24 @@ public class AdminRestaurantService {
         Restaurant restaurant = restaurantRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy quán ăn"));
 
-        if (restaurant.getStatus() == Restaurant.RestaurantStatus.ACTIVE) {
-            // --- LOGIC KHÓA QUÁN ---
-            // 1. Kiểm tra có đơn hàng đang chạy không
+        // TRƯỜNG HỢP 1: KHÓA QUÁN (Áp dụng cho cả ACTIVE và CLOSE)
+        if (restaurant.getStatus() == Restaurant.RestaurantStatus.ACTIVE ||
+                restaurant.getStatus() == Restaurant.RestaurantStatus.CLOSE) { // <--- Thêm điều kiện này
+
+            // Logic kiểm tra đơn hàng cũ (giữ nguyên)
             long activeOrders = orderRepository.countActiveOrdersByRestaurant(id);
             if (activeOrders > 0) {
                 throw new RuntimeException("Không thể khóa! Quán đang có " + activeOrders + " đơn hàng chưa hoàn thành.");
             }
-            // 2. Chuyển sang BLOCKED
+
             restaurant.setStatus(Restaurant.RestaurantStatus.BLOCKED);
+
+            // TRƯỜNG HỢP 2: MỞ KHÓA (Áp dụng cho BLOCKED)
         } else if (restaurant.getStatus() == Restaurant.RestaurantStatus.BLOCKED) {
-            // --- LOGIC MỞ KHÓA ---
             restaurant.setStatus(Restaurant.RestaurantStatus.ACTIVE);
+
         } else {
+            // Các trạng thái khác như PENDING, REJECTED
             throw new RuntimeException("Không thể thay đổi trạng thái của quán này (Đang Pending hoặc Rejected)");
         }
 
@@ -117,9 +122,12 @@ public class AdminRestaurantService {
             statuses = List.of(Restaurant.RestaurantStatus.ACTIVE);
         } else if ("BLOCKED".equalsIgnoreCase(statusFilter)) {
             statuses = List.of(Restaurant.RestaurantStatus.BLOCKED);
-        } else {
+        } else if ("CLOSE".equalsIgnoreCase(statusFilter)) {
+            statuses = List.of(Restaurant.RestaurantStatus.CLOSE);
+        }
+            else {
             // Mặc định (hoặc chọn ALL) thì lấy cả 2
-            statuses = List.of(Restaurant.RestaurantStatus.ACTIVE, Restaurant.RestaurantStatus.BLOCKED);
+            statuses = List.of(Restaurant.RestaurantStatus.ACTIVE, Restaurant.RestaurantStatus.BLOCKED, Restaurant.RestaurantStatus.CLOSE);
         }
 
         // 2. Xử lý keyword null
