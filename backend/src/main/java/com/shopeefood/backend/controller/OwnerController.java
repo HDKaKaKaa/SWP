@@ -19,7 +19,7 @@ public class OwnerController {
     // Lấy Owner ID từ Account ID
     @GetMapping("/byAccount/{accountId}")
     public ResponseEntity<?> getOwnerIdByAccount(@PathVariable Integer accountId) {
-        Optional<Owner> ownerOpt = ownerRepository.findByAccountId(accountId);
+        Optional<Owner> ownerOpt = ownerRepository.findByAccount_Id(accountId);
         if (ownerOpt.isPresent()) {
             Integer ownerId = ownerOpt.get().getId();
             return ResponseEntity.ok(ownerId); 

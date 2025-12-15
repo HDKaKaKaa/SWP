@@ -1,6 +1,7 @@
 package com.shopeefood.backend.service;
 
 import com.shopeefood.backend.dto.OrderDTO;
+import com.shopeefood.backend.dto.OrderItemDTO;
 import com.shopeefood.backend.entity.Account;
 import com.shopeefood.backend.entity.Customer;
 import com.shopeefood.backend.entity.Feedback;
@@ -18,9 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class AdminOrderService {
@@ -38,71 +38,94 @@ public class AdminOrderService {
     @Transactional(readOnly = true)
     public List<OrderDTO> getOrders(String status, LocalDate startDate, LocalDate endDate) {
 
-        // 1. Tạo Specification (Query động)
-        Specification<Order> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
+        // 1. Xử lý ngày tháng
+        LocalDateTime startDateTime = (startDate != null) ? startDate.atStartOfDay() : null;
+        LocalDateTime endDateTime = (endDate != null) ? endDate.atTime(LocalTime.MAX) : null;
 
-            // Điều kiện Status
-            if (status != null && !status.isEmpty() && !"ALL".equals(status)) {
-                predicates.add(cb.equal(root.get("status"), status));
-            }
+        // 2. Gọi Query Tối ưu
+        List<Order> orders = orderRepository.findOrdersWithDetails(status, startDateTime, endDateTime);
 
-            // Điều kiện Ngày bắt đầu
-            if (startDate != null) {
-                LocalDateTime startDateTime = startDate.atStartOfDay();
-                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), startDateTime));
-            }
+        // 3. Lấy danh sách ID đơn hàng hoàn thành để lấy Feedback
+        List<Integer> completedOrderIds = orders.stream()
+                .filter(o -> "COMPLETED".equals(o.getStatus()))
+                .map(Order::getId)
+                .collect(Collectors.toList());
 
-            // Điều kiện Ngày kết thúc
-            if (endDate != null) {
-                LocalDateTime endDateTime = endDate.atTime(LocalTime.MAX);
-                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), endDateTime));
-            }
+        // Batch Fetch Feedback
+        Map<Integer, Feedback> feedbackMap;
+        if (!completedOrderIds.isEmpty()) {
+            feedbackMap = feedbackRepository.findByOrderIdIn(completedOrderIds)
+                    .stream()
+                    .collect(Collectors.toMap(f -> f.getOrder().getId(), f -> f));
+        } else {
+            feedbackMap = new HashMap<>();
+        }
 
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
+        // 4. Lấy map Customer Name (Tối ưu N+1 cho tên khách hàng)
+        List<Integer> customerAccountIds = orders.stream()
+                .map(o -> o.getCustomer() != null ? o.getCustomer().getId() : null)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
 
-        // 2. Gọi Repository với Specification + Sắp xếp giảm dần
-        List<Order> orders = orderRepository.findAll(spec, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Map<Integer, String> customerNameMap;
+        if (!customerAccountIds.isEmpty()) {
+            customerNameMap = customerRepository.findAllById(customerAccountIds)
+                    .stream()
+                    .collect(Collectors.toMap(Customer::getAccountId, Customer::getFullName));
+        } else {
+            customerNameMap = new HashMap<>();
+        }
 
-        // 3. Convert sang DTO và map tên khách hàng (Giữ nguyên logic cũ của bạn)
+        // 5. Map sang DTO
         List<OrderDTO> orderDTOs = new ArrayList<>();
-
         for (Order order : orders) {
             OrderDTO dto = new OrderDTO(order);
 
-            // === BỔ SUNG: LẤY FEEDBACK NẾU CÓ ===
-            if ("COMPLETED".equals(order.getStatus())) {
-                Optional<Feedback> feedbackOpt = feedbackRepository.findByOrderId(order.getId());
-                if (feedbackOpt.isPresent()) {
-                    Feedback fb = feedbackOpt.get();
-                    dto.setRating(fb.getRating());
-                    dto.setComment(fb.getComment());
-                    dto.setShipperRating(fb.getShipperRating());
-                    dto.setShipperComment(fb.getShipperComment());
-                }
-            }
-            // ====================================
-
-            // --- XỬ LÝ LẤY TÊN KHÁCH HÀNG ---
+            // A. Map Customer Info
             Account customerAccount = order.getCustomer();
             if (customerAccount != null) {
-                Integer accountId = customerAccount.getId();
-                Optional<Customer> customerOpt = customerRepository.findById(accountId);
+                // SỬA: Lấy SĐT trực tiếp từ Account (vì customerAccount chính là Account)
+                dto.setCustomerPhone(customerAccount.getPhone());
 
-                if (customerOpt.isPresent()) {
-                    dto.setCustomerName(customerOpt.get().getFullName());
+                // Lấy tên thật từ Map
+                String realName = customerNameMap.get(customerAccount.getId());
+                if (realName != null) {
+                    dto.setCustomerName(realName);
                 } else {
-                    dto.setCustomerName("Khách hàng (Chưa cập nhật tên)");
+                    dto.setCustomerName(customerAccount.getUsername());
                 }
             } else {
                 dto.setCustomerName("Khách vãng lai");
             }
-            // --------------------------------
+
+            // B. Map Shipper
+            if (order.getShipper() != null) {
+                dto.setShipperName(order.getShipper().getFullName());
+                if (order.getShipper().getAccount() != null) {
+                    dto.setShipperPhone(order.getShipper().getAccount().getPhone());
+                    dto.setShipperEmail(order.getShipper().getAccount().getEmail());
+                }
+            }
+
+            // C. Map Items
+            if (order.getOrderItems() != null) {
+                dto.setItems(order.getOrderItems().stream()
+                        .map(OrderItemDTO::new)
+                        .collect(Collectors.toList()));
+            }
+
+            // D. Map Feedback
+            if ("COMPLETED".equals(order.getStatus()) && feedbackMap.containsKey(order.getId())) {
+                Feedback fb = feedbackMap.get(order.getId());
+                dto.setRating(fb.getRating());
+                dto.setComment(fb.getComment());
+                dto.setShipperRating(fb.getShipperRating());
+                dto.setShipperComment(fb.getShipperComment());
+            }
 
             orderDTOs.add(dto);
         }
-
         return orderDTOs;
     }
 

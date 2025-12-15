@@ -1,42 +1,129 @@
+/* --- GLOBAL AUTH CONTAINER --- */
 .auth-page-container {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  width: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
-  background-image: url('https://shopeefood.vn/app/assets/img/hero-banner-1.jpg'); /* Ảnh nền mờ */
+  background-image: url('https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=1974&auto=format&fit=crop');
   background-size: cover;
+  background-position: center;
   position: relative;
 }
 
+.auth-page-container * {
+  font-family: 'Montserrat', sans-serif !important;
+}
+
+/* Lớp phủ Gradient giúp text dễ đọc và tạo tông màu thương hiệu */
 .auth-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(255, 255, 255, 0.5); /* Lớp phủ trắng mờ */
-  backdrop-filter: blur(5px);
+  background: linear-gradient(135deg, rgba(255, 107, 53, 0.85), rgba(0, 0, 0, 0.7));
+  backdrop-filter: blur(4px);
+  z-index: 1;
 }
 
+/* --- AUTH CARD --- */
 .auth-card {
-  width: 100%;
-  max-width: 420px;
-  background: white;
-  padding: 40px;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
   position: relative;
   z-index: 10;
-  margin: 50px;
+  width: 100%;
+  max-width: 450px;
+  background: rgba(255, 255, 255, 0.95); /* Nền trắng hơi trong suốt */
+  padding: 40px;
+  border-radius: 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  margin: 30px;
 }
 
+/* --- TYPOGRAPHY --- */
 .auth-title {
   text-align: center;
-  margin-bottom: 30px;
-  color: #ee4d2d;
-  font-weight: bold;
+  margin-bottom: 10px !important;
+  color: #333 !important;
+  font-weight: 800 !important;
+  font-size: 28px !important;
+  letter-spacing: -0.5px;
 }
 
-.auth-footer {
-  margin-top: 20px;
+.auth-subtitle {
   text-align: center;
-  font-size: 14px;
+  color: #666;
+  margin-bottom: 30px;
+  font-size: 15px;
+}
+
+/* --- CUSTOM ANT DESIGN INPUT --- */
+.ant-form-item-label > label {
+  font-weight: 600;
+  color: #444;
+}
+
+.ant-input, .ant-input-password {
+  border-radius: 12px !important;
+  padding: 10px 15px !important;
+  border-color: #e0e0e0 !important;
+  background-color: #f9f9f9 !important;
+  font-size: 15px !important;
+}
+
+.ant-input:hover, .ant-input:focus, .ant-input-affix-wrapper:hover, .ant-input-affix-wrapper:focus {
+  border-color: #ff6b35 !important;
+  background-color: #fff !important;
+}
+
+.ant-input-affix-wrapper {
+  border-radius: 12px !important;
+  padding: 10px 15px !important;
+  background-color: #fff !important;
+  border-color: #e0e0e0 !important;
+}
+
+/* --- CUSTOM BUTTON --- */
+.ant-btn-primary {
+  background: linear-gradient(90deg, #ff6b35, #ff8f5e) !important;
+  border: none !important;
+  border-radius: 12px !important;
+  height: 50px !important;
+  font-weight: 700 !important;
+  font-size: 16px !important;
+  box-shadow: 0 5px 15px rgba(255, 107, 53, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.ant-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(255, 107, 53, 0.4) !important;
+}
+
+/* --- LINKS --- */
+.auth-footer {
+  margin-top: 25px;
+  text-align: center;
+  font-size: 15px;
+  color: #555;
+  border-top: 1px solid #eee;
+  padding-top: 20px;
+}
+
+.auth-footer a {
+  color: #ff6b35 !important;
+  font-weight: 700;
+  margin-left: 5px;
+  transition: color 0.3s;
+}
+
+.auth-footer a:hover {
+  text-decoration: underline;
+  color: #e55a2b !important;
+}
+
+/* --- ANIMATION LOGO --- */
+.auth-logo {
+  text-align: center;
+  font-size: 40px;
+  margin-bottom: 10px;
+  color: #ff6b35;
 }

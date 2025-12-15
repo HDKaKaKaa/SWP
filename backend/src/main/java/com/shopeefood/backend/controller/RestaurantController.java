@@ -4,10 +4,14 @@ import com.shopeefood.backend.dto.RestaurantRegistrationRequest;
 import com.shopeefood.backend.entity.Restaurant;
 import com.shopeefood.backend.repository.RestaurantRepository;
 import com.shopeefood.backend.service.RestaurantService;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
+import com.shopeefood.backend.dto.RestaurantLandingDTO;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 
@@ -25,19 +29,22 @@ public class RestaurantController {
     // API: http://localhost:8080/api/restaurants (Lấy hết)
     // API: http://localhost:8080/api/restaurants?keyword=chay (Tìm kiếm)
 
-    @GetMapping
-    public List<Restaurant> getAllRestaurants(@RequestParam(required = false) String keyword) {
-        // Chỉ lấy những quán đang HOẠT ĐỘNG (ACTIVE)
-        Restaurant.RestaurantStatus activeStatus = Restaurant.RestaurantStatus.ACTIVE;
+    // @GetMapping
+    // public List<Restaurant> getAllRestaurants(@RequestParam(required = false)
+    // String keyword) {
+    // // Chỉ lấy những quán đang HOẠT ĐỘNG (ACTIVE)
+    // Restaurant.RestaurantStatus activeStatus =
+    // Restaurant.RestaurantStatus.ACTIVE;
 
-        if (keyword != null && !keyword.isEmpty()) {
-            // Nếu có từ khóa tìm kiếm -> Tìm theo tên VÀ trạng thái ACTIVE
-            return restaurantRepository.findByNameContainingAndStatus(keyword, activeStatus);
-        } else {
-            // Nếu không tìm kiếm -> Lấy tất cả quán ACTIVE
-            return restaurantRepository.findByStatus(activeStatus);
-        }
-    }
+    // if (keyword != null && !keyword.isEmpty()) {
+    // // Nếu có từ khóa tìm kiếm -> Tìm theo tên VÀ trạng thái ACTIVE
+    // return restaurantRepository.findByNameContainingAndStatus(keyword,
+    // activeStatus);
+    // } else {
+    // // Nếu không tìm kiếm -> Lấy tất cả quán ACTIVE
+    // return restaurantRepository.findByStatus(activeStatus);
+    // }
+    // }
 
     // @GetMapping
     // public List<Restaurant> getRestaurants(@RequestParam(required = false) String
@@ -87,5 +94,19 @@ public class RestaurantController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body("Lỗi hệ thống: " + e.getMessage());
         }
+    }
+
+    // API: http://localhost:8080/api/restaurants?page=0&size=8&keyword=...
+    @GetMapping
+    public ResponseEntity<Page<RestaurantLandingDTO>> getAllRestaurants(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "8") int size) {
+        // Tạo đối tượng Pageable (Sắp xếp theo ngày tạo mới nhất)
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+
+        Page<RestaurantLandingDTO> result = restaurantService.getActiveRestaurantsWithRating(keyword, pageable);
+
+        return ResponseEntity.ok(result);
     }
 }

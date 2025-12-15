@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Card, Table, Tag, Space, DatePicker, Select, Button, Typography, Row, Col, message,
-    Drawer, Descriptions, Timeline, Divider, Tooltip, Rate
+    Drawer, Descriptions, Timeline, Divider, Tooltip, Rate, Checkbox
 } from 'antd';
 import {
     ReloadOutlined, EyeOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined,
-    PhoneOutlined
+    PhoneOutlined, WarningOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import axios from 'axios';
@@ -24,6 +24,9 @@ const OrdersPage = () => {
     const [dateRange, setDateRange] = useState([dayjs().startOf('day'), dayjs().endOf('day')]);
     const [statusFilter, setStatusFilter] = useState('ALL');
 
+    // State cho Checkbox "All"
+    const [isAll, setIsAll] = useState(false);
+
     // State cho Drawer chi tiết
     const [drawerVisible, setDrawerVisible] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState(null);
@@ -31,39 +34,81 @@ const OrdersPage = () => {
     const fetchOrders = useCallback(async () => {
         setLoading(true);
         try {
-            const params = { status: statusFilter };
-            if (dateRange && dateRange[0] && dateRange[1]) {
-                params.startDate = dateRange[0].format('YYYY-MM-DD');
-                params.endDate = dateRange[1].format('YYYY-MM-DD');
+            const params = {};
+
+            // Nếu tick "All", status = "ALL", ngày tháng = null (để BE lấy hết)
+            if (isAll) {
+                params.status = "ALL";
+                // Không gửi startDate/endDate để backend hiểu là lấy toàn bộ lịch sử
+            } else {
+                params.status = statusFilter;
+                if (dateRange && dateRange[0] && dateRange[1]) {
+                    params.startDate = dateRange[0].format('YYYY-MM-DD');
+                    params.endDate = dateRange[1].format('YYYY-MM-DD');
+                }
             }
             const response = await axios.get(API_URL, { params });
             setOrders(response.data);
-        // eslint-disable-next-line no-unused-vars
         } catch (error) {
             message.error('Không thể tải danh sách đơn hàng!');
         } finally {
             setLoading(false);
         }
-    }, [dateRange, statusFilter]);
-
+    }, [dateRange, statusFilter, isAll]);
     useEffect(() => {
         fetchOrders();
     }, [fetchOrders]);
-
     const handleRefresh = () => {
         fetchOrders();
     };
-
+    // Handler cho Checkbox
+    const handleCheckboxAll = (e) => {
+        setIsAll(e.target.checked);
+        if (e.target.checked) {
+            setStatusFilter('ALL'); // Reset filter status về ALL khi chọn xem tất cả
+        }
+    };
     const handleOpenDrawer = (order) => {
         setSelectedOrder(order);
         setDrawerVisible(true);
     };
-
     const handleCloseDrawer = () => {
         setDrawerVisible(false);
         setSelectedOrder(null);
     };
-
+    // --- COMPONENT HIỂN THỊ THỜI GIAN GIAO (Logic 20 Phút) ---
+    const DeliveryTimeCell = ({ status, shippedAt, completedAt }) => {
+        const [now, setNow] = useState(dayjs());
+        useEffect(() => {
+            if (status === 'SHIPPING') {
+                const interval = setInterval(() => setNow(dayjs()), 30000); // Update mỗi 30s
+                return () => clearInterval(interval);
+            }
+        }, [status]);
+        if (status !== 'SHIPPING' && status !== 'COMPLETED') return <span style={{color:'#ccc'}}>-</span>;
+        if (!shippedAt) return <span>-</span>;
+        const start = dayjs(shippedAt);
+        const end = status === 'COMPLETED' ? dayjs(completedAt) : now;
+        // Tính khoảng cách phút
+        const diffMinutes = end.diff(start, 'minute');
+        // Logic cảnh báo 20 phút
+        const isOverdue = diffMinutes > 20;
+        // Nếu đã hoàn thành thì hiện màu xanh, nếu đang giao mà lố giờ thì hiện màu đỏ
+        if (status === 'COMPLETED') {
+            return <Tag color="success">{diffMinutes} phút</Tag>;
+        }
+        return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, justifyContent: 'center' }}>
+                {isOverdue ? (
+                    <Tag color="#cf1322" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <WarningOutlined spin /> Quá thời gian ({diffMinutes}p)
+                    </Tag>
+                ) : (
+                    <Tag color="processing">{diffMinutes} / 20 phút</Tag>
+                )}
+            </div>
+        );
+    };
     // Helper render trạng thái
     const renderStatusTag = (status) => {
         let color = 'default';
@@ -76,35 +121,34 @@ const OrdersPage = () => {
             case 'CANCELLED': color = 'error'; text = 'Đã hủy'; break;
             default: break;
         }
-        return <Tag color={color}>{text}</Tag>;
+        return <Tag color={color} style={{minWidth: 90, textAlign: 'center'}}>{text}</Tag>;
     };
-
-    // Helper format ngày giờ
     const formatDate = (dateStr) => dateStr ? dayjs(dateStr).format('DD/MM/YYYY HH:mm:ss') : '';
     const formatCurrency = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
-
-    // --- ĐỊNH NGHĨA CỘT CHO BẢNG CHÍNH ---
+    // --- ĐỊNH NGHĨA CỘT CHO BẢNG CHÍNH (Đã chỉnh width và layout) ---
     const columns = [
         {
-            title: 'Mã đơn',
+            title: 'ID',
             dataIndex: 'id',
             key: 'id',
-            width: 80,
+            width: 70, // Fix width
+            fixed: 'left', // Cố định cột ID khi scroll ngang
+            align: 'center',
             render: (text, record) => <a onClick={() => handleOpenDrawer(record)}><b>#{text}</b></a>,
         },
         {
             title: 'Thời gian đặt',
             dataIndex: 'createdAt',
             key: 'createdAt',
-            width: 120,
-            render: (dateStr) => dayjs(dateStr).format('DD/MM/YY HH:mm'),
+            width: 130,
+            render: (dateStr) => <div style={{fontSize: 12}}>{dayjs(dateStr).format('DD/MM/YY HH:mm')}</div>,
         },
         {
             title: 'Khách hàng & Quán',
             key: 'customerRestaurant',
+            width: 220, // Tăng độ rộng
             render: (_, record) => (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    {/* Tên khách hàng (Có thể thêm SĐT khách nếu muốn) */}
                     <div>
                         <Text strong>{record.customerName || 'Khách lẻ'}</Text>
                         {record.customerPhone && (
@@ -113,66 +157,39 @@ const OrdersPage = () => {
                             </span>
                         )}
                     </div>
-
-                    {/* Tên quán (Có thể thêm SĐT quán nếu muốn) */}
-                    <div style={{ marginTop: 2, borderTop: '1px dashed #eee', paddingTop: 2 }}>
-                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                    <div style={{ marginTop: 4, borderTop: '1px dashed #eee', paddingTop: 4 }}>
+                        <Text type="secondary" style={{ fontSize: 12 }} ellipsis={{ tooltip: record.restaurantName }}>
                             {record.restaurantName}
                         </Text>
-                        {record.restaurantPhone && (
-                            <span style={{ fontSize: 11, color: '#888', marginLeft: 6 }}>
-                                <PhoneOutlined /> {record.restaurantPhone}
-                            </span>
-                        )}
                     </div>
                 </div>
             ),
         },
-        // --- CỘT THÔNG TIN SHIPPER (MỚI) ---
+        // --- CỘT THÔNG TIN SHIPPER ---
         {
             title: 'Shipper',
             key: 'shipper',
-            width: 170, // Set width
+            width: 180,
             render: (_, record) => record.shipperName ? (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <Text strong>{record.shipperName}</Text>
-                    {/* Check if shipperPhone exists */}
+                    <Text strong style={{fontSize: 13}}>{record.shipperName}</Text>
                     {record.shipperPhone ? (
-                        <div style={{ fontSize: '11px', color: '#1677ff' }}>
+                        <div style={{ fontSize: 11, color: '#1677ff' }}>
                             <PhoneOutlined /> {record.shipperPhone}
                         </div>
                     ) : (
-                        <Text type="secondary" style={{ fontSize: '11px' }}>{record.shipperEmail}</Text>
+                        <Text type="secondary" style={{ fontSize: 11 }}>{record.shipperEmail}</Text>
                     )}
                 </div>
-            ) : <Text type="secondary" italic>-</Text>,
+            ) : <Text type="secondary" italic style={{fontSize: 12}}>Chưa nhận</Text>,
         },
         {
-            title: 'Đánh giá',
-            key: 'rating',
-            width: 120,
-            align: 'center',
-            render: (_, record) => {
-                if (record.status !== 'COMPLETED') return <span style={{color: '#ccc'}}>-</span>;
-                if (!record.rating) return <span style={{color: '#999', fontSize: 11}}>Chưa đánh giá</span>;
-
-                return (
-                    <Tooltip title={record.comment || "Không có lời nhắn"}>
-                        <div>
-                            <Rate disabled defaultValue={record.rating} style={{ fontSize: 12 }} />
-                            <div style={{fontSize: 10, color: '#888'}}>({record.rating} sao)</div>
-                        </div>
-                    </Tooltip>
-                );
-            }
-        },
-        {
-            title: 'Thời gian giao',
+            title: 'Giao hàng (20p)',
             key: 'deliveryTime',
             align: 'center',
-            width: 110,
+            width: 160,
             render: (_, record) => (
-                <TimerDisplay
+                <DeliveryTimeCell
                     status={record.status}
                     shippedAt={record.shippedAt}
                     completedAt={record.completedAt}
@@ -180,15 +197,37 @@ const OrdersPage = () => {
             ),
         },
         {
+            title: 'Đánh giá',
+            key: 'rating',
+            width: 140,
+            align: 'center',
+            render: (_, record) => {
+                if (record.status !== 'COMPLETED') return <span style={{color: '#ccc'}}>-</span>;
+                if (!record.rating) return <span style={{color: '#999', fontSize: 11}}>Chưa đánh giá</span>;
+
+                return (
+                    <Tooltip title={record.comment || "Không có lời nhắn"}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <div style={{ whiteSpace: 'nowrap' }}>
+                                <Rate disabled defaultValue={record.rating} style={{ fontSize: 12 }} />
+                            </div>
+                            <div style={{fontSize: 10, color: '#888'}}>({record.rating} sao)</div>
+                        </div>
+                    </Tooltip>
+                );
+            }
+        },
+        {
             title: 'Tổng tiền',
             key: 'total',
-            width: 130,
+            width: 120,
+            align: 'right',
             render: (_, record) => (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                     <Text strong style={{ color: '#cf1322' }}>
                         {formatCurrency(record.totalAmount)}
                     </Text>
-                    <Tag style={{ width: 'fit-content', marginTop: 4, fontSize: 10 }}>
+                    <Tag style={{ width: 'fit-content', marginTop: 4, fontSize: 10, alignSelf: 'flex-end' }}>
                         {record.paymentMethod}
                     </Tag>
                 </div>
@@ -200,23 +239,25 @@ const OrdersPage = () => {
             key: 'status',
             width: 120,
             align: 'center',
+            fixed: 'right', // Cố định cột trạng thái
             render: (status) => renderStatusTag(status),
         },
         {
-            title: 'Hành động',
+            title: '',
             key: 'action',
             align: 'center',
-            width: 80,
+            width: 60,
+            fixed: 'right',
             render: (_, record) => (
                 <Button
                     type="text"
+                    size="small"
                     icon={<EyeOutlined />}
                     onClick={() => handleOpenDrawer(record)}
                 />
             ),
         },
     ];
-
     // --- ĐỊNH NGHĨA CỘT CHO BẢNG CHI TIẾT MÓN ĂN ---
     const itemColumns = [
         {
@@ -225,10 +266,7 @@ const OrdersPage = () => {
             key: 'productName',
             render: (text, record) => (
                 <div>
-                    {/* Tên món chính */}
                     <Text strong>{text}</Text>
-
-                    {/* --- HIỂN THỊ TÙY CHỌN (OPTIONS) --- */}
                     {record.options && record.options.length > 0 && (
                         <div style={{ marginTop: 4 }}>
                             {record.options.map((opt, index) => (
@@ -253,42 +291,41 @@ const OrdersPage = () => {
             title: 'Thành tiền',
             key: 'subtotal',
             align: 'right',
-            // Lưu ý: Thành tiền phải tính cả giá món + giá topping (nếu BE chưa cộng sẵn vào price)
-            // Nếu BE trả về price là giá gốc, thì logic tính tổng ở đây chỉ là tham khảo
-            // Tốt nhất BE nên trả về field `totalPrice` cho từng item thì chính xác hơn.
             render: (_, record) => formatCurrency(record.price * record.quantity)
         }
     ];
-
     return (
         <div>
             <Card bordered={false} bodyStyle={{ padding: '0 0 20px 0' }}>
                 <Title level={3} style={{ margin: 0 }}>QUẢN LÝ ĐƠN HÀNG</Title>
             </Card>
-
             <Card bordered={false}>
                 {/* --- THANH CÔNG CỤ BỘ LỌC --- */}
-                <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                    <Col xs={24} sm={12} md={8} lg={8}>
+                <div style={{ marginBottom: 24, display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center' }}>
+                    {/* Checkbox Hiện tất cả */}
+                    <Checkbox checked={isAll} onChange={handleCheckboxAll} style={{ fontWeight: 500 }}>
+                        Hiện tất cả
+                    </Checkbox>
+                    <div style={{ flex: 1, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                         <RangePicker
-                            style={{ width: '100%' }}
+                            style={{ width: 260 }}
                             format="DD/MM/YYYY"
                             value={dateRange}
                             onChange={(dates) => setDateRange(dates)}
                             allowClear={false}
+                            disabled={isAll} // Disable nếu chọn All
                             ranges={{
                                 'Hôm nay': [dayjs().startOf('day'), dayjs().endOf('day')],
                                 'Tuần này': [dayjs().startOf('week'), dayjs().endOf('week')],
                                 'Tháng này': [dayjs().startOf('month'), dayjs().endOf('month')],
                             }}
                         />
-                    </Col>
-                    <Col xs={12} sm={6} md={5} lg={5}>
                         <Select
                             defaultValue="ALL"
-                            style={{ width: '100%' }}
+                            style={{ width: 180 }}
                             value={statusFilter}
                             onChange={setStatusFilter}
+                            disabled={isAll} // Disable nếu chọn All
                         >
                             <Option value="ALL">Tất cả trạng thái</Option>
                             <Option value="PENDING">Chờ duyệt</Option>
@@ -297,41 +334,40 @@ const OrdersPage = () => {
                             <Option value="COMPLETED">Hoàn thành</Option>
                             <Option value="CANCELLED">Đã hủy</Option>
                         </Select>
-                    </Col>
-                    <Col xs={12} sm={6} md={11} lg={11} style={{ textAlign: 'right' }}>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
                         <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
                             Làm mới
                         </Button>
-                    </Col>
-                </Row>
-
+                    </div>
+                </div>
                 {/* --- BẢNG DỮ LIỆU CHÍNH --- */}
                 <Table
                     columns={columns}
                     dataSource={orders}
                     rowKey="id"
                     loading={loading}
-                    pagination={{ 
-                        pageSize: 5,
+                    pagination={{
+                        pageSize: 8,
                         showSizeChanger: false,
                         showTotal: (total) => `Tổng ${total} đơn hàng`
                     }}
-                    scroll={{ x: 1000 }}
+                    scroll={{ x: 'max-content' }} // QUAN TRỌNG: Giúp bảng tự co giãn đẹp, không khoảng trống
+                    size="middle"
                 />
             </Card>
-
             {/* --- DRAWER CHI TIẾT ĐƠN HÀNG --- */}
             <Drawer
                 title={selectedOrder ? `Chi tiết đơn hàng #${selectedOrder.id}` : "Chi tiết"}
                 placement="right"
-                width={600}
+                width={650}
                 onClose={handleCloseDrawer}
                 open={drawerVisible}
             >
                 {selectedOrder && (
                     <>
                         {/* Thông tin chung */}
-                        <Descriptions bordered column={1} size="small">
+                        <Descriptions bordered column={1} size="small" labelStyle={{width: '140px'}}>
                             <Descriptions.Item label="Khách hàng">
                                 <Text strong>{selectedOrder.customerName}</Text>
                             </Descriptions.Item>
@@ -353,7 +389,6 @@ const OrdersPage = () => {
                                 </Descriptions.Item>
                             )}
                         </Descriptions>
-
                         {/* Danh sách món ăn */}
                         <Divider orientation="left" style={{marginTop: 30}}>Danh sách món đặt</Divider>
                         <Table
@@ -364,7 +399,6 @@ const OrdersPage = () => {
                             bordered
                             summary={() => (
                                 <>
-                                    {/* Dòng 1: Tiền món (Subtotal) */}
                                     <Table.Summary.Row style={{ background: '#fafafa' }}>
                                         <Table.Summary.Cell index={0} colSpan={3} align="right">
                                             <Text type="secondary">Tiền món:</Text>
@@ -374,7 +408,6 @@ const OrdersPage = () => {
                                         </Table.Summary.Cell>
                                     </Table.Summary.Row>
 
-                                    {/* Dòng 2: Phí vận chuyển (Shipping Fee) */}
                                     <Table.Summary.Row style={{ background: '#fafafa' }}>
                                         <Table.Summary.Cell index={0} colSpan={3} align="right">
                                             <Text type="secondary">Phí vận chuyển:</Text>
@@ -384,7 +417,6 @@ const OrdersPage = () => {
                                         </Table.Summary.Cell>
                                     </Table.Summary.Row>
 
-                                    {/* Dòng 3: Tổng thanh toán (Total Amount) */}
                                     <Table.Summary.Row style={{ background: '#fff' }}>
                                         <Table.Summary.Cell index={0} colSpan={3} align="right">
                                             <Text strong>Tổng thanh toán ({selectedOrder.paymentMethod}):</Text>
@@ -398,7 +430,6 @@ const OrdersPage = () => {
                                 </>
                             )}
                         />
-
                         {/* Lịch sử đơn hàng (Timeline) */}
                         <Divider orientation="left" style={{marginTop: 30}}>Lịch sử đơn hàng</Divider>
                         <Timeline style={{ marginTop: 20, paddingLeft: 20 }}>
@@ -407,7 +438,6 @@ const OrdersPage = () => {
                                 <br />
                                 <Text type="secondary">{formatDate(selectedOrder.createdAt)}</Text>
                             </Timeline.Item>
-
                             {selectedOrder.restaurantAcceptedAt && (
                                 <Timeline.Item color="orange">
                                     <Text strong>Nhà hàng đã nhận đơn</Text>
