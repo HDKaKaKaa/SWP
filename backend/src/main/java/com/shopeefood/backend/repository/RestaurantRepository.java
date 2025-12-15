@@ -9,8 +9,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
-import java.util.Optional;
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Repository
 public interface RestaurantRepository extends JpaRepository<Restaurant, Integer> {
@@ -77,4 +77,15 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Integer>
 
     Optional<Restaurant> findByIdAndOwnerAccountId(Integer id, Integer ownerAccountId);
     Optional<Restaurant> findByIdAndOwnerId(Integer id, Integer ownerId);
+
+    @Query("SELECT r FROM Restaurant r WHERE r.status = 'PENDING' " +
+            "AND (:keyword IS NULL OR LOWER(CAST(r.name AS text)) LIKE :keyword) " +
+            "AND (CAST(:start AS timestamp) IS NULL OR r.createdAt >= :start) " +
+            "AND (CAST(:end AS timestamp) IS NULL OR r.createdAt <= :end) " +
+            "ORDER BY r.createdAt DESC")
+    List<Restaurant> findPendingRestaurants(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("keyword") String keyword
+    );
 }
