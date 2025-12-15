@@ -41,10 +41,9 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         // Cho phép Frontend (React) truy cập - hỗ trợ cả port 5173 và 5174
         configuration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:5173",
-            "http://localhost:5174",
-            "http://localhost:3000"
-        ));
+                "http://localhost:5173",
+                "http://localhost:5174",
+                "http://localhost:3000"));
         // Cho phép các method
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         // Cho phép các header (Content-Type, Authorization...)
@@ -64,10 +63,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        .anyRequest().permitAll()
-                );
-        // .authenticationProvider(authenticationProvider()); // XÓA DÒNG NÀY ĐI
-
+                        .anyRequest().permitAll());
         return http.build();
     }
 }

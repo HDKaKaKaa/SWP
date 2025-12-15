@@ -23,4 +23,6 @@ public interface FeedbackRepository extends JpaRepository<Feedback, Integer> {
     // --- MỚI: Tìm tất cả feedback nằm trong danh sách orderId (Tối ưu performance) ---
     List<Feedback> findByOrderIdIn(List<Integer> orderIds);
 
+    // Đếm tổng số feedback của quán
+    Long countByRestaurantId(Integer restaurantId);
 }
