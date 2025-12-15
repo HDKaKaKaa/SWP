@@ -77,7 +77,7 @@
 
 .detail-cart-panel {
     padding: 20px 22px;
-    height: 180px;                     /* chiều cao cố định */
+    height: 200px;                     /* chiều cao cố định */
     display: flex;
     flex-direction: column;
 }
