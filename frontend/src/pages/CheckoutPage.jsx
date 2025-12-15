@@ -140,14 +140,24 @@ const CheckoutPage = () => {
     // ==== Helpers hiển thị options từ backend ====
     // CartItemResponse có options: Array<{ attributeName, value, priceAdjustment }>
     const getOptionsText = (item) => {
-        if (!item || !item.options || !item.options.length) return "";
-        return item.options
-            .map((o) =>
-                o.attributeName
-                    ? `${o.attributeName}: ${o.value}`
-                    : o.value
-            )
-            .join(", ");
+        const opts = item?.options;
+        if (!Array.isArray(opts) || opts.length === 0) return '';
+
+        // group theo attributeName
+        const grouped = opts.reduce((acc, o) => {
+            const key = (o?.attributeName || '').trim() || 'Tùy chọn';
+            const val = (o?.value || '').trim();
+            if (!val) return acc;
+
+            if (!acc[key]) acc[key] = [];
+            if (!acc[key].includes(val)) acc[key].push(val); // tránh trùng
+            return acc;
+        }, {});
+
+        // output: "Thêm topping: ruốc, hành phi, dưa góp, trứng, Nhiệt độ: Lạnh"
+        return Object.entries(grouped)
+            .map(([attr, values]) => `${attr}: ${values.join(', ')}`)
+            .join(', ');
     };
 
     // Tên + sđt hiển thị: ưu tiên profile, fallback về user / username

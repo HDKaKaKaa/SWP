@@ -1,201 +1,340 @@
-/* SWP/frontend/src/css/LandingPage.css */
+/* --- GLOBAL --- */
+.landing-page-modern {
+  font-family: Montserrat, sans-serif !important;
+  background-color: #f9f9f9;
+  min-height: 100vh;
+}
 
-/* --- Hero Section --- */
-.hero-section {
+/* --- HERO SECTION --- */
+.hero-section-modern {
   position: relative;
-  height: 450px;
-  width: 100%;
-  overflow: hidden;
-}
-
-.hero-carousel, .banner-slide {
-  height: 100%;
-  width: 100%;
-}
-
-.banner-slide {
-  background-size: cover;
-  background-position: center;
-  position: relative;
-}
-
-/* Lớp phủ đen mờ để chữ nổi hơn */
-.overlay {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.4); 
-}
-
-/* Nội dung đè lên Banner */
-.hero-content {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  height: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
+  color: white;
+  margin-bottom: 40px;
+}
+
+.hero-bg {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 0;
+}
+
+.hero-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero-overlay {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.7));
+}
+
+.hero-content {
+  position: relative;
+  z-index: 10;
   width: 100%;
   max-width: 800px;
   padding: 0 20px;
-  z-index: 10;
 }
 
-.hero-title.ant-typography {
-  color: white !important;
-  text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+.hero-content h1 {
+  font-size: 3rem;
+  font-weight: 800;
+  margin-bottom: 15px;
+  text-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  color: #fff;
+}
+
+.hero-content p {
+  font-size: 1.2rem;
   margin-bottom: 30px;
-  font-weight: 700;
+  opacity: 0.9;
 }
 
-/* --- Search Box Customization --- */
-.search-box-wrapper {
-  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-  border-radius: 8px;
-  overflow: hidden;
-  max-width: 700px;
-  width: 100%;
-  display: flex; /* Đảm bảo wrapper ôm sát */
+/* --- SEARCH BOX --- */
+.modern-search-box {
+  display: flex;
+  background: white;
+  border-radius: 50px;
+  padding: 5px;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+  margin-bottom: 30px;
 }
 
-/* 1. Ép chiều cao cho INPUT */
-.custom-search .ant-input-wrapper .ant-input {
-  height: 50px !important;
-  line-height: 50px !important; /* Căn giữa chữ dọc */
-  font-size: 16px !important;
-  padding-left: 20px;
+.modern-search-box input {
+  flex: 1;
+  border: none;
+  outline: none;
+  padding: 15px 25px;
+  font-size: 1.1rem;
+  border-radius: 50px 0 0 50px;
 }
 
-/* 2. Ép chiều cao cho BUTTON */
-.custom-search .ant-input-wrapper .ant-btn {
-  height: 50px !important;
-  width: 120px !important; /* Cố định chiều rộng nút cho đẹp */
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  font-weight: bold;
-  font-size: 16px;
-  border: none !important;
-  border-radius: 0 8px 8px 0 !important; /* Bo góc bên phải */
-  margin: 0 !important; /* Xóa margin thừa nếu có */
-  top: 0 !important; /* Đảm bảo không bị lệch top/bottom */
+.modern-search-box button {
+  background: #ff6b35; /* Màu cam chủ đạo */
+  color: white;
+  border: none;
+  padding: 10px 30px;
+  border-radius: 0 50px 50px 0;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
 }
 
-/* 3. Chỉnh icon bên trong nút (nếu có) */
-.custom-search .ant-btn .anticon {
-  vertical-align: middle;
+.modern-search-box button:hover {
+  background: #e55a2b;
+  transform: scale(1.05);
 }
 
-/* --- Category Buttons --- */
-.category-list {
-  margin-top: 25px;
+/* --- CATEGORY PILLS --- */
+.category-pills {
   display: flex;
   justify-content: center;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.cat-btn {
-  border: none !important;
-  background: rgba(255, 255, 255, 0.85) !important;
-  color: #333 !important;
-  font-weight: 600 !important;
-  backdrop-filter: blur(4px);
-  transition: all 0.3s ease;
+.pill {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.cat-btn:hover {
+.pill:hover, .pill.active {
+  background: #ff6b35;
+  border-color: #ff6b35;
   transform: translateY(-3px);
-  background: white !important;
-  color: #ee4d2d !important;
+  box-shadow: 0 5px 15px rgba(255, 107, 53, 0.4);
 }
 
-.cat-btn.active {
-  background: #ee4d2d !important;
-  color: white !important;
-}
-
-/* --- Body Section --- */
-.container-body {
+/* --- CONTAINER BODY --- */
+.container-modern {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 40px 20px;
+  padding: 0 20px 60px;
 }
 
-.section-header {
-  margin-bottom: 25px;
-  border-bottom: 2px solid #f0f0f0;
-  padding-bottom: 10px;
-}
-
-/* --- Card Restaurant Styling --- */
-.restaurant-card {
-  border: none !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
-  border-radius: 12px !important;
-  overflow: hidden;
-  transition: all 0.3s ease !important;
-}
-
-.restaurant-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 12px 24px rgba(0,0,0,0.15) !important;
-}
-
-.restaurant-card .ant-card-body {
-  padding: 12px !important;
-}
-
-.card-cover-wrapper {
+/* --- FEATURES SECTION --- */
+.features-section {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 30px;
+  margin-bottom: 60px;
+  margin-top: -80px; /* Đẩy lên đè vào Hero */
   position: relative;
-  height: 180px;
+  z-index: 20;
+}
+
+.feature-item {
+  background: white;
+  padding: 30px;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+  transition: transform 0.3s;
+}
+
+.feature-item:hover {
+  transform: translateY(-10px);
+}
+
+.feature-icon {
+  font-size: 2.5rem;
+  margin-bottom: 15px;
+}
+.feature-icon.orange { color: #ff6b35; }
+.feature-icon.green { color: #4CAF50; }
+.feature-icon.blue { color: #2196F3; }
+
+.feature-item h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 10px; }
+.feature-item p { color: #666; font-size: 0.9rem; }
+
+/* --- SECTION HEADER --- */
+.section-header-modern {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.section-header-modern h2 {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #333;
+  margin-bottom: 10px;
+  position: relative;
+  display: inline-block;
+}
+
+.section-header-modern h2::after {
+  content: '';
+  position: absolute;
+  bottom: -5px; left: 20%; right: 20%;
+  height: 4px;
+  background: #ff6b35;
+  border-radius: 2px;
+}
+
+/* --- RESTAURANT GRID --- */
+.grid-modern {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 30px;
+}
+
+.no-result {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-size: 1.2rem;
+  color: #888;
+  padding: 50px;
+}
+
+/* --- RESTAURANT CARD --- */
+.restaurant-card-modern {
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.card-image-wrapper {
+  height: 200px;
+  position: relative;
   overflow: hidden;
 }
 
-.card-img {
-  width: 100%;
-  height: 100%;
+.card-image-wrapper img {
+  width: 100%; height: 100%;
   object-fit: cover;
   transition: transform 0.5s ease;
 }
 
-.restaurant-card:hover .card-img {
-  transform: scale(1.05); /* Zoom nhẹ ảnh khi hover */
+.restaurant-card-modern:hover .card-image-wrapper img {
+  transform: scale(1.1);
 }
 
-/* Badge thời gian giao hàng trên ảnh */
-.delivery-time {
+.card-badge {
   position: absolute;
-  bottom: 8px;
-  right: 8px;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 4px 8px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: bold;
-  color: #333;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  top: 15px; left: 15px;
+  background: #ff6b35;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
 
-.res-title {
-  font-size: 16px;
+.card-content {
+  padding: 20px;
+}
+
+.card-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-address {
+  font-size: 0.9rem;
+  color: #888;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 15px;
+}
+
+.card-rating {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-weight: 700;
   color: #333;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-bottom: 4px;
 }
 
-.res-address {
-  font-size: 13px;
-  color: #888;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-bottom: 8px;
+.star-icon { color: #ffce3d; }
+
+.review-count {
+  font-weight: 400;
+  color: #999;
+  font-size: 0.85rem;
 }
 
-.res-tags {
-  margin-top: 8px;
+.card-btn {
+  background: transparent;
+  color: #ff6b35;
+  border: 1px solid #ff6b35;
+  padding: 6px 15px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.card-btn:hover {
+  background: #ff6b35;
+  color: white;
+}
+
+/* --- PAGINATION --- */
+.pagination-wrapper {
+  margin-top: 50px;
   display: flex;
-  gap: 4px;
+  justify-content: center;
+}
+
+/* Tùy chỉnh Pagination Antd */
+.ant-pagination-item-active {
+  border-color: #ff6b35 !important;
+}
+.ant-pagination-item-active a {
+  color: #ff6b35 !important;
+}
+
+/* --- RESPONSIVE --- */
+@media (max-width: 768px) {
+  .hero-content h1 { font-size: 2.5rem; }
+  .features-section { 
+    grid-template-columns: 1fr; 
+    margin-top: 30px;
+  }
+  .modern-search-box { flex-direction: column; border-radius: 20px; padding: 10px; }
+  .modern-search-box input { border-radius: 10px; padding: 10px; margin-bottom: 10px; width: 100%; }
+  .modern-search-box button { width: 100%; justify-content: center; }
 }

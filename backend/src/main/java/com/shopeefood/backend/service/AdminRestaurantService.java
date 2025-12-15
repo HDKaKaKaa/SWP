@@ -30,25 +30,23 @@ public class AdminRestaurantService {
 
     // 1. Lấy danh sách quán đang chờ duyệt (PENDING)
     @Transactional(readOnly = true)
-    public List<RestaurantDTO> getPendingRestaurants(LocalDate startDate, LocalDate endDate) {
+    public List<RestaurantDTO> getPendingRestaurants(LocalDate startDate, LocalDate endDate, String keyword) {
 
-        // 1. Xử lý mặc định: Nếu không truyền, mặc định là HÔM NAY
-        if (startDate == null) {
-            startDate = LocalDate.now();
+        // 1. Xử lý ngày: Nếu null thì truyền null xuống Repo (để lấy All)
+        LocalDateTime startDateTime = (startDate != null) ? startDate.atStartOfDay() : null;
+        LocalDateTime endDateTime = (endDate != null) ? endDate.atTime(LocalTime.MAX) : null;
+
+        // 2. Xử lý keyword: Thêm dấu % và lowercase tại Java
+        String searchKey = null;
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            searchKey = "%" + keyword.trim().toLowerCase() + "%";
         }
-        if (endDate == null) {
-            endDate = startDate; // Nếu chỉ truyền start, thì end = start
-        }
 
-        // 2. Chuyển đổi sang LocalDateTime (Đầu ngày -> Cuối ngày)
-        LocalDateTime startDateTime = startDate.atStartOfDay(); // 00:00:00
-        LocalDateTime endDateTime = endDate.atTime(LocalTime.MAX); // 23:59:59
-
-        // 3. Gọi Repository
-        List<Restaurant> pendingList = restaurantRepository.findByStatusAndCreatedAtBetween(
-                Restaurant.RestaurantStatus.PENDING,
+        // 3. Gọi Repo
+        List<Restaurant> pendingList = restaurantRepository.findPendingRestaurants(
                 startDateTime,
-                endDateTime
+                endDateTime,
+                searchKey
         );
 
         return pendingList.stream()

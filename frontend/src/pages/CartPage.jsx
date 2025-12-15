@@ -46,14 +46,23 @@ const CartPage = () => {
     // ===== Helpers hiển thị options từ backend =====
     // Giả định CartItemResponse có field: options: Array<{ attributeName, value }>
     const getOptionsText = (item) => {
-        if (!item || !item.options || !item.options.length) return '';
-        // Ví dụ: "Nhiệt độ: Lạnh, Đá: Bình thường, Topping: Thạch dừa"
-        return item.options
-            .map((o) =>
-                o.attributeName
-                    ? `${o.attributeName}: ${o.value}`
-                    : o.value
-            )
+        const opts = item?.options;
+        if (!Array.isArray(opts) || opts.length === 0) return '';
+
+        // group theo attributeName
+        const grouped = opts.reduce((acc, o) => {
+            const key = (o?.attributeName || '').trim() || 'Tùy chọn';
+            const val = (o?.value || '').trim();
+            if (!val) return acc;
+
+            if (!acc[key]) acc[key] = [];
+            if (!acc[key].includes(val)) acc[key].push(val); // tránh trùng
+            return acc;
+        }, {});
+
+        // output: "Thêm topping: ruốc, hành phi, dưa góp, trứng, Nhiệt độ: Lạnh"
+        return Object.entries(grouped)
+            .map(([attr, values]) => `${attr}: ${values.join(', ')}`)
             .join(', ');
     };
 
@@ -171,7 +180,10 @@ const CartPage = () => {
     };
 
     const handleChangeAddress = () => {
-        navigate('/profile');
+        navigate('/profile', {
+            state: { returnTo: { path: location.pathname, state: location.state } }
+        });
+
     };
 
     const handleBackToRestaurant = () => {

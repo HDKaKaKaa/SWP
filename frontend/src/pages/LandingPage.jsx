@@ -1,31 +1,18 @@
-import { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import '../css/LandingPage.css';
-
+import { Pagination, Rate, Skeleton } from 'antd';
+import { motion, AnimatePresence } from 'framer-motion'; // Thư viện animation
 import {
-  Input,
-  Button,
-  Card,
-  Rate,
-  Badge,
-  Tag,
-  Row,
-  Col,
-  Typography,
-  Skeleton,
-  Carousel,
-} from 'antd';
-import {
-  SearchOutlined,
-  EnvironmentOutlined,
-  ClockCircleOutlined,
-} from '@ant-design/icons';
-import { FaUtensils, FaFire } from 'react-icons/fa';
-
-const { Title, Text } = Typography;
-const { Meta } = Card;
+  FaSearch,
+  FaMapMarkerAlt,
+  FaUtensils,
+  FaStar,
+  FaFire,
+  FaLeaf,
+} from 'react-icons/fa';
 
 const LandingPage = () => {
   const { user } = useContext(AuthContext);
@@ -37,223 +24,272 @@ const LandingPage = () => {
   const [keyword, setKeyword] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
 
-  const fetchRestaurants = async (searchKey = '') => {
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const pageSize = 8;
+
+  // --- API CALLS ---
+  const fetchRestaurants = useCallback(async (searchKey = '', page = 1) => {
     setLoading(true);
     try {
-      const url = searchKey
-        ? `http://localhost:8080/api/restaurants?keyword=${searchKey}`
-        : `http://localhost:8080/api/restaurants`;
-      const res = await axios.get(url);
-      setRestaurants(res.data);
+      const res = await axios.get(`http://localhost:8080/api/restaurants`, {
+        params: {
+          keyword: searchKey,
+          page: page - 1,
+          size: pageSize,
+        },
+      });
+      setRestaurants(res.data.content);
+      setTotalItems(res.data.totalElements);
+      setCurrentPage(page);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchRestaurants('');
-    axios
-      .get('http://localhost:8080/api/categories')
-      .then((res) => setCategories(res.data));
   }, []);
 
-  const handleSearch = (value) => {
+  useEffect(() => {
+    fetchRestaurants('', 1);
+    axios
+      .get('http://localhost:8080/api/categories')
+      .then((res) => setCategories(res.data))
+      .catch((err) => console.error(err));
+  }, [fetchRestaurants]);
+
+  // --- HANDLERS ---
+  const handleSearch = (e) => {
+    e.preventDefault();
     setActiveCategory('All');
-    fetchRestaurants(value);
+    fetchRestaurants(keyword, 1);
   };
 
   const handleFilterCategory = (catName) => {
     setKeyword('');
     setActiveCategory(catName);
-    fetchRestaurants(catName);
+    fetchRestaurants(catName, 1);
   };
 
   const handleRestaurantClick = (resId) => {
-    if (user) {
-      navigate(`/restaurant/${resId}`);
-    } else {
-      navigate('/login');
-    }
+    if (user) navigate(`/restaurant/${resId}`);
+    else navigate('/login');
   };
 
-  const banners = [
-    'https://png.pngtree.com/thumb_back/fh260/back_our/20190621/ourmid/pngtree-vegetable-salad-simple-gray-banner-image_190217.jpg',
-    'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQZ4_m4nU_ojuEDQ1j2ht5xoLJp7b4iv-CjLw&s',
-    'https://diachiamthuc.vn/wp-content/uploads/2023/09/Mr.Eco-Salad-Healthy-Food-Drinks.jpg',
-  ];
-
+  // --- RENDER ---
   return (
-    <div className="landing-page">
-      {/* 1. HERO SECTION & CAROUSEL */}
-      <div className="hero-section">
-        <Carousel autoplay effect="fade" className="hero-carousel">
-          {banners.map((img, index) => (
-            <div key={index}>
-              <div
-                className="banner-slide"
-                style={{
-                  backgroundImage: `url(${img})`,
-                  height: '400px',
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  position: 'relative',
-                }}
-              >
-                <div className="overlay"></div>
-              </div>
-            </div>
-          ))}
-        </Carousel>
+    <div className="landing-page-modern">
+      {/* 1. HERO SECTION */}
+      <section className="hero-section-modern">
+        <div className="hero-bg">
+          <img
+            src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2070&auto=format&fit=crop"
+            alt="Food Banner"
+            className="hero-img"
+          />
+          <div className="hero-overlay"></div>
+        </div>
 
         <div className="hero-content">
-          <Title level={1} className="hero-title">
+          <motion.h1
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
             Hôm nay bạn muốn ăn gì?
-          </Title>
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+          >
+            Khám phá hàng ngàn quán ăn ngon & ưu đãi hấp dẫn
+          </motion.p>
 
-          <div className="search-box-wrapper">
-            <Input.Search
-              placeholder="Tìm tên quán, món ăn, địa chỉ..."
-              allowClear
-              enterButton="Tìm kiếm"
-              size="large"
+          {/* Search Box */}
+          <motion.form
+            className="modern-search-box"
+            onSubmit={handleSearch}
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.5 }}
+          >
+            <input
+              type="text"
+              placeholder="Tìm tên quán, món ăn..."
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              onSearch={handleSearch}
-              className="custom-search"
             />
-          </div>
+            <button type="submit">
+              <FaSearch /> Tìm kiếm
+            </button>
+          </motion.form>
 
-          {/* Category Filter */}
-          <div className="category-list">
-            <Button
-              shape="round"
-              className={
-                activeCategory === 'All' ? 'cat-btn active' : 'cat-btn'
-              }
+          {/* Category Pills */}
+          <motion.div
+            className="category-pills"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+          >
+            <button
+              className={`pill ${activeCategory === 'All' ? 'active' : ''}`}
               onClick={() => {
                 setActiveCategory('All');
-                fetchRestaurants('');
+                fetchRestaurants('', 1);
               }}
-              icon={<FaUtensils />}
             >
-              Tất cả
-            </Button>
+              <FaUtensils /> Tất cả
+            </button>
             {categories.map((cat) => (
-              <Button
+              <button
                 key={cat.id}
-                shape="round"
-                className={
-                  activeCategory === cat.name ? 'cat-btn active' : 'cat-btn'
-                }
+                className={`pill ${
+                  activeCategory === cat.name ? 'active' : ''
+                }`}
                 onClick={() => handleFilterCategory(cat.name)}
               >
                 {cat.name}
-              </Button>
+              </button>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* 2. BODY CONTENT */}
+      <div className="container-modern">
+        {/* Why Choose Us (Giống mẫu) */}
+        <section className="features-section">
+          <div className="feature-item">
+            <div className="feature-icon orange">
+              <FaFire />
+            </div>
+            <h3>Ưu đãi mỗi ngày</h3>
+            <p>Giảm giá lên đến 50% cho các quán ăn đối tác.</p>
+          </div>
+          <div className="feature-item">
+            <div className="feature-icon green">
+              <FaLeaf />
+            </div>
+            <h3>Thực phẩm sạch</h3>
+            <p>Đảm bảo vệ sinh an toàn thực phẩm 100%.</p>
+          </div>
+          <div className="feature-item">
+            <div className="feature-icon blue">
+              <FaMapMarkerAlt />
+            </div>
+            <h3>Giao hàng nhanh</h3>
+            <p>Tìm quán gần bạn nhất, giao trong 30 phút.</p>
+          </div>
+        </section>
+
+        {/* Restaurant List Header */}
+        <div className="section-header-modern">
+          <h2>
+            {activeCategory === 'All'
+              ? 'Quán ngon phải thử'
+              : `Danh mục: ${activeCategory}`}
+          </h2>
+          <p>Danh sách các quán ăn được đánh giá cao nhất</p>
+        </div>
+
+        {/* Restaurant Grid */}
+        {loading ? (
+          <div className="grid-modern">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <Skeleton.Image
+                key={i}
+                active
+                style={{ width: '100%', height: 250, borderRadius: 20 }}
+              />
             ))}
           </div>
-        </div>
-      </div>
-
-      {/* 2. RESTAURANT LIST */}
-      <div className="container-body">
-        <div className="section-header">
-          <Title level={3} style={{ margin: 0 }}>
-            <FaFire style={{ color: '#ee4d2d', marginRight: 8 }} />
-            Ưu đãi hôm nay
-          </Title>
-        </div>
-
-        {loading ? (
-          <Row gutter={[24, 24]}>
-            {[1, 2, 3, 4].map((i) => (
-              <Col xs={24} sm={12} md={8} lg={6} key={i}>
-                <Card
-                  cover={
-                    <Skeleton.Image
-                      active
-                      style={{ width: '100%', height: 180 }}
-                    />
-                  }
-                >
-                  <Skeleton active paragraph={{ rows: 2 }} />
-                </Card>
-              </Col>
-            ))}
-          </Row>
         ) : (
-          <Row gutter={[24, 24]}>
-            {restaurants.length === 0 && (
-              <Text type="secondary">Không tìm thấy quán nào...</Text>
-            )}
-
-            {restaurants.map((res) => (
-              <Col xs={24} sm={12} md={8} lg={6} key={res.id}>
-                <Badge.Ribbon text="Yêu thích" color="#ee4d2d">
-                  <Card
-                    hoverable
-                    className="restaurant-card"
-                    cover={
-                      <div className="card-cover-wrapper">
-                        <img
-                          alt={res.name}
-                          src={
-                            res.coverImage ||
-                            'https://via.placeholder.com/300x180'
-                          }
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src =
-                              'https://via.placeholder.com/300x180?text=No+Image';
-                          }}
-                          className="card-img"
-                        />
-                        <div className="delivery-time">
-                          <ClockCircleOutlined /> 15-20 min
-                        </div>
-                      </div>
-                    }
+          <>
+            <motion.div
+              className="grid-modern"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              {restaurants.length === 0 ? (
+                <div className="no-result">Không tìm thấy quán nào...</div>
+              ) : (
+                restaurants.map((res) => (
+                  <RestaurantCard
+                    key={res.id}
+                    data={res}
                     onClick={() => handleRestaurantClick(res.id)}
-                  >
-                    <Meta
-                      title={<div className="res-title">{res.name}</div>}
-                      description={
-                        <div>
-                          <div className="res-address">
-                            <EnvironmentOutlined /> {res.address}
-                          </div>
-                          <div className="res-rating">
-                            <Rate
-                              disabled
-                              defaultValue={4.5}
-                              style={{ fontSize: 12, color: '#ffce3d' }}
-                            />
-                            <span
-                              style={{
-                                fontSize: 12,
-                                marginLeft: 5,
-                                color: '#777',
-                              }}
-                            >
-                              (99+)
-                            </span>
-                          </div>
-                          <div className="res-tags">
-                            <Tag color="red">Mã giảm 15k</Tag>
-                            <Tag color="blue">Freeship</Tag>
-                          </div>
-                        </div>
-                      }
-                    />
-                  </Card>
-                </Badge.Ribbon>
-              </Col>
-            ))}
-          </Row>
+                  />
+                ))
+              )}
+            </motion.div>
+
+            {/* Pagination */}
+            {totalItems > 0 && (
+              <div className="pagination-wrapper">
+                <Pagination
+                  current={currentPage}
+                  pageSize={pageSize}
+                  total={totalItems}
+                  onChange={(page) =>
+                    fetchRestaurants(
+                      keyword ||
+                        (activeCategory !== 'All' ? activeCategory : ''),
+                      page
+                    )
+                  }
+                  showSizeChanger={false}
+                />
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
+  );
+};
+
+// --- SUB COMPONENTS ---
+
+const RestaurantCard = ({ data, onClick }) => {
+  return (
+    <motion.div
+      className="restaurant-card-modern"
+      onClick={onClick}
+      whileHover={{ y: -10 }} // Hiệu ứng nhấc lên khi hover
+      transition={{ type: 'spring', stiffness: 300 }}
+    >
+      <div className="card-image-wrapper">
+        <img
+          src={data.coverImage || 'https://via.placeholder.com/400x300'}
+          alt={data.name}
+          onError={(e) => {
+            e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+          }}
+        />
+        <div className="card-badge">Yêu thích</div>
+        <div className="card-overlay"></div>
+      </div>
+
+      <div className="card-content">
+        <h3 className="card-title">{data.name}</h3>
+        <p className="card-address">
+          <FaMapMarkerAlt /> {data.address}
+        </p>
+
+        <div className="card-footer">
+          <div className="card-rating">
+            <FaStar className="star-icon" />
+            <span>
+              {data.averageRating ? data.averageRating.toFixed(1) : 'New'}
+            </span>
+            <span className="review-count">({data.totalReviews || 0})</span>
+          </div>
+          <button className="card-btn">Xem ngay</button>
+        </div>
+      </div>
+    </motion.div>
   );
 };
 

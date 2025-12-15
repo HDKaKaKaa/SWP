@@ -15,7 +15,7 @@ import ChangePasswordPage from './pages/ChangePasswordPage.jsx';
 import AdminUsersPage from './pages/AdminUsersPage';
 import CategoriesPage from './pages/CategoriesPage';
 import OrdersPage from './pages/OrdersPage';
-import OwnerDashboard from './pages/OwnerDashboard';
+import OwnerRestaurantPage from './components/OwnerRestaurantPage';
 import OwnerOrders from './components/OwnerOrders';
 import OwnerLayout from './components/OwnerLayout';
 import OwnerProducts from './components/OwnerProduct';
@@ -36,8 +36,26 @@ import OrderDetailPage from './pages/OrderDetailPage';
 import MyRegistrations from './pages/MyRegistrations';
 import RestaurantEdit from './pages/RestaurantEdit';
 
-// Tạo nhanh component placeholder để menu admin bấm không bị lỗi
 const ShippersPage = () => <h2>Quản lý Tài xế</h2>;
+
+const ClientLayoutWithFooter = () => (
+  <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <Header />
+    <div style={{ flex: 1 }}>
+      <Outlet />
+    </div>
+    <Footer />
+  </div>
+);
+
+const AuthLayoutNoFooter = () => (
+  <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <Header />
+    <div style={{ flex: 1 }}>
+      <Outlet />
+    </div>
+  </div>
+);
 
 function App() {
   return (
@@ -74,30 +92,11 @@ function App() {
       {/* NHÓM 3: KHÁCH HÀNG (Sử dụng Header & Footer cũ)         */}
       {/* ======================================================= */}
       {/* Ta tạo một Route không có path để bao bọc layout khách */}
-      <Route
-        element={
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: '100vh',
-            }}
-          >
-            <Header />
-            <div style={{ flex: 1 }}>
-              <Outlet />{' '}
-              {/* Nội dung các trang Landing, Login... sẽ hiện ở đây */}
-            </div>
-            <Footer />
-          </div>
-        }
-      >
+      <Route element={<ClientLayoutWithFooter />}>
         {/* Các trang con của khách hàng nằm trong này */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/restaurant/:id" element={<RestaurantDetail />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/change-password" element={<ChangePasswordPage />} />
         <Route path="/cart" element={<CartPage />} />
@@ -111,35 +110,25 @@ function App() {
         <Route path="/my-registrations" element={<MyRegistrations />} />
         <Route path="/restaurant/edit/:id" element={<RestaurantEdit />} />
       </Route>
+
+      <Route element={<AuthLayoutNoFooter />}>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      </Route>
       {/* ======================================================= */}
       {/* NHÓM 4: CỬA HÀNG (OWNER)                                 */}
       {/* ======================================================= */}
 
-      <Route
-        element={
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: '100vh',
-            }}
-          >
-            <Header />
-            <div style={{ flex: 1 }}>
-              <Outlet />{' '}
-              {/* Nội dung các trang Landing, Login... sẽ hiện ở đây */}
-            </div>
-          </div>
-        }
-      >
+      
         <Route path="/owner" element={<OwnerLayout />}>
-          <Route index element={<OwnerDashboard />} />
-          <Route path="dashboard" element={<OwnerDashboard />} />
+          <Route index element={<OwnerRestaurantPage />} />
+          <Route path="dashboard" element={<OwnerRestaurantPage />} />
           <Route path="products" element={<OwnerProducts />} />
           <Route path="orders" element={<OwnerOrders />} />
           {/* <Route path="reports" element={<OwnerReports />} />       */}
         </Route>
-      </Route>
+     
     </Routes>
   );
 }

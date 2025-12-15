@@ -26,6 +26,7 @@ import {
   DeleteOutlined,
 } from '@ant-design/icons';
 import MapModal from '../components/MapModal';
+import { motion } from 'framer-motion';
 
 const { TextArea } = Input;
 
@@ -171,7 +172,7 @@ const RestaurantRegistration = () => {
 
       message.success('Đăng ký thành công! Đang chuyển hướng...');
       setTimeout(() => {
-        navigate('/owner/dashboard');
+        navigate('/my-registrations');
       }, 1500);
     } catch (err) {
       console.error(err);
@@ -182,14 +183,17 @@ const RestaurantRegistration = () => {
   };
 
   return (
-    <div className="res-reg-container">
-      <div className="res-reg-overlay"></div>
-
-      <div className="res-reg-card">
-        <div className="res-reg-header">
+    <div className="modern-page-container">
+      <motion.div
+        className="modern-card"
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="modern-header">
           <h2>Đăng ký Đối tác Quán Ăn</h2>
-          <p style={{ opacity: 0.8, marginTop: 5 }}>
-            Hãy trở thành đối tác của Foorder ngay hôm nay
+          <p>
+            Trở thành đối tác của Food Order và tiếp cận hàng triệu khách hàng
           </p>
         </div>
 
@@ -199,183 +203,103 @@ const RestaurantRegistration = () => {
           onConfirm={handleMapConfirm}
         />
 
-        <div className="res-reg-body">
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={onFinish}
-            size="large"
-            scrollToFirstError
-          >
+        <div className="modern-body">
+          <Form form={form} layout="vertical" onFinish={onFinish} size="large">
             <Row gutter={40}>
-              {/* CỘT TRÁI: THÔNG TIN CHỦ QUÁN */}
               <Col xs={24} md={12}>
                 <div className="section-title">Thông tin chủ quán</div>
-
                 <Form.Item
                   name="ownerFullName"
-                  label="Họ và tên chủ quán"
-                  normalize={(v) => v?.trimStart()}
-                  rules={[{ required: true, message: 'Vui lòng nhập họ tên!' }]}
+                  label="Họ và tên"
+                  rules={[{ required: true, message: 'Nhập họ tên!' }]}
                 >
                   <Input
                     prefix={<UserOutlined />}
                     placeholder="Nhập họ và tên"
                   />
                 </Form.Item>
-
                 <Form.Item
                   name="idCardNumber"
                   label="Số CCCD / CMND"
-                  normalize={(v) => v?.replace(/\s/g, '')}
-                  rules={[
-                    { required: true, message: 'Vui lòng nhập số CCCD!' },
-                    { pattern: /^\d{9,12}$/, message: 'CCCD phải từ 9-12 số' },
-                  ]}
+                  rules={[{ required: true, message: 'Nhập CCCD!' }]}
                 >
                   <Input
                     prefix={<IdcardOutlined />}
-                    placeholder="Nhập số giấy tờ tùy thân"
-                    maxLength={12}
+                    placeholder="Số giấy tờ tùy thân"
                   />
                 </Form.Item>
-
                 <Form.Item
                   name="phone"
-                  label="Số điện thoại liên hệ"
-                  normalize={(v) => v?.replace(/\s/g, '')}
-                  rules={[
-                    { required: true, message: 'Vui lòng nhập SĐT!' },
-                    { pattern: /^0\d{9}$/, message: 'SĐT không hợp lệ' },
-                  ]}
+                  label="Số điện thoại"
+                  rules={[{ required: true, message: 'Nhập SĐT!' }]}
                 >
                   <Input
                     prefix={<PhoneOutlined />}
-                    placeholder="Nhập số điện thoại"
-                    maxLength={10}
+                    placeholder="Số điện thoại liên hệ"
                   />
                 </Form.Item>
               </Col>
 
-              {/* CỘT PHẢI: THÔNG TIN QUÁN */}
               <Col xs={24} md={12}>
                 <div className="section-title">Thông tin quán ăn</div>
-
                 <Form.Item
                   name="restaurantName"
-                  label="Tên quán ăn"
-                  normalize={(v) => v?.trimStart()}
-                  rules={[
-                    { required: true, message: 'Vui lòng nhập tên quán!' },
-                  ]}
+                  label="Tên quán"
+                  rules={[{ required: true, message: 'Nhập tên quán!' }]}
                 >
                   <Input
                     prefix={<ShopOutlined />}
-                    placeholder="Nhập tên quán"
+                    placeholder="Tên quán hiển thị"
                   />
                 </Form.Item>
-
                 <Form.Item
-                  label="Địa chỉ quán"
-                  required
-                  tooltip="Vui lòng chọn vị trí chính xác trên bản đồ"
-                  style={{ marginBottom: 0 }}
+                  name="address"
+                  label="Địa chỉ"
+                  rules={[{ required: true, message: 'Chọn địa chỉ!' }]}
                 >
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <Form.Item
-                      name="address"
-                      style={{ flex: 1 }}
-                      rules={[
-                        {
-                          required: true,
-                          message: 'Vui lòng chọn địa chỉ trên bản đồ!',
-                        },
-                      ]}
-                    >
-                      <Input
-                        prefix={<EnvironmentOutlined />}
-                        placeholder="Nhấn để chọn vị trí trên bản đồ"
-                        readOnly
-                        onClick={() => setIsMapOpen(true)}
-                        style={{
-                          cursor: 'pointer',
-                          backgroundColor: '#f5f5f5',
-                        }}
-                      />
-                    </Form.Item>
-
-                    {/* <Button
-                      type="primary"
-                      ghost
-                      icon={<EnvironmentOutlined />}
-                      onClick={() => setIsMapOpen(true)}
-                    >
-                      Chọn Map
-                    </Button> */}
-                  </div>
-                  {coordinates && (
-                    <div
-                      style={{
-                        fontSize: '12px',
-                        color: '#1890ff',
-                        marginTop: '-15px',
-                        marginBottom: '15px',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <span>
-                        Tọa độ: {coordinates.latitude.toFixed(6)},{' '}
-                        {coordinates.longitude.toFixed(6)}
-                      </span>
-                    </div>
-                  )}
-                </Form.Item>
-
-                <Form.Item name="description" label="Mô tả ngắn">
-                  <TextArea
-                    rows={2}
-                    placeholder="Giới thiệu đôi nét về quán của bạn..."
+                  <Input
+                    prefix={<EnvironmentOutlined />}
+                    placeholder="Nhấn để chọn trên bản đồ"
+                    readOnly
+                    onClick={() => setIsMapOpen(true)}
+                    style={{ cursor: 'pointer' }}
                   />
+                </Form.Item>
+                <Form.Item name="description" label="Mô tả ngắn">
+                  <TextArea rows={2} placeholder="Giới thiệu về quán..." />
                 </Form.Item>
               </Col>
             </Row>
 
             <Divider
-              titlePlacement="left"
+              orientation="left"
               style={{
-                borderColor: '#ee4d2d',
-                color: '#ee4d2d',
+                borderColor: '#ffe6de',
+                color: '#ff6b35',
                 fontSize: '14px',
               }}
             >
-              HÌNH ẢNH ĐẠI DIỆN QUÁN
+              HÌNH ẢNH ĐẠI DIỆN
             </Divider>
 
             <Row justify="center">
               <Col span={24}>
                 <Form.Item required style={{ textAlign: 'center' }}>
                   <Upload
-                    name="avatar"
                     listType="picture-card"
                     className="avatar-uploader"
                     showUploadList={false}
                     beforeUpload={beforeUpload}
                     onChange={handleChange}
                     maxCount={1}
-                    style={{ overflow: 'hidden' }}
+                    style={{ width: '100%', height: '400px' }}
                   >
                     {fileList.length > 0 ? (
                       <div
-                        className="preview-wrapper"
                         style={{
                           position: 'relative',
                           width: '100%',
                           height: '100%',
-                          aspectRatio: '1/1',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
                         }}
                       >
                         <img
@@ -388,7 +312,7 @@ const RestaurantRegistration = () => {
                             width: '100%',
                             height: '100%',
                             objectFit: 'cover',
-                            borderRadius: '8px',
+                            borderRadius: '16px',
                           }}
                         />
                         <Button
@@ -398,60 +322,36 @@ const RestaurantRegistration = () => {
                           icon={<DeleteOutlined />}
                           size="small"
                           onClick={handleRemoveImage}
-                          style={{
-                            position: 'absolute',
-                            top: '5px',
-                            right: '5px',
-                            zIndex: 10,
-                            opacity: 0.9,
-                          }}
+                          style={{ position: 'absolute', top: 10, right: 10 }}
                         />
                       </div>
                     ) : (
-                      <div
-                        style={{
-                          padding: 20,
-                          aspectRatio: '1/1',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                        }}
-                      >
+                      <div>
                         {loading ? (
                           <LoadingOutlined />
                         ) : (
                           <PlusOutlined
-                            style={{ fontSize: 24, color: '#999' }}
+                            style={{ fontSize: 32, color: '#ff6b35' }}
                           />
                         )}
-                        <div className="upload-text">Nhấn để tải ảnh lên</div>
+                        <div style={{ marginTop: 8, color: '#666' }}>
+                          Tải ảnh đại diện (Tối đa 5MB)
+                        </div>
                       </div>
                     )}
                   </Upload>
-                  <div
-                    style={{ marginTop: 8, color: '#888', fontSize: '12px' }}
-                  >
-                    Hỗ trợ định dạng: JPG, PNG. Dung lượng tối đa 5MB.
-                  </div>
                 </Form.Item>
               </Col>
             </Row>
 
             <Form.Item style={{ marginTop: 20 }}>
-              <Button
-                type="primary"
-                htmlType="submit"
-                block
-                loading={loading}
-                style={{ height: '50px', fontSize: '18px', fontWeight: 'bold' }}
-              >
-                GỬI ĐĂNG KÝ
+              <Button type="primary" htmlType="submit" block loading={loading}>
+                GỬI YÊU CẦU ĐĂNG KÝ
               </Button>
             </Form.Item>
           </Form>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };

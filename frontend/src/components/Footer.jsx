@@ -65,6 +65,7 @@ const Footer = () => {
                 gap: '15px',
                 fontSize: '24px',
                 color: '#666',
+                justifyContent: 'center',
               }}
             >
               <FacebookFilled />
@@ -73,13 +74,14 @@ const Footer = () => {
             </div>
             <div style={{ marginTop: '20px' }}>
               <p style={{ fontSize: '12px', color: '#999' }}>
-                Địa chỉ: FPT University, Hoa Lac High Tech Park, Hanoi
+                Địa chỉ: Trường Đại học FPT - Km29 Đại lộ Thăng Long, xã Hòa
+                Lạc, TP. Hà Nội
               </p>
             </div>
           </Col>
         </Row>
         <div className="copyright">
-          &copy; 2025 Foorder Corporation. All rights reserved.
+          &copy; 2025 Food Order Corporation. All rights reserved.
         </div>
       </div>
     </div>

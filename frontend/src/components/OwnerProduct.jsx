@@ -14,7 +14,8 @@ const OwnerProducts = () => {
     const [message, setMessage] = useState(null);
     const [variant, setVariant] = useState(null);
     const { user } = useContext(AuthContext);
-    const [ownerId, setOwnerId] = useState(null);
+    const [ownerId, setOwnerId] = useState(null); // PK của Owner Entity
+    const [accountId, setAccountId] = useState(null); // ID của User/Account
 
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(0);
@@ -27,16 +28,16 @@ const OwnerProducts = () => {
     const [showUpdateModal, setShowUpdateModal] = useState(false);
     const [productToUpdate, setProductToUpdate] = useState(null);
 
-    //thêm sản phẩm
-
-
+    // 1. Lấy ID Owner Entity và Account ID từ user
     useEffect(() => {
         if (!user) return;
-
+        setAccountId(user.id); // Lấy Account ID
+        
         const fetchOwnerId = async () => {
             try {
+                // Giả định API này trả về PK của Owner Entity
                 const res = await axios.get(`http://localhost:8080/api/owner/byAccount/${user.id}`);
-                setOwnerId(res.data);
+                setOwnerId(res.data); 
             } catch (err) {
                 console.error("Không lấy được ownerId:", err);
             }
@@ -47,12 +48,12 @@ const OwnerProducts = () => {
 
     // Hàm chung để tải sản phẩm 
     const fetchProducts = useCallback(async () => {
-        if (!ownerId) return;
+        if (!ownerId) return; // Chỉ tải khi có Owner PK ID
         setLoading(true);
         try {
             const response = await axios.get(API_URL, {
                 params: {
-                    ownerId,
+                    ownerId, // Dùng Owner ID để lọc sản phẩm
                     restaurantId: selectedRestaurant || null,
                     search: search || null,
                     page: page,
@@ -72,25 +73,28 @@ const OwnerProducts = () => {
         }
     }, [ownerId, selectedRestaurant, search, page, sortField, sortDir]);
 
-    // 1. Tải danh sách Nhà hàng
+    // 2. Tải danh sách Nhà hàng
     useEffect(() => {
-        if (!ownerId) return;
+        if (!accountId) return; // Chỉ tải khi có Account ID
 
         const loadRestaurants = async () => {
             try {
                 const res = await axios.get("http://localhost:8080/api/owner/restaurants", {
-                    params: { ownerId },
+                    params: { accountId }, 
                 });
                 setRestaurants(res.data);
+                if (res.data.length > 0 && !selectedRestaurant) {
+                    setSelectedRestaurant(res.data[0].id.toString());
+                }
             } catch (err) {
                 console.error("Error fetching restaurants:", err);
             }
         };
 
         loadRestaurants();
-    }, [ownerId]);
+    }, [accountId]); 
 
-    // 2. Tải Sản phẩm khi có thay đổi
+    // 3. Tải Sản phẩm khi có thay đổi
     useEffect(() => {
         fetchProducts();
     }, [fetchProducts]);
@@ -138,6 +142,7 @@ const OwnerProducts = () => {
         if (window.confirm(`Xác nhận xóa sản phẩm ID: ${productId}?`)) {
             setMessage(null);
             try {
+                // Endpoint DELETE không cần ownerId/accountId trong body
                 await axios.delete(`http://localhost:8080/api/owner/products/${productId}`);
                 fetchProducts();
                 setMessage(`Đã xóa sản phẩm ID ${productId} thành công.`);
@@ -212,11 +217,6 @@ const OwnerProducts = () => {
                         <FaPlus className="me-2" /> Thêm Sản Phẩm
                     </Button>
                 </Col>
-                {/* <Col md={3}>
-                    <Button variant="primary" onClick={handleFilter} className="w-100">
-                        Áp dụng Lọc
-                    </Button>
-                </Col> */}
             </Row>
 
             {message && (
@@ -314,6 +314,7 @@ const OwnerProducts = () => {
 
             <Modal show={showAddModal} onHide={() => setShowAddModal(false)} size="xl" centered>
                 <Modal.Header closeButton>
+                    <Modal.Title>Thêm Sản Phẩm Mới</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
                     <AddProduct
@@ -327,6 +328,7 @@ const OwnerProducts = () => {
             {/* Modal của update */}
             <Modal show={showUpdateModal} onHide={handleCloseUpdateModal} size="xl" centered>
                 <Modal.Header closeButton>
+                    <Modal.Title>Chỉnh Sửa Sản Phẩm</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
                     {productToUpdate ? (

@@ -5,8 +5,10 @@ import { AuthContext } from '../context/AuthContext';
 import '../css/LoginPage.css';
 import { Form, Input, Button, message, Typography } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
+import { motion } from 'framer-motion';
+import { FaUtensils } from 'react-icons/fa';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 const LoginPage = () => {
   const { login } = useContext(AuthContext);
@@ -42,10 +44,22 @@ const LoginPage = () => {
   return (
     <div className="auth-page-container">
       <div className="auth-overlay"></div>
-      <div className="auth-card">
+
+      <motion.div
+        className="auth-card"
+        initial={{ opacity: 0, y: 50 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+      >
+        <div className="auth-logo">
+          <FaUtensils />
+        </div>
         <Title level={2} className="auth-title">
-          Đăng nhập
+          Chào mừng trở lại!
         </Title>
+        <div className="auth-subtitle">
+          Đăng nhập để tiếp tục thưởng thức món ngon
+        </div>
 
         <Form
           name="login_form"
@@ -56,45 +70,46 @@ const LoginPage = () => {
           <Form.Item
             name="username"
             label="Tài khoản"
-            rules={[
-              { required: true, message: 'Vui lòng nhập Username hoặc Email!' },
-            ]}
+            rules={[{ required: true, message: 'Vui lòng nhập tài khoản!' }]}
           >
-            <Input prefix={<UserOutlined />} placeholder="Nhập tên đăng nhập" />
+            <Input
+              prefix={<UserOutlined />}
+              placeholder="Tên đăng nhập hoặc Email"
+            />
           </Form.Item>
 
           <Form.Item
             name="password"
             label="Mật khẩu"
-            rules={[{ required: true, message: 'Vui lòng nhập Mật khẩu!' }]}
+            rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' }]}
           >
             <Input.Password
               prefix={<LockOutlined />}
-              placeholder="Nhập mật khẩu"
+              placeholder="Nhập mật khẩu của bạn"
             />
           </Form.Item>
 
-          {/* Quên mật khẩu */}
           <div style={{ textAlign: 'right', marginBottom: '24px' }}>
-            <Link to="/forgot-password" style={{ color: '#0288d1' }}>
+            <Link
+              to="/forgot-password"
+              style={{ color: '#ff6b35', fontWeight: 500 }}
+            >
               Quên mật khẩu?
             </Link>
           </div>
 
-          <Form.Item>
+          <Form.Item style={{ marginBottom: 0 }}>
             <Button type="primary" htmlType="submit" block loading={loading}>
-              Đăng nhập
+              ĐĂNG NHẬP
             </Button>
           </Form.Item>
         </Form>
 
         <div className="auth-footer">
-          Chưa có tài khoản?{' '}
-          <Link to="/register" style={{ color: '#ee4d2d', fontWeight: 'bold' }}>
-            Đăng ký ngay
-          </Link>
+          Chưa có tài khoản?
+          <Link to="/register">Đăng ký ngay</Link>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };

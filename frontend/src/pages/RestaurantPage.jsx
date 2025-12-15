@@ -167,12 +167,6 @@ const RestaurantsPage = () => {
     // --- COLUMNS CHÍNH (QUÁN ĂN) ---
     const columns = [
         {
-            title: 'ID',
-            dataIndex: 'id',
-            width: 60,
-            align: 'center',
-        },
-        {
             title: 'Hình ảnh',
             dataIndex: 'image',
             align: 'center',
