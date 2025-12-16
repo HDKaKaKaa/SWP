@@ -1,6 +1,7 @@
 package com.shopeefood.backend.dto;
 
 import lombok.Data;
+import java.util.List;
 
 @Data
 public class RestaurantRegistrationRequest {
@@ -12,6 +13,7 @@ public class RestaurantRegistrationRequest {
     private String coverImageUrl;
     private Double latitude;
     private Double longitude;
+    private List<String> licenseImages;
 
     // Thông tin Owner
     private String ownerFullName;

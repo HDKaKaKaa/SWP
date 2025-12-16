@@ -62,6 +62,11 @@ public class RestaurantService {
         restaurant.setCoverImage(request.getCoverImageUrl());
         restaurant.setLatitude(request.getLatitude());
         restaurant.setLongitude(request.getLongitude());
+        if (request.getLicenseImages() != null && !request.getLicenseImages().isEmpty()) {
+            // Nối các URL lại bằng dấu phẩy (hoặc dùng thư viện Gson/Jackson để lưu JSON)
+            String licenseImagesString = String.join(",", request.getLicenseImages());
+            restaurant.setLicenseImage(licenseImagesString);
+        }
 
         // Set quan hệ
         restaurant.setOwner(owner);
@@ -86,13 +91,18 @@ public class RestaurantService {
         restaurant.setDescription(request.getDescription());
         restaurant.setCoverImage(request.getCoverImageUrl());
 
-        // Cập nhật tọa độ nếu có (đề phòng user đổi địa chỉ map)
+        if (request.getLicenseImages() != null) {
+            String licenseImagesString = String.join(",", request.getLicenseImages());
+            restaurant.setLicenseImage(licenseImagesString);
+        }
+
+        // Cập nhật tọa độ
         if (request.getLatitude() != null && request.getLongitude() != null) {
             restaurant.setLatitude(request.getLatitude());
             restaurant.setLongitude(request.getLongitude());
         }
 
-        // 3. Cập nhật thông tin Owner (vì user có thể sửa lỗi chính tả tên/CCCD)
+        // 3. Cập nhật thông tin Owner
         Owner owner = restaurant.getOwner();
         if (owner != null) {
             owner.setFullName(request.getOwnerFullName());
