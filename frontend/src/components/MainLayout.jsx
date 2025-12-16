@@ -40,7 +40,7 @@ const MainLayout = () => {
         <Layout style={{ minHeight: '100vh' }}>
             <Sider collapsible collapsed={collapsed} onCollapse={(value) => setCollapsed(value)}>
                 <div style={{ height: 32, margin: 16, background: 'rgba(255, 255, 255, 0.2)', textAlign: 'center', color: '#fff', lineHeight: '32px', fontWeight: 'bold' }}>
-                    SHOPEE ADMIN
+                    ADMIN
                 </div>
                 <Menu
                     theme="dark"

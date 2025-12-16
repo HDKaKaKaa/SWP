@@ -1,0 +1,94 @@
+/* RestaurantApprovalPage.css */
+
+/* Container chính */
+.restaurant-approval-page {
+    padding: 20px;
+    background-color: #f5f7fa; /* Màu nền nhẹ cho trang */
+    min-height: 100vh;
+}
+
+/* Card bao bọc bảng */
+.approval-card {
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* --- FIX LỖI NÚT XEM ĐƠN --- */
+.btn-view-detail {
+    color: #1677ff;
+    border-color: #1677ff;
+    background-color: white; /* Đảm bảo nền trắng */
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-view-detail:hover {
+    color: #fff !important;
+    background-color: #1677ff !important;
+    border-color: #1677ff !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(22, 119, 255, 0.3);
+}
+
+/* Ảnh thumbnail trong bảng */
+.table-thumb-img {
+    border-radius: 6px;
+    object-fit: cover;
+    border: 1px solid #f0f0f0;
+}
+
+/* Tên nhà hàng trong bảng */
+.table-restaurant-name {
+    font-size: 15px;
+    color: #1677ff;
+    font-weight: 600;
+}
+
+/* --- MODAL STYLES --- */
+.modal-header-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.modal-cover-container {
+    width: 100%;
+    height: 220px;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 24px;
+    border: 1px solid #f0f0f0;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.cover-badge {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    backdrop-filter: blur(4px);
+}
+
+.info-card {
+    height: 100%;
+    background: #fafafa;
+    border: 1px solid #f0f0f0;
+}
+
+.label-secondary {
+    color: #8c8c8c;
+    font-weight: normal;
+}
+
+.text-value-bold {
+    font-size: 15px;
+    font-weight: 600;
+    color: #262626;
+}
