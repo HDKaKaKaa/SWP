@@ -52,6 +52,8 @@ public class CustomerProfileController {
         res.setEmail(acc.getEmail());
         res.setPhone(acc.getPhone());
 
+        res.setImage(acc.getImage());
+
         res.setFullName(customer.getFullName());
         res.setAddress(customer.getAddress());
         res.setLatitude(customer.getLatitude());
@@ -87,6 +89,9 @@ public class CustomerProfileController {
             acc.setEmail(request.getEmail());
         }
         acc.setPhone(request.getPhone());
+        if (request.getImage() != null) {
+            acc.setImage(request.getImage());
+        }
         accountRepository.save(acc);
 
         // --------- cập nhật bảng customers ----------

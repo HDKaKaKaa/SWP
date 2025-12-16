@@ -1,7 +1,8 @@
-import { useContext, useEffect, useState, useMemo } from 'react';
+import { useContext, useEffect, useState, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { getCustomerProfile, updateCustomerProfile } from '../services/customerService';
+import { uploadImage } from '../services/categoryService';
 import {
     Input,
     Button,
@@ -10,6 +11,7 @@ import {
     message,
     Avatar,
     Tag,
+    Upload,
 } from 'antd';
 import {
     UserOutlined,
@@ -33,6 +35,8 @@ const ProfilePage = () => {
     const { user, login } = useContext(AuthContext);
     const navigate = useNavigate();
     const location = useLocation();
+    const fileInputRef = useRef(null);
+    const debounceRef = useRef(null);
 
     const returnInfo = location.state?.returnTo || null;
 
@@ -42,6 +46,7 @@ const ProfilePage = () => {
         fullName: '',
         email: '',
         phone: '',
+        image: '',
         address: '',
         latitude: '',
         longitude: '',
@@ -51,6 +56,12 @@ const ProfilePage = () => {
     const [saving, setSaving] = useState(false);
     const [errors, setErrors] = useState({});
     const [isMapOpen, setIsMapOpen] = useState(false);
+    const [avatarPreview, setAvatarPreview] = useState('');
+    const [avatarCloudUrl, setAvatarCloudUrl] = useState('');
+    const [uploadingAvatar, setUploadingAvatar] = useState(false);
+    const [searchText, setSearchText] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [searching, setSearching] = useState(false);
 
     // Tọa độ ban đầu cho MapModal (nếu đã có trong DB)
     const initialPosition = useMemo(() => {
@@ -82,9 +93,7 @@ const ProfilePage = () => {
         if (path === '/cart') return true;
 
         // match /restaurant/{id}
-        if (path.startsWith('/restaurant/')) return true;
-
-        return false;
+        return !!path.startsWith('/restaurant/');
     };
 
     const handleBack = () => {
@@ -167,6 +176,7 @@ const ProfilePage = () => {
                     fullName: data.fullName || '',
                     email: data.email || '',
                     phone: data.phone || '',
+                    image: data.image || JSON.parse(localStorage.getItem('user') || '{}')?.image || '',
                     address: data.address || '',
                     latitude: data.latitude ?? '',
                     longitude: data.longitude ?? '',
@@ -239,6 +249,98 @@ const ProfilePage = () => {
         return Object.keys(newErrors).length === 0;
     };
 
+    const searchPlace = async (q) => {
+        const query = (q || '').trim();
+        if (!query) {
+            setSearchResults([]);
+            return;
+        }
+
+        setSearching(true);
+        try {
+            const res = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&limit=6`
+            );
+            const data = await res.json();
+            setSearchResults(Array.isArray(data) ? data : []);
+        } catch (e) {
+            console.error(e);
+            setSearchResults([]);
+        } finally {
+            setSearching(false);
+        }
+    };
+
+    useEffect(() => {
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => {
+            searchPlace(searchText);
+        }, 350);
+
+        return () => {
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+        };
+    }, [searchText]);
+
+    const beforeAvatarUpload = (file) => {
+        const isImg = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type);
+        if (!isImg) {
+            message.error('Chỉ hỗ trợ ảnh JPG/PNG/WEBP!');
+            return Upload.LIST_IGNORE;
+        }
+        const isLt5M = file.size / 1024 / 1024 < 5;
+        if (!isLt5M) {
+            message.error('Dung lượng ảnh phải nhỏ hơn 5MB!');
+            return Upload.LIST_IGNORE;
+        }
+        return true;
+    };
+
+    const handlePickAvatar = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleAvatarFileSelected = async (e) => {
+        const f = e.target.files?.[0];
+        // reset input để chọn lại cùng 1 file vẫn trigger change
+        e.target.value = '';
+        if (!f) return;
+
+        const ok = beforeAvatarUpload(f);
+        if (ok !== true) return;
+
+        // preview local ngay
+        const localUrl = URL.createObjectURL(f);
+        setAvatarPreview(localUrl);
+
+        try {
+            setUploadingAvatar(true);
+            message.loading({ content: 'Đang tải ảnh...', key: 'avatar' });
+
+            const res = await uploadImage(f);
+            const cloudUrl =
+                typeof res === 'string'
+                    ? res
+                    : (res?.imageUrl || res?.url || res?.secure_url || '');
+
+            if (!cloudUrl) {
+                message.error({ content: 'Không nhận được link ảnh từ server.', key: 'avatar' });
+                return;
+            }
+
+            setAvatarCloudUrl(cloudUrl);
+            setForm((prev) => ({ ...prev, image: cloudUrl }));
+
+            message.success({ content: 'Tải ảnh thành công!', key: 'avatar' });
+        } catch (err) {
+            console.error(err);
+            message.error({ content: 'Tải ảnh thất bại. Vui lòng thử lại.', key: 'avatar' });
+        } finally {
+            setUploadingAvatar(false);
+            setTimeout(() => URL.revokeObjectURL(localUrl), 3000);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!user) return;
@@ -254,6 +356,7 @@ const ProfilePage = () => {
                 fullName: form.fullName,
                 email: form.email,
                 phone: form.phone,
+                image: avatarCloudUrl || form.image || null,
                 address: form.address,
                 latitude: form.latitude !== '' ? Number(form.latitude) : null,
                 longitude: form.longitude !== '' ? Number(form.longitude) : null,
@@ -264,6 +367,7 @@ const ProfilePage = () => {
                 fullName: form.fullName,
                 email: form.email,
                 phone: form.phone,
+                image: form.image,
             };
             localStorage.setItem('user', JSON.stringify(updatedUser));
             login(updatedUser);
@@ -364,7 +468,25 @@ const ProfilePage = () => {
                         </Text>
                     </div>
                     <div className="profile-header-right">
-                        <Avatar size={56} icon={<UserOutlined />} />
+                        <Avatar size={56} icon={<UserOutlined />} src={ avatarPreview || form.image || undefined} />
+                        <div className="profile-avatar-upload">
+                            {/* input file hidden */}
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
+                                style={{ display: 'none' }}
+                                onChange={handleAvatarFileSelected}
+                            />
+
+                            <Button onClick={handlePickAvatar} loading={uploadingAvatar}>
+                                {(avatarPreview || form.image) ? 'Đổi ảnh' : 'Tải ảnh lên'}
+                            </Button>
+
+                            <Text type="secondary" className="profile-avatar-hint">
+                                Ảnh dưới 5MB (JPG/PNG/WEBP)
+                            </Text>
+                        </div>
                         <div className="profile-header-info">
                             <Text strong>{displayName}</Text>
                             <div className="profile-header-tags">
@@ -465,6 +587,7 @@ const ProfilePage = () => {
                                 <label>Vị trí trên bản đồ</label>
                                 <Input
                                     readOnly
+                                    value={form.address || ''}
                                     onClick={() => setIsMapOpen(true)}
                                     placeholder="Nhấn để chọn vị trí trên bản đồ"
                                     prefix={<EnvironmentOutlined />}
@@ -479,16 +602,6 @@ const ProfilePage = () => {
                                     <p className="profile-error-text">{errors.address}</p>
                                 )}
                             </div>
-
-                            {form.address && (
-                                <div className="profile-address-preview">
-                                    <Text strong>Địa chỉ đã lưu:</Text>
-                                    <Text className="profile-address-text">
-                                        <EnvironmentOutlined style={{ marginRight: 4 }} />
-                                        {form.address}
-                                    </Text>
-                                </div>
-                            )}
                         </section>
 
                         {/* Nút lưu */}

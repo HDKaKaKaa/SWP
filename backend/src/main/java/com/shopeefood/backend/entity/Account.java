@@ -24,6 +24,9 @@ public class Account {
 
     private String role;
 
+    @Column(name = "image")
+    private String image;
+
     @Column(name = "is_active")
     private Boolean isActive = true;
 }
