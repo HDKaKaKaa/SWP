@@ -24,12 +24,16 @@ public class OwnerProductController {
     public ResponseEntity<Page<OwnerProductDTO>> getProducts(
             @RequestParam Integer ownerId,
             @RequestParam(required = false) Integer restaurantId,
+            @RequestParam(required = false) Integer categoryId,
+            @RequestParam(required = false) Boolean isAvailable,
             @RequestParam(required = false) String search,
             @PageableDefault(size = 10, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
 
         Page<OwnerProductDTO> products = ownerProductService.getProductsByOwner(
                 ownerId,
                 restaurantId,
+                categoryId,
+                isAvailable,
                 search,
                 pageable);
         return ResponseEntity.ok(products);
