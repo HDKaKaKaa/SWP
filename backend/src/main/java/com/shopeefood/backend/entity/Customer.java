@@ -16,6 +16,11 @@ public class Customer {
     @Column(name = "full_name")
     private String fullName;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @MapsId
+    @JoinColumn(name = "account_id")
+    private Account account;
+    
     // Các trường khác có thể null thì không cần bắt buộc set ngay
     private String address;
     private Double latitude;

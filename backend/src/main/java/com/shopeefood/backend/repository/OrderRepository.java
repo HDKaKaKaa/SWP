@@ -1,19 +1,19 @@
 package com.shopeefood.backend.repository;
 
-import com.shopeefood.backend.entity.Order;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
+import com.shopeefood.backend.entity.Order;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpecificationExecutor<Order> {
@@ -23,7 +23,7 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
         // Lấy lịch sử đơn hàng của khách (loại CART và CART_DELETED)
         List<Order> findByCustomerIdAndStatusNotIn(Integer customerId, List<String> statuses);
 
-    /**
+        /**
          * 1. Tính TỔNG DOANH THU toàn hệ thống.
          * Chỉ tính những đơn đã hoàn thành (COMPLETED).
          */
@@ -79,17 +79,15 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
         List<Order> findByRestaurantIdAndStatus(Integer restaurantId, String status);
 
         // Tìm đơn theo mã đơn/ngày tạo đơn
-       @Query("SELECT DISTINCT o FROM Order o " + 
-           "LEFT JOIN FETCH o.orderItems oi " +
-           "LEFT JOIN o.customer c " +
-           "WHERE o.restaurant.owner.id = :ownerId " +
-           "AND (:restaurantId IS NULL OR o.restaurant.id = :restaurantId) " +
-           "AND (o.status IN :statusList) " +
-           "AND (:searchPattern IS NULL OR str(o.id) LIKE :searchPattern) " + 
-           "AND (CAST(:from AS java.time.LocalDateTime) IS NULL OR o.createdAt >= :from) " + 
-           "AND (CAST(:to AS java.time.LocalDateTime) IS NULL OR o.createdAt <= :to) "
-        )
-        Page<Order> findOrdersByOwnerAndRestaurant(
+        @Query("SELECT o.id FROM Order o " +
+                        "WHERE o.restaurant.owner.id = :ownerId " +
+                        "AND (:restaurantId IS NULL OR o.restaurant.id = :restaurantId) " +
+                        "AND (o.status IN :statusList) " +
+                        "AND (:searchPattern IS NULL OR str(o.id) LIKE :searchPattern) " +
+                        "AND (CAST(:from AS timestamp) IS NULL OR o.createdAt >= :from) " +
+                        "AND (CAST(:to AS timestamp) IS NULL OR o.createdAt <= :to) ")
+
+        Page<Integer> findOrderIdsByOwnerAndRestaurant(
                         @Param("ownerId") Integer ownerId,
                         @Param("restaurantId") Integer restaurantId,
                         @Param("searchPattern") String searchPattern,
@@ -98,66 +96,78 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
                         @Param("statusList") List<String> statusList,
                         Pageable pageable);
 
+        // Tìm OrderDetail bằng Id
+        @Query("SELECT DISTINCT o FROM Order o " +
+                        "LEFT JOIN FETCH o.orderItems oi " +
+                        "LEFT JOIN FETCH o.customer c " +
+                        "LEFT JOIN FETCH o.restaurant r " +
+                        "WHERE o.id IN :orderIds " +
+                        "ORDER BY o.createdAt DESC")
+        List<Order> findOrdersWithDetailsByIds(@Param("orderIds") List<Integer> orderIds);
+
         @Query("SELECT COUNT(o) FROM Order o WHERE o.restaurant.id = :restaurantId " +
                         "AND o.status NOT IN ('COMPLETED', 'CANCELLED', 'REJECTED', 'CART', 'CART_DELETED')")
         long countActiveOrdersByRestaurant(Integer restaurantId);
 
-    // Lấy đơn hàng của khách hàng kèm orderItems và các quan hệ
-    @Query("SELECT DISTINCT o FROM Order o " +
-            "LEFT JOIN FETCH o.orderItems oi " +
-            "LEFT JOIN FETCH oi.product " +
-            "LEFT JOIN FETCH o.restaurant " +
-            "LEFT JOIN FETCH o.shipper " +
-            "WHERE o.customer.id = :customerId " +
-            "ORDER BY o.createdAt DESC")
-    List<Order> findByCustomerIdWithDetails(@Param("customerId") Integer customerId);
+        // Lấy đơn hàng của khách hàng kèm orderItems và các quan hệ
+        @Query("SELECT DISTINCT o FROM Order o " +
+                        "LEFT JOIN FETCH o.orderItems oi " +
+                        "LEFT JOIN FETCH oi.product " +
+                        "LEFT JOIN FETCH o.restaurant " +
+                        "LEFT JOIN FETCH o.shipper " +
+                        "WHERE o.customer.id = :customerId " +
+                        "AND (:startDate IS NULL OR o.createdAt >= :startDate) " +
+                        "AND (:endDate IS NULL OR o.createdAt <= :endDate) " +
+                        "ORDER BY o.createdAt DESC")
+        List<Order> findByCustomerIdWithDetails(@Param("customerId") Integer customerId);
 
-    /**
-     * Tìm đơn hàng có sẵn cho shipper
-     * Chỉ lấy đơn đã được Owner duyệt (status = PREPARING) và chưa có shipper
-     * Flow: Customer đặt (PENDING) → Owner duyệt (PREPARING) → Shipper nhận (SHIPPING)
-     * Tối ưu với JOIN FETCH để tránh N+1 problem
-     */
-    @Query("SELECT DISTINCT o FROM Order o " +
-            "LEFT JOIN FETCH o.restaurant r " +
-            "LEFT JOIN FETCH o.customer c " +
-            "WHERE o.status = 'PREPARING' AND o.shipper IS NULL " +
-            "ORDER BY o.createdAt DESC")
-    List<Order> findAvailableOrders();
+        /**
+         * Tìm đơn hàng có sẵn cho shipper
+         * Chỉ lấy đơn đã được Owner duyệt (status = PREPARING) và chưa có shipper
+         * Flow: Customer đặt (PENDING) → Owner duyệt (PREPARING) → Shipper nhận
+         * (SHIPPING)
+         * Tối ưu với JOIN FETCH để tránh N+1 problem
+         */
+        @Query("SELECT DISTINCT o FROM Order o " +
+                        "LEFT JOIN FETCH o.restaurant r " +
+                        "LEFT JOIN FETCH o.customer c " +
+                        "WHERE o.status = 'PREPARING' AND o.shipper IS NULL " +
+                        "ORDER BY o.createdAt DESC")
+        List<Order> findAvailableOrders();
 
-    /**
-     * Tìm đơn hàng của shipper - Tối ưu với JOIN FETCH để tránh N+1 problem
-     */ 
-    @Query("SELECT DISTINCT o FROM Order o " +
-            "LEFT JOIN FETCH o.restaurant r " +
-            "LEFT JOIN FETCH o.customer c " +
-            "WHERE o.shipper.accountId = :shipperId " +
-            "ORDER BY o.createdAt DESC")
-    List<Order> findOrdersByShipperId(@Param("shipperId") Integer shipperId);
+        /**
+         * Tìm đơn hàng của shipper - Tối ưu với JOIN FETCH để tránh N+1 problem
+         */
+        @Query("SELECT DISTINCT o FROM Order o " +
+                        "LEFT JOIN FETCH o.restaurant r " +
+                        "LEFT JOIN FETCH o.customer c " +
+                        "WHERE o.shipper.accountId = :shipperId " +
+                        "ORDER BY o.createdAt DESC")
+        List<Order> findOrdersByShipperId(@Param("shipperId") Integer shipperId);
 
-    // Gọi sau khi cập nhập status
-    @Query("SELECT o FROM Order o " +
-            "LEFT JOIN FETCH o.orderItems oi " +
-            "LEFT JOIN o.customer c " +
-            "WHERE o.id = :orderId")
-    Optional<Order> findByIdWithDetails(@Param("orderId") Integer orderId);
+        // Gọi sau khi cập nhập status
+        @Query("SELECT o FROM Order o " +
+                        "LEFT JOIN FETCH o.orderItems oi " +
+                        "LEFT JOIN o.customer c " +
+                        "WHERE o.id = :orderId")
+        Optional<Order> findByIdWithDetails(@Param("orderId") Integer orderId);
 
-    /**
-     * Query lấy doanh thu theo bộ lọc động (Native Query)
-     * COALESCE(?3, NULL) dùng để xử lý logic: Nếu tham số restaurantId là NULL thì bỏ qua điều kiện đó.
-     */
-    @Query(value = "SELECT CAST(o.created_at AS DATE) as label, SUM(o.total_amount) as value " +
-            "FROM orders o " +
-            "WHERE o.status = 'COMPLETED' " +
-            "AND o.created_at >= :startDate AND o.created_at <= :endDate " +
-            "AND (:restaurantId IS NULL OR o.restaurant_id = :restaurantId) " +
-            "GROUP BY CAST(o.created_at AS DATE) " +
-            "ORDER BY CAST(o.created_at AS DATE) ASC", nativeQuery = true)
-    List<Object[]> getRevenueByFilter(
-            @Param("startDate") LocalDateTime startDate,
-            @Param("endDate") LocalDateTime endDate,
-            @Param("restaurantId") Integer restaurantId
-    );
+        /**
+         * Query lấy doanh thu theo bộ lọc động (Native Query)
+         * COALESCE(?3, NULL) dùng để xử lý logic: Nếu tham số restaurantId là NULL thì
+         * bỏ qua điều kiện đó.
+         */
+        @Query(value = "SELECT CAST(o.created_at AS DATE) as label, SUM(o.total_amount) as value " +
+                        "FROM orders o " +
+                        "WHERE o.status = 'COMPLETED' " +
+                        "AND o.created_at >= :startDate AND o.created_at <= :endDate " +
+                        "AND (:restaurantId IS NULL OR o.restaurant_id = :restaurantId) " +
+                        "GROUP BY CAST(o.created_at AS DATE) " +
+                        "ORDER BY CAST(o.created_at AS DATE) ASC", nativeQuery = true)
+        List<Object[]> getRevenueByFilter(
+                        @Param("startDate") LocalDateTime startDate,
+                        @Param("endDate") LocalDateTime endDate,
+                        @Param("restaurantId") Integer restaurantId);
 
     // --- QUERY SỬA LỖI (ĐÃ BỎ JOIN FETCH c.account) ---
     @Query("SELECT DISTINCT o FROM Order o " +
@@ -175,4 +185,6 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate
     );
+
+    long countByShipperAccountIdAndStatus(Integer shipperId, String status);
 }

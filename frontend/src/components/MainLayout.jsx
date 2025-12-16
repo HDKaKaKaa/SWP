@@ -9,6 +9,7 @@ import {
     AppstoreOutlined,
     HomeOutlined,
     AuditOutlined,
+    GlobalOutlined,
     ExclamationCircleOutlined
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
@@ -31,7 +32,8 @@ const MainLayout = () => {
         { key: '/admin/restaurants', icon: <ShopOutlined />, label: 'Danh sách Nhà hàng' },
         { key: '/admin/orders', icon: <FileTextOutlined />, label: 'Đơn hàng' },
         { key: '/admin/users', icon: <UserOutlined />, label: 'Người dùng' },
-        { key: '/admin/shippers', icon: <CarOutlined />, label: 'Tài xế' },
+        { key: '/admin/shippers', icon: <CarOutlined />, label: 'Quản lý shipper' },
+        { key: '/admin/map', icon: <GlobalOutlined />, label: 'Bản đồ hoạt động' },
         { key: '/admin/issues', icon: <ExclamationCircleOutlined />, label: 'Khiếu nại / Hỗ trợ' },
 
         { type: 'divider' },
@@ -42,7 +44,7 @@ const MainLayout = () => {
         <Layout style={{ minHeight: '100vh' }}>
             <Sider collapsible collapsed={collapsed} onCollapse={(value) => setCollapsed(value)}>
                 <div style={{ height: 32, margin: 16, background: 'rgba(255, 255, 255, 0.2)', textAlign: 'center', color: '#fff', lineHeight: '32px', fontWeight: 'bold' }}>
-                    SHOPEE ADMIN
+                    ADMIN
                 </div>
                 <Menu
                     theme="dark"

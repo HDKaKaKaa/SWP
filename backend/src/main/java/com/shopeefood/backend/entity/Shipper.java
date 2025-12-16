@@ -3,6 +3,8 @@ package com.shopeefood.backend.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.math.BigDecimal;
+import lombok.ToString;
+import lombok.EqualsAndHashCode;
 
 @Data
 @Entity
@@ -36,5 +38,7 @@ public class Shipper {
     @OneToOne
     @MapsId
     @JoinColumn(name = "account_id")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Account account;
 }

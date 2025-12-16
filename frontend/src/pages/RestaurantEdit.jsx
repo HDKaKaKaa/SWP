@@ -48,6 +48,21 @@ const RestaurantEdit = () => {
 
   const [form] = Form.useForm();
 
+  const normalizeNumber = (value) =>
+    value ? value.replace(/[^0-9]/g, '') : value;
+
+  const normalizeName = (value) => {
+    if (!value) return value;
+    let result = value.trimStart();
+    result = result.replace(
+      /[^a-zA-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựỳỵýỷỹ\s]/g,
+      ''
+    );
+    return result;
+  };
+
+  const normalizeText = (value) => (value ? value.trimStart() : value);
+
   // 1. LOAD DỮ LIỆU CŨ KHI VÀO TRANG
   useEffect(() => {
     const fetchRestaurantData = async () => {
@@ -167,12 +182,20 @@ const RestaurantEdit = () => {
   const handleRemoveLicenseImage = (file) => {
     const newFileList = licenseFileList.filter((item) => item.uid !== file.uid);
     setLicenseFileList(newFileList);
+    if (newFileList.length === 0) form.setFieldsValue({ licenseImages: [] });
   };
 
   // 2. XỬ LÝ LƯU (UPDATE)
   const onFinish = async (values) => {
     setLoading(true);
     try {
+      const cleanValues = {
+        ...values,
+        ownerFullName: values.ownerFullName.trim(),
+        restaurantName: values.restaurantName.trim(),
+        description: values.description ? values.description.trim() : '',
+      };
+
       // 1. Xử lý Cover Image
       let finalCoverUrl = '';
       const coverFile = values.coverImage[0];
@@ -195,7 +218,8 @@ const RestaurantEdit = () => {
           finalLicenseUrls.push(file.url);
         } else {
           const formData = new FormData();
-          formData.append('file', file.originFileObj);
+          const actualFile = file.originFileObj || file;
+          formData.append('file', actualFile);
           const res = await axios.post(
             'http://localhost:8080/api/upload/image',
             formData
@@ -295,23 +319,55 @@ const RestaurantEdit = () => {
                 <Form.Item
                   name="ownerFullName"
                   label="Họ tên"
-                  rules={[{ required: true }]}
+                  normalize={normalizeName}
+                  rules={[
+                    { required: true, message: 'Nhập họ tên' },
+                    { min: 2, message: 'Tên quá ngắn' },
+                    { max: 50, message: 'Tên quá dài' },
+                  ]}
                 >
-                  <Input prefix={<UserOutlined />} />
+                  <Input
+                    prefix={<UserOutlined />}
+                    placeholder="Nhập họ và tên đầy đủ"
+                    allowClear
+                    maxLength={50}
+                  />
                 </Form.Item>
                 <Form.Item
                   name="idCardNumber"
                   label="Số CCCD / CMND"
-                  rules={[{ required: true }]}
+                  normalize={normalizeNumber}
+                  rules={[
+                    { required: true, message: 'Vui lòng nhập số CCCD' },
+                    {
+                      pattern: /^(\d{9}|\d{12})$/,
+                      message: 'CCCD phải là 9 hoặc 12 số',
+                    },
+                  ]}
                 >
-                  <Input prefix={<IdcardOutlined />} />
+                  <Input
+                    prefix={<IdcardOutlined />}
+                    placeholder="Nhập số CCCD / CMND (9 hoặc 12 số)"
+                    maxLength={12}
+                  />
                 </Form.Item>
                 <Form.Item
                   name="phone"
                   label="Số điện thoại"
-                  rules={[{ required: true }]}
+                  normalize={normalizeNumber}
+                  rules={[
+                    { required: true, message: 'Vui lòng nhập số điện thoại' },
+                    {
+                      pattern: /^0\d{9}$/,
+                      message: 'SĐT không hợp lệ (10 số, bắt đầu bằng 0)',
+                    },
+                  ]}
                 >
-                  <Input prefix={<PhoneOutlined />} />
+                  <Input
+                    prefix={<PhoneOutlined />}
+                    placeholder="Nhập số điện thoại"
+                    maxLength={10}
+                  />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
@@ -321,24 +377,50 @@ const RestaurantEdit = () => {
                 <Form.Item
                   name="restaurantName"
                   label="Tên quán"
-                  rules={[{ required: true }]}
+                  normalize={normalizeText}
+                  rules={[
+                    { required: true, message: 'Vui lòng nhập tên quán' },
+                    { min: 5, message: 'Tên quán tối thiểu 5 ký tự' },
+                    { max: 100, message: 'Tên quán tối đa 100 ký tự' },
+                  ]}
                 >
-                  <Input prefix={<ShopOutlined />} />
+                  <Input
+                    prefix={<ShopOutlined />}
+                    placeholder="Nhập tên quán"
+                    allowClear
+                    maxLength={100}
+                  />
                 </Form.Item>
                 <Form.Item
                   name="address"
                   label="Địa chỉ"
-                  rules={[{ required: true }]}
+                  rules={[
+                    {
+                      required: true,
+                      message: 'Vui lòng chọn địa chỉ trên bản đồ',
+                    },
+                  ]}
                 >
                   <Input
                     prefix={<EnvironmentOutlined />}
                     readOnly
                     onClick={() => setIsMapOpen(true)}
                     style={{ cursor: 'pointer' }}
+                    placeholder="Nhấn để chọn vị trí chính xác trên bản đồ"
                   />
                 </Form.Item>
-                <Form.Item name="description" label="Mô tả">
-                  <TextArea rows={2} />
+                <Form.Item
+                  name="description"
+                  label="Mô tả"
+                  normalize={normalizeText}
+                  rules={[{ max: 500, message: 'Mô tả tối đa 500 ký tự!' }]}
+                >
+                  <TextArea
+                    rows={2}
+                    placeholder="Giới thiệu về quán, các món ăn..."
+                    showCount
+                    maxLength={500}
+                  />
                 </Form.Item>
               </Col>
             </Row>

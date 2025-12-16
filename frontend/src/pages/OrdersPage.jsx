@@ -184,7 +184,7 @@ const OrdersPage = () => {
             ) : <Text type="secondary" italic style={{fontSize: 12}}>Chưa nhận</Text>,
         },
         {
-            title: 'Giao hàng (20p)',
+            title: 'Thời gian giao hàng',
             key: 'deliveryTime',
             align: 'center',
             width: 160,

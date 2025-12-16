@@ -17,6 +17,7 @@ public class RestaurantDTO {
     private String address;
     private String phone;
     private String image; // Front-end dùng biến này để hiển thị ảnh
+    private String licenseImage;
     private String status;
     private String ownerName; // Hiển thị tên chủ quán
     private String ownerIdCard;
@@ -32,6 +33,7 @@ public class RestaurantDTO {
             this.address = restaurant.getAddress();
             this.phone = restaurant.getPhone();
             this.image = restaurant.getCoverImage();
+            this.licenseImage = restaurant.getLicenseImage();
             this.latitude = restaurant.getLatitude();
             this.longitude = restaurant.getLongitude();
 
