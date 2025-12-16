@@ -169,19 +169,22 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
                         @Param("endDate") LocalDateTime endDate,
                         @Param("restaurantId") Integer restaurantId);
 
-        // --- QUERY SỬA LỖI (ĐÃ BỎ JOIN FETCH c.account) ---
-        @Query("SELECT DISTINCT o FROM Order o " +
-                        "LEFT JOIN FETCH o.customer c " +
-                        "LEFT JOIN FETCH o.restaurant r " +
-                        "LEFT JOIN FETCH o.shipper s " +
-                        "LEFT JOIN FETCH s.account " +
-                        "LEFT JOIN FETCH o.orderItems oi " +
-                        "WHERE (:status = 'ALL' OR o.status = :status) " +
-                        "AND (CAST(:startDate AS timestamp) IS NULL OR o.createdAt >= :startDate) " +
-                        "AND (CAST(:endDate AS timestamp) IS NULL OR o.createdAt <= :endDate) " +
-                        "ORDER BY o.createdAt DESC")
-        List<Order> findOrdersWithDetails(
-                        @Param("status") String status,
-                        @Param("startDate") LocalDateTime startDate,
-                        @Param("endDate") LocalDateTime endDate);
+    // --- QUERY SỬA LỖI (ĐÃ BỎ JOIN FETCH c.account) ---
+    @Query("SELECT DISTINCT o FROM Order o " +
+            "LEFT JOIN FETCH o.customer c " +
+            "LEFT JOIN FETCH o.restaurant r " +
+            "LEFT JOIN FETCH o.shipper s " +
+            "LEFT JOIN FETCH s.account " +
+            "LEFT JOIN FETCH o.orderItems oi " +
+            "WHERE (:status = 'ALL' OR o.status = :status) " +
+            "AND (CAST(:startDate AS timestamp) IS NULL OR o.createdAt >= :startDate) " +
+            "AND (CAST(:endDate AS timestamp) IS NULL OR o.createdAt <= :endDate) " +
+            "ORDER BY o.createdAt DESC")
+    List<Order> findOrdersWithDetails(
+            @Param("status") String status,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    long countByShipperAccountIdAndStatus(Integer shipperId, String status);
 }
