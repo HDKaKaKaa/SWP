@@ -27,6 +27,9 @@ public class Restaurant {
     @Column(name = "license_image")
     private String licenseImage;
 
+    @Column(name = "rejection_reason", columnDefinition = "TEXT")
+    private String rejectionReason;
+
     @OneToMany(mappedBy = "restaurant")
     @JsonManagedReference
     private List<Product> products;

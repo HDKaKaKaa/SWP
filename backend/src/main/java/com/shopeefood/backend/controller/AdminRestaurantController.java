@@ -34,9 +34,10 @@ public class AdminRestaurantController {
     @PutMapping("/{id}/approve")
     public ResponseEntity<?> approveRestaurant(
             @PathVariable Integer id,
-            @RequestParam boolean isApproved) {
+            @RequestParam boolean isApproved,
+            @RequestParam(required = false) String reason) {
         try {
-            adminRestaurantService.approveRestaurant(id, isApproved);
+            adminRestaurantService.approveRestaurant(id, isApproved, reason);
             String message = isApproved ? "Đã duyệt quán thành công!" : "Đã từ chối quán!";
             return ResponseEntity.ok(message);
         } catch (RuntimeException e) {
