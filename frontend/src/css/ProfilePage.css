@@ -77,6 +77,17 @@
     gap: 12px;
 }
 
+.profile-avatar-upload {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.profile-avatar-hint {
+    font-size: 12px;
+}
+
 .profile-header-info {
     display: flex;
     flex-direction: column;

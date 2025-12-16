@@ -1,0 +1,95 @@
+.issue-history-page {
+    padding: 24px 12px;
+    display: flex;
+    justify-content: center;
+}
+
+.issue-history-card {
+    width: 100%;
+    max-width: 1100px;
+    border-radius: 12px;
+}
+
+.issue-history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.issue-history-title {
+    margin: 0 !important;
+}
+
+.issue-history-toolbar {
+    margin-bottom: 12px;
+}
+
+.issue-link {
+    padding: 0 !important;
+}
+
+.issue-category-cell {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.issue-detail-body {
+    max-height: 70vh;
+    overflow: auto;
+    padding-right: 4px;
+}
+
+/* Scrollbar cho modal issue */
+.issue-detail-modal ::-webkit-scrollbar {
+    width: 6px;
+}
+
+.issue-detail-modal ::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.issue-detail-modal ::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.25);
+    border-radius: 6px;
+}
+
+.issue-detail-modal ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.4);
+}
+
+.issue-attachments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.issue-timeline {
+    margin-top: 8px;
+}
+
+.issue-timeline-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.issue-timeline-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.issue-timeline-change {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+    .issue-history-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
