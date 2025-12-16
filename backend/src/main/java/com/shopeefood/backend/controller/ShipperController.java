@@ -21,24 +21,24 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/shipper")
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174"})
+@CrossOrigin(origins = { "http://localhost:5173", "http://localhost:5174" })
 public class ShipperController {
 
     @Autowired
     private OrderRepository orderRepository;
-    
+
     @Autowired
     private ShipperRepository shipperRepository;
-    
+
     @Autowired
     private AccountRepository accountRepository;
-    
+
     @Autowired
     private OrderItemRepository orderItemRepository;
-    
+
     @PersistenceContext
     private EntityManager entityManager;
-    
+
     @Autowired
     private CustomerRepository customerRepository;
 
@@ -51,13 +51,14 @@ public class ShipperController {
     /**
      * Lấy danh sách đơn hàng có sẵn cho shipper
      * Chỉ hiển thị đơn đã được Owner duyệt (status = PREPARING) và chưa có shipper
-     * Flow: Customer đặt (PENDING) → Owner duyệt (PREPARING) → Shipper nhận (SHIPPING)
+     * Flow: Customer đặt (PENDING) → Owner duyệt (PREPARING) → Shipper nhận
+     * (SHIPPING)
      * GET: http://localhost:8080/api/shipper/orders/available
      */
     @GetMapping("/orders/available")
     public ResponseEntity<List<Map<String, Object>>> getAvailableOrders() {
         List<Order> orders = orderRepository.findAvailableOrders();
-        
+
         return ResponseEntity.ok(orders.stream().map(order -> {
             Map<String, Object> map = new HashMap<>();
             map.put("id", order.getId());
@@ -80,9 +81,9 @@ public class ShipperController {
         if (shipperRepository.findById(shipperId).orElse(null) == null) {
             return ResponseEntity.badRequest().build();
         }
-        
+
         List<Order> orders = orderRepository.findOrdersByShipperId(shipperId);
-        
+
         // Load tất cả Customer một lần để tránh N+1 problem
         List<Integer> customerIds = orders.stream()
                 .filter(o -> o.getCustomer() != null)
@@ -91,19 +92,19 @@ public class ShipperController {
                 .collect(Collectors.toList());
         Map<Integer, Customer> customerMap = customerRepository.findAllById(customerIds).stream()
                 .collect(Collectors.toMap(Customer::getAccountId, c -> c));
-        
+
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
-        
+
         return ResponseEntity.ok(orders.stream().map(order -> {
             Map<String, Object> map = new HashMap<>();
             map.put("id", order.getId());
             map.put("restaurantName", order.getRestaurant() != null ? order.getRestaurant().getName() : "N/A");
             map.put("shippingAddress", order.getShippingAddress());
-            
+
             // Lấy tọa độ: ưu tiên từ đơn hàng, nếu không có thì lấy từ Customer
             Double shippingLat = order.getShippingLat();
             Double shippingLong = order.getShippingLong();
-            
+
             // Nếu đơn hàng chưa có tọa độ, thử lấy từ Customer
             if ((shippingLat == null || shippingLong == null) && order.getCustomer() != null) {
                 Customer customer = customerMap.get(order.getCustomer().getId());
@@ -111,7 +112,7 @@ public class ShipperController {
                     if (customer.getLatitude() != null && customer.getLongitude() != null) {
                         shippingLat = customer.getLatitude();
                         shippingLong = customer.getLongitude();
-                        
+
                         // Tự động cập nhật tọa độ vào đơn hàng để lần sau không phải lấy lại
                         order.setShippingLat(shippingLat);
                         order.setShippingLong(shippingLong);
@@ -119,7 +120,7 @@ public class ShipperController {
                     }
                 }
             }
-            
+
             map.put("shippingLat", shippingLat);
             map.put("shippingLong", shippingLong);
             map.put("totalAmount", order.getTotalAmount());
@@ -130,11 +131,14 @@ public class ShipperController {
             map.put("deliveryStartedAt", order.getDeliveryStartedAt()); // Thời gian bắt đầu giao hàng
             map.put("completedAt", order.getCompletedAt());
             map.put("note", order.getNote());
-            map.put("estimatedDeliveryTimeMinutes", order.getEstimatedDeliveryTimeMinutes() != null ? order.getEstimatedDeliveryTimeMinutes() : 2);
-            
+            map.put("estimatedDeliveryTimeMinutes",
+                    order.getEstimatedDeliveryTimeMinutes() != null ? order.getEstimatedDeliveryTimeMinutes() : 2);
+
             // Tính toán quá hạn
             if (order.getShippedAt() != null) {
-                Integer estimatedMinutes = order.getEstimatedDeliveryTimeMinutes() != null ? order.getEstimatedDeliveryTimeMinutes() : 2;
+                Integer estimatedMinutes = order.getEstimatedDeliveryTimeMinutes() != null
+                        ? order.getEstimatedDeliveryTimeMinutes()
+                        : 2;
                 java.time.LocalDateTime estimatedCompletionTime = order.getShippedAt().plusMinutes(estimatedMinutes);
                 boolean isOverdue = false;
                 if ("SHIPPING".equals(order.getStatus())) {
@@ -150,13 +154,13 @@ public class ShipperController {
                 map.put("isOverdue", false);
                 map.put("estimatedCompletionTime", null);
             }
-            
+
             // Thông tin khách hàng
             if (order.getCustomer() != null) {
                 Customer customer = customerMap.get(order.getCustomer().getId());
-                map.put("customerName", customer != null && customer.getFullName() != null 
-                    ? customer.getFullName() 
-                    : order.getCustomer().getUsername());
+                map.put("customerName", customer != null && customer.getFullName() != null
+                        ? customer.getFullName()
+                        : order.getCustomer().getUsername());
                 map.put("customerUsername", order.getCustomer().getUsername());
             } else {
                 map.put("customerName", "N/A");
@@ -169,7 +173,8 @@ public class ShipperController {
     /**
      * Shipper nhận đơn hàng
      * Chỉ nhận được đơn đã được Owner duyệt (status = PREPARING)
-     * Flow: Customer đặt (PENDING) → Owner duyệt (PREPARING) → Shipper nhận (SHIPPING)
+     * Flow: Customer đặt (PENDING) → Owner duyệt (PREPARING) → Shipper nhận
+     * (SHIPPING)
      * POST: http://localhost:8080/api/shipper/orders/{orderId}/accept
      */
     @PostMapping("/orders/{orderId}/accept")
@@ -178,35 +183,36 @@ public class ShipperController {
         if (order == null) {
             return ResponseEntity.badRequest().body("Đơn hàng không tồn tại");
         }
-        
+
         if (order.getShipper() != null) {
             return ResponseEntity.badRequest().body("Đơn hàng đã được nhận bởi shipper khác");
         }
-        
+
         if (!order.getStatus().equals("PREPARING")) {
-            return ResponseEntity.badRequest().body("Đơn hàng chưa được Owner duyệt. Chỉ có thể nhận đơn ở trạng thái PREPARING");
+            return ResponseEntity.badRequest()
+                    .body("Đơn hàng chưa được Owner duyệt. Chỉ có thể nhận đơn ở trạng thái PREPARING");
         }
-        
+
         Shipper shipper = shipperRepository.findById(shipperId).orElse(null);
         if (shipper == null) {
             return ResponseEntity.badRequest().body("Shipper không tồn tại");
         }
-        
+
         if (!shipper.getStatus().equals("ONLINE")) {
             return ResponseEntity.badRequest().body("Shipper phải ở trạng thái ONLINE để nhận đơn");
         }
-        
+
         order.setShipper(shipper);
         order.setStatus("SHIPPING");
         // Set thời gian shipper nhận đơn (chưa bắt đầu giao)
         order.setShippedAt(java.time.LocalDateTime.now());
         // deliveryStartedAt sẽ được set khi shipper bắt đầu giao hàng
         orderRepository.save(order);
-        
+
         // Cập nhật shipper status thành BUSY
         shipper.setStatus("BUSY");
         shipperRepository.save(shipper);
-        
+
         return ResponseEntity.ok("Nhận đơn hàng thành công!");
     }
 
@@ -221,20 +227,20 @@ public class ShipperController {
         if (order == null) {
             return ResponseEntity.badRequest().body("Đơn hàng không tồn tại");
         }
-        
+
         // Kiểm tra shipper có quyền với đơn này không
         if (order.getShipper() == null || !order.getShipper().getAccountId().equals(shipperId)) {
             return ResponseEntity.badRequest().body("Bạn không có quyền với đơn hàng này");
         }
-        
+
         if (!order.getStatus().equals("SHIPPING")) {
             return ResponseEntity.badRequest().body("Chỉ có thể bắt đầu giao hàng với đơn ở trạng thái SHIPPING");
         }
-        
+
         // Set thời gian bắt đầu giao hàng
         order.setDeliveryStartedAt(java.time.LocalDateTime.now());
         orderRepository.save(order);
-        
+
         return ResponseEntity.ok("Đã bắt đầu giao hàng!");
     }
 
@@ -250,23 +256,24 @@ public class ShipperController {
         if (order == null) {
             return ResponseEntity.badRequest().body("Đơn hàng không tồn tại");
         }
-        
+
         if (!status.equals("SHIPPING") && !status.equals("COMPLETED") && !status.equals("CANCELLED")) {
             return ResponseEntity.badRequest().body("Trạng thái không hợp lệ");
         }
-        
+
         // Kiểm tra: Chỉ cho phép hoàn thành đơn hàng nếu đã bắt đầu giao hàng
         if (status.equals("COMPLETED")) {
             if (order.getDeliveryStartedAt() == null) {
-                return ResponseEntity.badRequest().body("Không thể hoàn thành đơn hàng. Vui lòng bắt đầu giao hàng trước!");
+                return ResponseEntity.badRequest()
+                        .body("Không thể hoàn thành đơn hàng. Vui lòng bắt đầu giao hàng trước!");
             }
             order.setCompletedAt(java.time.LocalDateTime.now());
         }
-        
+
         order.setStatus(status);
-        
+
         orderRepository.save(order);
-        
+
         // Nếu đơn hàng hoàn thành hoặc hủy, cập nhật shipper status về ONLINE
         if (status.equals("COMPLETED") || status.equals("CANCELLED")) {
             if (order.getShipper() != null) {
@@ -275,7 +282,7 @@ public class ShipperController {
                 shipperRepository.save(shipper);
             }
         }
-        
+
         return ResponseEntity.ok("Cập nhật trạng thái đơn hàng thành công!");
     }
 
@@ -289,7 +296,7 @@ public class ShipperController {
         if (shipper == null) {
             return ResponseEntity.notFound().build();
         }
-        
+
         Map<String, Object> result = new HashMap<>();
         result.put("accountId", shipper.getAccountId());
         result.put("fullName", shipper.getFullName());
@@ -303,7 +310,7 @@ public class ShipperController {
             result.put("email", shipper.getAccount().getEmail());
             result.put("phone", shipper.getAccount().getPhone());
         }
-        
+
         return ResponseEntity.ok(result);
     }
 
@@ -320,7 +327,7 @@ public class ShipperController {
         if (shipper == null) {
             return ResponseEntity.badRequest().body("Shipper không tồn tại");
         }
-        
+
         // Cập nhật thông tin Shipper
         if (updates.containsKey("fullName")) {
             shipper.setFullName((String) updates.get("fullName"));
@@ -340,7 +347,7 @@ public class ShipperController {
         if (updates.containsKey("currentLong")) {
             shipper.setCurrentLong(((Number) updates.get("currentLong")).doubleValue());
         }
-        
+
         // Cập nhật thông tin Account (email, phone)
         Account account = shipper.getAccount();
         if (account != null) {
@@ -355,15 +362,15 @@ public class ShipperController {
                     account.setEmail(newEmail);
                 }
             }
-            
+
             // Cập nhật số điện thoại
             if (updates.containsKey("phone")) {
                 account.setPhone((String) updates.get("phone"));
             }
-            
+
             accountRepository.save(account);
         }
-        
+
         shipperRepository.save(shipper);
         return ResponseEntity.ok("Cập nhật thông tin thành công!");
     }
@@ -389,7 +396,7 @@ public class ShipperController {
 
             // Upload ảnh lên Cloudinary
             String imageUrl = cloudinaryService.uploadImage(file);
-            
+
             // Lưu URL ảnh vào database
             shipper.setAvatar(imageUrl);
             shipperRepository.save(shipper);
@@ -457,7 +464,7 @@ public class ShipperController {
             @RequestParam Integer shipperId,
             @RequestParam String status) {
         Shipper shipper = shipperRepository.findById(shipperId).orElse(null);
-        
+
         // Nếu chưa có Shipper, tự động tạo mới
         if (shipper == null) {
             // Kiểm tra xem account có tồn tại và có role SHIPPER không
@@ -468,36 +475,38 @@ public class ShipperController {
             if (!"SHIPPER".equals(account.getRole())) {
                 return ResponseEntity.badRequest().body("Tài khoản này không phải là Shipper");
             }
-            
+
             // Đảm bảo account có ID
             if (account.getId() == null) {
                 return ResponseEntity.badRequest().body("Tài khoản không hợp lệ");
             }
-            
+
             // Kiểm tra trạng thái hợp lệ
             if (!status.equals("ONLINE") && !status.equals("OFFLINE") && !status.equals("BUSY")) {
                 return ResponseEntity.badRequest().body("Trạng thái không hợp lệ");
             }
-            
+
             // Tạo Shipper mới
             shipper = new Shipper();
-            // Với @MapsId, chỉ cần set account object, Hibernate sẽ tự động lấy account.getId() làm accountId
+            // Với @MapsId, chỉ cần set account object, Hibernate sẽ tự động lấy
+            // account.getId() làm accountId
             shipper.setAccount(account);
             shipper.setFullName(account.getUsername()); // Dùng username làm tên mặc định
             shipper.setStatus(status); // Set status từ request
-            
-            // Dùng persist cho entity mới thay vì save (save sẽ merge và gây lỗi với @MapsId)
+
+            // Dùng persist cho entity mới thay vì save (save sẽ merge và gây lỗi với
+            // @MapsId)
             entityManager.persist(shipper);
             entityManager.flush(); // Đảm bảo persist được thực thi ngay
-            
+
             return ResponseEntity.ok("Cập nhật trạng thái thành công!");
         }
-        
+
         // Nếu đã có shipper, chỉ cập nhật status
         if (!status.equals("ONLINE") && !status.equals("OFFLINE") && !status.equals("BUSY")) {
             return ResponseEntity.badRequest().body("Trạng thái không hợp lệ");
         }
-        
+
         // Đảm bảo account được load đúng cách (tránh lỗi null identifier với @MapsId)
         if (shipper.getAccount() == null) {
             Account account = accountRepository.findById(shipperId).orElse(null);
@@ -506,12 +515,12 @@ public class ShipperController {
             }
             shipper.setAccount(account);
         }
-        
+
         shipper.setStatus(status);
         // Dùng merge để đảm bảo entity được quản lý đúng cách
         entityManager.merge(shipper);
         entityManager.flush();
-        
+
         return ResponseEntity.ok("Cập nhật trạng thái thành công!");
     }
 
@@ -528,17 +537,17 @@ public class ShipperController {
         if (order == null) {
             return ResponseEntity.badRequest().body("Đơn hàng không tồn tại");
         }
-        
+
         // Kiểm tra quyền: chỉ shipper sở hữu đơn mới được sửa
         if (order.getShipper() == null || !order.getShipper().getAccountId().equals(shipperId)) {
             return ResponseEntity.status(403).body("Bạn không có quyền sửa đơn hàng này");
         }
-        
+
         // Chỉ cho phép sửa đơn đã COMPLETED hoặc CANCELLED
         if (!order.getStatus().equals("COMPLETED") && !order.getStatus().equals("CANCELLED")) {
             return ResponseEntity.badRequest().body("Chỉ có thể sửa đơn hàng đã hoàn thành hoặc đã hủy");
         }
-        
+
         // Cập nhật các trường có thể sửa
         if (updates.containsKey("note")) {
             order.setNote((String) updates.get("note"));
@@ -552,7 +561,7 @@ public class ShipperController {
         if (updates.containsKey("shippingLong")) {
             order.setShippingLong(((Number) updates.get("shippingLong")).doubleValue());
         }
-        
+
         orderRepository.save(order);
         return ResponseEntity.ok("Sửa đơn hàng thành công!");
     }
@@ -569,20 +578,20 @@ public class ShipperController {
         if (order == null) {
             return ResponseEntity.badRequest().body("Đơn hàng không tồn tại");
         }
-        
+
         // Kiểm tra quyền: chỉ shipper sở hữu đơn mới được xóa
         if (order.getShipper() == null || !order.getShipper().getAccountId().equals(shipperId)) {
             return ResponseEntity.status(403).body("Bạn không có quyền xóa đơn hàng này");
         }
-        
+
         // Chỉ cho phép xóa đơn đã COMPLETED hoặc CANCELLED
         if (!order.getStatus().equals("COMPLETED") && !order.getStatus().equals("CANCELLED")) {
             return ResponseEntity.badRequest().body("Chỉ có thể xóa đơn hàng đã hoàn thành hoặc đã hủy");
         }
-        
+
         // Xóa đơn hàng (cascade sẽ tự động xóa OrderItem)
         orderRepository.delete(order);
-        
+
         return ResponseEntity.ok("Xóa đơn hàng thành công!");
     }
 
@@ -598,14 +607,14 @@ public class ShipperController {
         if (order == null) {
             return ResponseEntity.badRequest().body("Đơn hàng không tồn tại");
         }
-        
+
         // Kiểm tra quyền: chỉ shipper sở hữu đơn mới được xem
         if (order.getShipper() == null || !order.getShipper().getAccountId().equals(shipperId)) {
             return ResponseEntity.status(403).body("Bạn không có quyền xem đơn hàng này");
         }
-        
+
         Map<String, Object> result = new HashMap<>();
-        
+
         // Thông tin đơn hàng
         result.put("id", order.getId());
         result.put("status", order.getStatus());
@@ -621,13 +630,16 @@ public class ShipperController {
         result.put("restaurantAcceptedAt", order.getRestaurantAcceptedAt());
         result.put("shippedAt", order.getShippedAt());
         result.put("completedAt", order.getCompletedAt());
-        result.put("estimatedDeliveryTimeMinutes", order.getEstimatedDeliveryTimeMinutes() != null ? order.getEstimatedDeliveryTimeMinutes() : 2);
-        
+        result.put("estimatedDeliveryTimeMinutes",
+                order.getEstimatedDeliveryTimeMinutes() != null ? order.getEstimatedDeliveryTimeMinutes() : 2);
+
         // Tính toán xem đơn hàng có quá hạn không
         if (order.getShippedAt() != null) {
-            Integer estimatedMinutes = order.getEstimatedDeliveryTimeMinutes() != null ? order.getEstimatedDeliveryTimeMinutes() : 2;
+            Integer estimatedMinutes = order.getEstimatedDeliveryTimeMinutes() != null
+                    ? order.getEstimatedDeliveryTimeMinutes()
+                    : 2;
             java.time.LocalDateTime estimatedCompletionTime = order.getShippedAt().plusMinutes(estimatedMinutes);
-            
+
             boolean isOverdue = false;
             if (order.getStatus().equals("SHIPPING")) {
                 java.time.LocalDateTime now = java.time.LocalDateTime.now();
@@ -638,14 +650,14 @@ public class ShipperController {
                 java.time.LocalDateTime now = java.time.LocalDateTime.now();
                 isOverdue = now.isAfter(estimatedCompletionTime);
             }
-            
+
             result.put("isOverdue", isOverdue);
             result.put("estimatedCompletionTime", estimatedCompletionTime);
         } else {
             result.put("isOverdue", false);
             result.put("estimatedCompletionTime", null);
         }
-        
+
         // Thông tin nhà hàng
         if (order.getRestaurant() != null) {
             Map<String, Object> restaurant = new HashMap<>();
@@ -659,7 +671,7 @@ public class ShipperController {
             restaurant.put("long", null);
             result.put("restaurant", restaurant);
         }
-        
+
         // Thông tin khách hàng
         if (order.getCustomer() != null) {
             Map<String, Object> customer = new HashMap<>();
@@ -669,7 +681,7 @@ public class ShipperController {
             customer.put("phone", order.getCustomer().getPhone());
             result.put("customer", customer);
         }
-        
+
         // Chi tiết món ăn (OrderItems)
         if (order.getOrderItems() != null) {
             List<Map<String, Object>> items = order.getOrderItems().stream().map(item -> {
@@ -689,10 +701,43 @@ public class ShipperController {
             }).collect(Collectors.toList());
             result.put("orderItems", items);
         }
-        
+
         return ResponseEntity.ok(result);
     }
+
+    @GetMapping("/public/{id}")
+    public ResponseEntity<?> getShipperPublicInfo(@PathVariable Integer id) {
+        try {
+            // 1. Kiểm tra xem Shipper có tồn tại không
+            var shipperOpt = shipperRepository.findById(id);
+            if (shipperOpt.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Shipper shipper = shipperOpt.get();
+
+            // 2. Tạo Map để trả về dữ liệu (Tránh trả về Entity trực tiếp gây lỗi)
+            Map<String, Object> response = new HashMap<>();
+            response.put("id", shipper.getAccountId());
+            response.put("fullName", shipper.getFullName());
+            response.put("licensePlate", shipper.getLicensePlate());
+            response.put("vehicleType", shipper.getVehicleType());
+            response.put("currentLat", shipper.getCurrentLat());
+            response.put("currentLong", shipper.getCurrentLong());
+            response.put("avatar", shipper.getAvatar());
+
+            // Lấy SĐT an toàn từ Account
+            if (shipper.getAccount() != null) {
+                response.put("phone", shipper.getAccount().getPhone());
+            } else {
+                response.put("phone", "N/A");
+            }
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            e.printStackTrace(); // In lỗi ra console server để dễ debug
+            return ResponseEntity.internalServerError().body("Lỗi Server: " + e.getMessage());
+        }
+    }
 }
-
-
-

@@ -64,6 +64,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/admin/map/**").permitAll()
+                        .requestMatchers("/api/shipper/public/**").permitAll()
                         .anyRequest().permitAll());
         return http.build();
     }
