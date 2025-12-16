@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal } from 'antd';
+import { Modal, Input } from 'antd';
 import {
     MapContainer,
     TileLayer,
@@ -50,7 +50,8 @@ const MapController = ({ centerPosition, isModalOpen }) => {
             isValidCoordinate(centerPosition[0], centerPosition[1])
         ) {
             try {
-                map.flyTo(centerPosition, 16, {
+                const currentZoom = map.getZoom();
+                map.flyTo(centerPosition, currentZoom, {
                     animate: true,
                     duration: 1.5,
                 });
@@ -63,12 +64,50 @@ const MapController = ({ centerPosition, isModalOpen }) => {
     return null;
 };
 
-const LocationMarker = ({ position, setPosition }) => {
+const MapBoundsListener = ({ onBoundsChange }) => {
+    const map = useMap();
+
+    useEffect(() => {
+        const update = () => {
+            const b = map.getBounds();
+            onBoundsChange({
+                west: b.getWest(),
+                north: b.getNorth(),
+                east: b.getEast(),
+                south: b.getSouth(),
+            });
+        };
+
+        update();
+        map.on('moveend', update);
+        return () => map.off('moveend', update);
+    }, [map, onBoundsChange]);
+
+    return null;
+};
+
+const ZoomControl = ({ position = 'bottomright' }) => {
+    const map = useMap();
+
+    useEffect(() => {
+        const zoom = L.control.zoom({ position });
+        zoom.addTo(map);
+        return () => {
+            zoom.remove();
+        };
+    }, [map, position]);
+
+    return null;
+};
+
+const LocationMarker = ({ position, setPosition, setMapCenter }) => {
     useMapEvents({
         click(e) {
             const { lat, lng } = e.latlng;
             if (isValidCoordinate(lat, lng)) {
-                setPosition([lat, lng]);
+                const newPos = [lat, lng];
+                setPosition(newPos);
+                setMapCenter(newPos);
             }
         },
     });
@@ -83,7 +122,9 @@ const LocationMarker = ({ position, setPosition }) => {
                 dragend: (e) => {
                     const { lat, lng } = e.target.getLatLng();
                     if (isValidCoordinate(lat, lng)) {
-                        setPosition([lat, lng]);
+                        const newPos = [lat, lng];
+                        setPosition(newPos);
+                        setMapCenter(newPos);
                     }
                 },
             }}
@@ -138,9 +179,15 @@ const MapModal = ({
     const [position, setPosition] = useState(DEFAULT_POS);
     const [mapCenter, setMapCenter] = useState(DEFAULT_POS);
     const hasCenteredRef = useRef(false);
+    const [searchText, setSearchText] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const searchTimerRef = useRef(null);
+    const [mapBounds, setMapBounds] = useState(null);
 
     useEffect(() => {
         if (isOpen) {
+            setSearchText('');
+            setSearchResults([]);
             hasCenteredRef.current = false;
 
             // Set vị trí ban đầu theo initialPosition hoặc geolocation
@@ -174,6 +221,170 @@ const MapModal = ({
         }
     }, [location, isOpen, initialPosition]);
 
+    useEffect(() => {
+        return () => {
+            if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+        };
+    }, []);
+
+    const normalizeResults = (items) => {
+        const out = (items || [])
+            .filter((x) => isValidCoordinate(x.lat, x.lon))
+            .slice(0, 6);
+        return out;
+    };
+
+    const searchPhoton = async (query) => {
+        const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=6&lang=vi`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        const features = data?.features || [];
+        const mapped = features.map((f) => {
+            const p = f?.properties || {};
+            const coords = f?.geometry?.coordinates; // [lon, lat]
+            const lon = Number(coords?.[0]);
+            const lat = Number(coords?.[1]);
+
+            const nameParts = [
+                p.name,
+                p.housenumber,
+                p.street,
+                p.district,
+                p.city,
+                p.state,
+                p.country,
+            ].filter(Boolean);
+
+            return {
+                place_id: p.osm_id ? `photon_${p.osm_id}` : `photon_${Math.random()}`,
+                display_name: nameParts.join(', ') || p.name || 'Unknown',
+                lat,
+                lon,
+            };
+        });
+
+        return normalizeResults(mapped);
+    };
+
+    const searchNominatimBounded = async (query) => {
+        if (!mapBounds) return [];
+
+        const { west, north, east, south } = mapBounds;
+
+        const url =
+            `https://nominatim.openstreetmap.org/search?format=jsonv2` +
+            `&q=${encodeURIComponent(query)}` +
+            `&limit=6` +
+            `&countrycodes=vn` +
+            `&accept-language=vi` +
+            `&addressdetails=1` +
+            `&viewbox=${west},${north},${east},${south}` +
+            `&bounded=1`;
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        const mapped = (Array.isArray(data) ? data : []).map((r) => ({
+            place_id: r.place_id,
+            display_name: r.display_name,
+            lat: Number(r.lat),
+            lon: Number(r.lon),
+        }));
+
+        return normalizeResults(mapped);
+    };
+
+    const searchNominatimGlobal = async (query) => {
+        const url =
+            `https://nominatim.openstreetmap.org/search?format=jsonv2` +
+            `&q=${encodeURIComponent(query)}` +
+            `&limit=6` +
+            `&countrycodes=vn` +
+            `&accept-language=vi` +
+            `&addressdetails=1`;
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        const mapped = (Array.isArray(data) ? data : []).map((r) => ({
+            place_id: r.place_id,
+            display_name: r.display_name,
+            lat: Number(r.lat),
+            lon: Number(r.lon),
+        }));
+
+        return normalizeResults(mapped);
+    };
+
+    const doSearch = async (q) => {
+        const query = (q || '').trim();
+        if (!query) {
+            setSearchResults([]);
+            return;
+        }
+
+        // gợi ý: bias Việt Nam để tăng độ đúng
+        const qVN = query.toLowerCase().includes('việt nam') ? query : `${query}, Việt Nam`;
+
+        try {
+            // 1) Photon
+            let results = await searchPhoton(qVN);
+
+            // 2) Nominatim bounded theo bounds hiện tại
+            if (!results || results.length < 3) {
+                const bounded = await searchNominatimBounded(qVN);
+                results = [...(results || []), ...(bounded || [])];
+            }
+
+            // 3) Nominatim global fallback
+            if (!results || results.length < 3) {
+                const global = await searchNominatimGlobal(qVN);
+                results = [...(results || []), ...(global || [])];
+            }
+
+            // dedupe + limit 6
+            const seen = new Set();
+            const final = [];
+            for (const r of results) {
+                if (final.length >= 6) break;
+                const key = (r.display_name || '').toLowerCase();
+                if (!key || seen.has(key)) continue;
+                seen.add(key);
+                final.push(r);
+            }
+
+            setSearchResults(final);
+        } catch (err) {
+            console.error('Search location error:', err);
+            setSearchResults([]);
+        }
+    };
+
+    const onSearchChange = (e) => {
+        const val = e.target.value;
+        setSearchText(val);
+
+        // debounce để tránh spam API
+        if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+        searchTimerRef.current = setTimeout(() => {
+            doSearch(val);
+        }, 400);
+    };
+
+    const handleSelectResult = (r) => {
+        const lat = Number(r?.lat);
+        const lng = Number(r?.lon);
+        if (!isValidCoordinate(lat, lng)) return;
+
+        const newPos = [lat, lng];
+        setPosition(newPos);
+        setMapCenter(newPos);
+
+        setSearchText(r.display_name || '');
+        setSearchResults([]);
+    };
+
     const handleOk = () => {
         let resultPos = position;
 
@@ -201,17 +412,65 @@ const MapModal = ({
             centered
             maskClosable={true}
         >
-            <div style={{ height: '400px', width: '100%' }}>
+            <div style={{ height: '400px', width: '100%', position: 'relative' }}>
+                {/* Search overlay */}
+                <div
+                    style={{
+                        position: 'absolute',
+                        top: 12,
+                        left: 12,
+                        right: 12,
+                        zIndex: 999,
+                    }}
+                >
+                    <Input
+                        value={searchText}
+                        onChange={onSearchChange}
+                        placeholder="Tìm vị trí (gõ tên đường/phường/quận...)"
+                        allowClear
+                    />
+
+                    {searchResults.length > 0 && (
+                        <div
+                            style={{
+                                marginTop: 6,
+                                background: '#fff',
+                                border: '1px solid #eee',
+                                borderRadius: 8,
+                                maxHeight: 220,
+                                overflow: 'auto',
+                                boxShadow: '0 6px 18px rgba(0,0,0,0.08)',
+                            }}
+                        >
+                            {searchResults.map((r) => (
+                                <div
+                                    key={r.place_id}
+                                    onClick={() => handleSelectResult(r)}
+                                    style={{
+                                        padding: '10px 12px',
+                                        cursor: 'pointer',
+                                        borderBottom: '1px solid #f2f2f2',
+                                    }}
+                                >
+                                    {r.display_name}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
                 {isOpen && (
                     <MapContainer
                         center={mapCenter}
                         zoom={13}
+                        zoomControl={false}
                         style={{ height: '100%', width: '100%' }}
                     >
                         <TileLayer
                             attribution="&copy; OpenStreetMap contributors"
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                         />
+                        <ZoomControl position="bottomright" />
+                        <MapBoundsListener onBoundsChange={setMapBounds} />
                         <MapController
                             centerPosition={mapCenter}
                             isModalOpen={isOpen}
@@ -219,6 +478,7 @@ const MapModal = ({
                         <LocationMarker
                             position={position}
                             setPosition={setPosition}
+                            setMapCenter={setMapCenter}
                         />
                     </MapContainer>
                 )}

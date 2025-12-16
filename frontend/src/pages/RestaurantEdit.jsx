@@ -1,8 +1,8 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom'; // Thêm useParams để lấy ID từ URL
+import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
-import '../css/RestaurantRegistration.css'; // Dùng chung CSS với trang đăng ký
+import '../css/RestaurantRegistration.css';
 import {
   Form,
   Input,
@@ -13,6 +13,7 @@ import {
   Col,
   Divider,
   Skeleton,
+  Modal,
 } from 'antd';
 import {
   UserOutlined,
@@ -23,7 +24,7 @@ import {
   PlusOutlined,
   LoadingOutlined,
   DeleteOutlined,
-  SaveOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import MapModal from '../components/MapModal';
 import { motion } from 'framer-motion';
@@ -34,15 +35,16 @@ const RestaurantEdit = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
-
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [coordinates, setCoordinates] = useState(null);
-
-  // State quản lý ảnh
+  const [coverFileList, setCoverFileList] = useState([]);
+  const [licenseFileList, setLicenseFileList] = useState([]);
   const [fileList, setFileList] = useState([]);
   const [previewImage, setPreviewImage] = useState('');
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewTitle, setPreviewTitle] = useState('');
 
   const [form] = Form.useForm();
 
@@ -55,15 +57,12 @@ const RestaurantEdit = () => {
         );
         const data = res.data;
 
-        // Check quyền: Nếu user hiện tại không phải chủ quán (kiểm tra accountId) -> đá ra
-        // (Bạn nên check thêm ở Backend, đây là check nhanh ở FE)
         if (data.owner && data.owner.accountId !== user.id) {
           message.error('Bạn không có quyền sửa quán này!');
           navigate('/my-registrations');
           return;
         }
 
-        // Fill dữ liệu vào Form
         form.setFieldsValue({
           restaurantName: data.name,
           address: data.address,
@@ -73,7 +72,6 @@ const RestaurantEdit = () => {
           idCardNumber: data.owner?.idCardNumber,
         });
 
-        // Set tọa độ cũ
         if (data.latitude && data.longitude) {
           setCoordinates({
             latitude: data.latitude,
@@ -81,17 +79,27 @@ const RestaurantEdit = () => {
           });
         }
 
-        // Set ảnh cũ vào FileList để hiển thị
         if (data.coverImage) {
-          setFileList([
-            {
-              uid: '-1',
-              name: 'existing-image.png',
-              status: 'done',
-              url: data.coverImage, // Quan trọng: URL ảnh cũ
-            },
-          ]);
-          setPreviewImage(data.coverImage);
+          const cover = {
+            uid: '-1',
+            name: 'cover.png',
+            status: 'done',
+            url: data.coverImage,
+          };
+          setCoverFileList([cover]);
+          form.setFieldsValue({ coverImage: [cover] });
+        }
+
+        if (data.licenseImage) {
+          const urls = data.licenseImage.split(',');
+          const licenses = urls.map((url, index) => ({
+            uid: `lic-${index}`,
+            name: `license-${index + 1}.png`,
+            status: 'done',
+            url: url,
+          }));
+          setLicenseFileList(licenses);
+          form.setFieldsValue({ licenseImages: licenses });
         }
       } catch (err) {
         message.error('Không thể tải thông tin quán!');
@@ -106,20 +114,29 @@ const RestaurantEdit = () => {
     }
   }, [id, user, form, navigate]);
 
+  const handleCancelPreview = () => setPreviewOpen(false);
+
   const handlePreview = async (file) => {
     if (!file.url && !file.preview) {
       file.preview = await getBase64(file.originFileObj);
     }
     setPreviewImage(file.url || file.preview);
+    setPreviewOpen(true);
+    setPreviewTitle(
+      file.name || file.url.substring(file.url.lastIndexOf('/') + 1)
+    );
   };
 
-  const handleRemoveImage = (e) => {
+  const handleRemoveCoverImage = (e) => {
     e.stopPropagation();
-    setFileList([]);
+    setCoverFileList([]);
     setPreviewImage('');
+    form.setFieldsValue({ coverImage: [] });
   };
 
-  const handleChange = ({ fileList: newFileList }) => setFileList(newFileList);
+  const handleChangeCover = ({ fileList }) => setCoverFileList(fileList);
+  const handleChangeLicense = ({ fileList }) => setLicenseFileList(fileList);
+  const normFile = (e) => (Array.isArray(e) ? e : e?.fileList);
 
   const beforeUpload = (file) => {
     const isJpgOrPng = file.type === 'image/jpeg' || file.type === 'image/png';
@@ -127,7 +144,7 @@ const RestaurantEdit = () => {
       message.error('Bạn chỉ có thể upload file JPG/PNG!');
       return Upload.LIST_IGNORE;
     }
-    return false; // Return false để không auto upload
+    return false;
   };
 
   const getBase64 = (file) =>
@@ -142,42 +159,51 @@ const RestaurantEdit = () => {
     const [lat, lng] = coords;
     setCoordinates({ latitude: lat, longitude: lng });
     setIsMapOpen(false);
-    // ... (Logic reverse geocoding giữ nguyên nếu muốn)
     form.setFieldsValue({
       address: `Đã chọn vị trí mới (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
     });
+  };
+
+  const handleRemoveLicenseImage = (file) => {
+    const newFileList = licenseFileList.filter((item) => item.uid !== file.uid);
+    setLicenseFileList(newFileList);
   };
 
   // 2. XỬ LÝ LƯU (UPDATE)
   const onFinish = async (values) => {
     setLoading(true);
     try {
-      if (fileList.length === 0) {
-        message.error('Vui lòng chọn ảnh đại diện!');
-        setLoading(false);
-        return;
-      }
-
-      let finalImageUrl = '';
-
-      // TRƯỜNG HỢP 1: Người dùng giữ nguyên ảnh cũ (có thuộc tính url)
-      if (fileList[0].url) {
-        finalImageUrl = fileList[0].url;
-      }
-      // TRƯỜNG HỢP 2: Người dùng upload ảnh mới (có originFileObj)
-      else if (fileList[0].originFileObj) {
-        const uploadData = new FormData();
-        uploadData.append('file', fileList[0].originFileObj);
-
-        const uploadRes = await axios.post(
-          'http://localhost:8080/api/upload/image', // API upload của bạn
-          uploadData,
-          { headers: { 'Content-Type': 'multipart/form-data' } }
+      // 1. Xử lý Cover Image
+      let finalCoverUrl = '';
+      const coverFile = values.coverImage[0];
+      if (coverFile.url) {
+        finalCoverUrl = coverFile.url;
+      } else {
+        const formData = new FormData();
+        formData.append('file', coverFile.originFileObj);
+        const res = await axios.post(
+          'http://localhost:8080/api/upload/image',
+          formData
         );
-        finalImageUrl = uploadRes.data;
+        finalCoverUrl = res.data;
       }
 
-      // Chuẩn bị data gửi đi (cấu trúc tùy thuộc Backend DTO)
+      // 2. Xử lý License Images
+      const finalLicenseUrls = [];
+      for (const file of values.licenseImages) {
+        if (file.url) {
+          finalLicenseUrls.push(file.url);
+        } else {
+          const formData = new FormData();
+          formData.append('file', file.originFileObj);
+          const res = await axios.post(
+            'http://localhost:8080/api/upload/image',
+            formData
+          );
+          finalLicenseUrls.push(res.data);
+        }
+      }
+
       const updateData = {
         restaurantName: values.restaurantName,
         address: values.address,
@@ -185,8 +211,8 @@ const RestaurantEdit = () => {
         description: values.description,
         ownerFullName: values.ownerFullName,
         idCardNumber: values.idCardNumber,
-        coverImageUrl: finalImageUrl,
-        // Tọa độ mới hoặc cũ
+        coverImageUrl: finalCoverUrl,
+        licenseImages: finalLicenseUrls,
         latitude: coordinates?.latitude,
         longitude: coordinates?.longitude,
       };
@@ -212,6 +238,13 @@ const RestaurantEdit = () => {
     }
   };
 
+  const uploadButton = (label) => (
+    <div>
+      <PlusOutlined className="upload-icon" />
+      <div className="upload-text">{label}</div>
+    </div>
+  );
+
   if (fetching)
     return (
       <div style={{ padding: 50, textAlign: 'center' }}>
@@ -233,7 +266,6 @@ const RestaurantEdit = () => {
             background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
           }}
         >
-          {/* Header màu xanh dương để phân biệt trang Edit */}
           <h2>Cập nhật thông tin Quán</h2>
           <p>Chỉnh sửa thông tin - Quán sẽ cần được duyệt lại</p>
         </div>
@@ -243,6 +275,15 @@ const RestaurantEdit = () => {
           onClose={() => setIsMapOpen(false)}
           onConfirm={handleMapConfirm}
         />
+
+        <Modal
+          open={previewOpen}
+          title={previewTitle}
+          footer={null}
+          onCancel={handleCancelPreview}
+        >
+          <img alt="preview" style={{ width: '100%' }} src={previewImage} />
+        </Modal>
 
         <div className="modern-body">
           <Form form={form} layout="vertical" onFinish={onFinish} size="large">
@@ -260,14 +301,14 @@ const RestaurantEdit = () => {
                 </Form.Item>
                 <Form.Item
                   name="idCardNumber"
-                  label="CCCD"
+                  label="Số CCCD / CMND"
                   rules={[{ required: true }]}
                 >
                   <Input prefix={<IdcardOutlined />} />
                 </Form.Item>
                 <Form.Item
                   name="phone"
-                  label="SĐT"
+                  label="Số điện thoại"
                   rules={[{ required: true }]}
                 >
                   <Input prefix={<PhoneOutlined />} />
@@ -302,72 +343,155 @@ const RestaurantEdit = () => {
               </Col>
             </Row>
 
-            <Divider
-              orientation="left"
-              style={{
-                borderColor: '#ffe6de',
-                color: '#ff6b35',
-                fontSize: '14px',
-              }}
-            >
-              HÌNH ẢNH ĐẠI DIỆN
+            <Divider style={{ color: '#1890ff', borderColor: '#91d5ff' }}>
+              HÌNH ẢNH & GIẤY PHÉP
             </Divider>
-            <Row justify="center">
-              <Col span={24}>
-                <Form.Item style={{ textAlign: 'center' }}>
+            <Row gutter={40}>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="coverImage"
+                  label="Ảnh đại diện"
+                  valuePropName="fileList"
+                  getValueFromEvent={normFile}
+                  rules={[
+                    { required: true, message: 'Vui lòng chọn ảnh đại diện! ' },
+                  ]}
+                >
                   <Upload
                     listType="picture-card"
                     className="avatar-uploader"
+                    fileList={coverFileList}
                     showUploadList={false}
-                    onChange={handleChange}
+                    beforeUpload={beforeUpload}
+                    onChange={handleChangeCover}
                     maxCount={1}
-                    style={{ width: '100%', height: '400px' }}
                   >
-                    {fileList.length > 0 ? (
-                      <div
-                        style={{
-                          position: 'relative',
-                          width: '100%',
-                          height: '100%',
-                        }}
-                      >
+                    {coverFileList.length > 0 ? (
+                      <div className="custom-upload-item">
                         <img
-                          src={previewImage || fileList[0].url}
+                          src={(() => {
+                            const file = coverFileList[0];
+                            if (file.url) return file.url;
+                            if (file.originFileObj)
+                              return URL.createObjectURL(file.originFileObj);
+                            if (file instanceof File)
+                              return URL.createObjectURL(file);
+                            return '';
+                          })()}
                           alt="avatar"
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                            borderRadius: '16px',
-                          }}
                         />
-                        <Button
-                          type="primary"
-                          danger
-                          shape="circle"
-                          icon={<DeleteOutlined />}
-                          size="small"
-                          onClick={handleRemoveImage}
-                          style={{ position: 'absolute', top: 10, right: 10 }}
-                        />
+                        <div className="custom-upload-mask">
+                          <EyeOutlined
+                            className="mask-icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePreview(coverFileList[0]);
+                            }}
+                          />
+                          <DeleteOutlined
+                            className="mask-icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveCoverImage(e);
+                            }}
+                          />
+                        </div>
                       </div>
                     ) : (
-                      <div>
-                        <PlusOutlined /> <div>Thay đổi ảnh</div>
-                      </div>
+                      uploadButton('Thêm ảnh')
                     )}
                   </Upload>
                 </Form.Item>
               </Col>
+
+              <Col xs={24} md={12}>
+                <Form.Item label="Giấy phép kinh doanh" required>
+                  <div className="license-list-container">
+                    {/* Render ảnh cũ + mới */}
+                    {licenseFileList.map((file) => {
+                      // Logic lấy URL an toàn
+                      let src = '';
+                      if (file.url) {
+                        src = file.url; // Trường hợp ảnh cũ (Edit) hoặc đã có link
+                      } else if (file.originFileObj) {
+                        src = URL.createObjectURL(file.originFileObj); // Trường hợp Antd Upload File
+                      } else if (file instanceof File) {
+                        src = URL.createObjectURL(file); // [QUAN TRỌNG] Trường hợp File object thuần (do beforeUpload trả về false)
+                      }
+
+                      return (
+                        <div className="custom-upload-item" key={file.uid}>
+                          <img
+                            src={src}
+                            alt="license"
+                            onLoad={() => {
+                              // Giải phóng bộ nhớ nếu là blob URL
+                              if (src.startsWith('blob:'))
+                                URL.revokeObjectURL(src);
+                            }}
+                          />
+                          <div className="custom-upload-mask">
+                            <EyeOutlined
+                              className="mask-icon"
+                              onClick={() => handlePreview(file)}
+                            />
+                            <DeleteOutlined
+                              className="mask-icon"
+                              onClick={() => handleRemoveLicenseImage(file)}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Nút Upload */}
+                    {licenseFileList.length < 5 && (
+                      <Form.Item
+                        name="licenseImages"
+                        valuePropName="fileList"
+                        getValueFromEvent={normFile}
+                        rules={[
+                          {
+                            required: true,
+                            message: 'Vui lòng upload giấy phép!',
+                          },
+                        ]}
+                        style={{ margin: 0 }}
+                      >
+                        <Upload
+                          listType="picture-card"
+                          className="license-uploader"
+                          fileList={[]}
+                          showUploadList={false}
+                          beforeUpload={(file) => {
+                            const isValid = beforeUpload(file);
+                            if (isValid === Upload.LIST_IGNORE)
+                              return Upload.LIST_IGNORE;
+                            if (!file.uid)
+                              file.uid = Date.now() + Math.random().toString();
+
+                            setLicenseFileList((prev) => [...prev, file]);
+
+                            return false;
+                          }}
+                          multiple={true}
+                          maxCount={5}
+                        >
+                          {uploadButton('Thêm ảnh')}
+                        </Upload>
+                      </Form.Item>
+                    )}
+                  </div>
+                </Form.Item>
+              </Col>
             </Row>
 
-            <Form.Item style={{ marginTop: 20 }}>
+            <Form.Item style={{ marginTop: 30 }}>
               <Button
                 type="primary"
                 htmlType="submit"
                 block
                 loading={loading}
-                icon={<SaveOutlined />}
                 style={{ background: '#1890ff', borderColor: '#1890ff' }}
               >
                 LƯU THAY ĐỔI

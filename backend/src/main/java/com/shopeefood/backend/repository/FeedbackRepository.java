@@ -20,6 +20,9 @@ public interface FeedbackRepository extends JpaRepository<Feedback, Integer> {
     @Query("SELECT f FROM Feedback f WHERE f.order.id = :orderId")
     Optional<Feedback> findByOrderId(@Param("orderId") Integer orderId);
 
+    // --- MỚI: Tìm tất cả feedback nằm trong danh sách orderId (Tối ưu performance) ---
+    List<Feedback> findByOrderIdIn(List<Integer> orderIds);
+
     // Đếm tổng số feedback của quán
     Long countByRestaurantId(Integer restaurantId);
 }

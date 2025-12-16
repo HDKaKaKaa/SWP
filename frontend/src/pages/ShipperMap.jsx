@@ -6,6 +6,7 @@ import {
     ReloadOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
+import { useSearchParams } from 'react-router-dom';
 import {
     getMyOrders,
     getShipperProfile
@@ -13,6 +14,7 @@ import {
 
 const ShipperMap = () => {
     const { user } = useAuth();
+    const [searchParams] = useSearchParams();
     const [orders, setOrders] = useState([]);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [shipperLocation, setShipperLocation] = useState(null);
@@ -38,7 +40,7 @@ const ShipperMap = () => {
         if (mapRef.current && shipperLocation) {
             initMap();
         }
-    }, [shipperLocation, orders]);
+    }, [shipperLocation, orders, selectedOrder]);
 
     const fetchData = async () => {
         try {
@@ -51,6 +53,15 @@ const ShipperMap = () => {
             // Lấy đơn hàng đang giao (SHIPPING)
             const activeOrders = ordersData.filter(o => o.status === 'SHIPPING');
             setOrders(activeOrders);
+            
+            // Nếu có orderId trong URL, tự động chọn đơn hàng đó
+            const orderIdFromUrl = searchParams.get('orderId');
+            if (orderIdFromUrl) {
+                const order = activeOrders.find(o => o.id === parseInt(orderIdFromUrl));
+                if (order) {
+                    setSelectedOrder(order);
+                }
+            }
             
             // Lấy vị trí shipper từ profile
             if (profileData.currentLat && profileData.currentLong) {
@@ -88,10 +99,15 @@ const ShipperMap = () => {
     };
 
     const initMap = () => {
-        if (!mapRef.current) return;
+        if (!mapRef.current || !shipperLocation) return;
 
-        // Sử dụng OpenStreetMap (miễn phí, không cần API key)
-        // Hoặc có thể dùng Google Maps nếu có API key
+        // Nếu có đơn hàng được chọn, zoom vào vị trí khách hàng
+        if (selectedOrder && selectedOrder.shippingLat && selectedOrder.shippingLong) {
+            handleSelectOrder(selectedOrder);
+            return;
+        }
+
+        // Mặc định: hiển thị vị trí shipper
         const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${shipperLocation.lng - 0.1},${shipperLocation.lat - 0.1},${shipperLocation.lng + 0.1},${shipperLocation.lat + 0.1}&layer=mapnik&marker=${shipperLocation.lat},${shipperLocation.lng}`;
         
         // Tạo iframe để hiển thị bản đồ
@@ -148,10 +164,31 @@ const ShipperMap = () => {
 
     const handleSelectOrder = (order) => {
         setSelectedOrder(order);
-        // Có thể zoom vào địa chỉ giao hàng
+        // Zoom vào đúng vị trí khách hàng (địa chỉ giao hàng)
         if (order.shippingLat && order.shippingLong && mapInstanceRef.current) {
-            const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${order.shippingLong - 0.05},${order.shippingLat - 0.05},${order.shippingLong + 0.05},${order.shippingLat + 0.05}&layer=mapnik&marker=${order.shippingLat},${order.shippingLong}`;
+            // Tính bounding box để hiển thị cả vị trí shipper và vị trí khách hàng (nếu có)
+            let bbox;
+            if (shipperLocation && shipperLocation.lat && shipperLocation.lng) {
+                // Có cả 2 vị trí: tính bounding box bao phủ cả 2 điểm
+                const minLat = Math.min(shipperLocation.lat, order.shippingLat);
+                const maxLat = Math.max(shipperLocation.lat, order.shippingLat);
+                const minLng = Math.min(shipperLocation.lng, order.shippingLong);
+                const maxLng = Math.max(shipperLocation.lng, order.shippingLong);
+                // Add padding để map không sát biên
+                const padding = 0.01;
+                bbox = `${minLng - padding},${minLat - padding},${maxLng + padding},${maxLat + padding}`;
+            } else {
+                // Chỉ có vị trí khách hàng: zoom vào đó
+                const padding = 0.01;
+                bbox = `${order.shippingLong - padding},${order.shippingLat - padding},${order.shippingLong + padding},${order.shippingLat + padding}`;
+            }
+            
+            // Tạo URL với marker tại vị trí khách hàng
+            const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${order.shippingLat},${order.shippingLong}`;
             mapInstanceRef.current.src = mapUrl;
+        } else {
+            // Nếu không có tọa độ, hiển thị thông báo
+            message.warning('Đơn hàng này chưa có tọa độ địa chỉ giao hàng. Vui lòng cập nhật địa chỉ trong profile để hiển thị trên bản đồ.');
         }
     };
 

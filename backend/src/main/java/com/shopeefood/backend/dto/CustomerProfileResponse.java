@@ -15,6 +15,8 @@ public class CustomerProfileResponse {
     private String email;
     private String phone;
 
+    private String image;
+
     private String fullName;
     private String address;
     private Double latitude;

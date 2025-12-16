@@ -5,7 +5,8 @@ import {
     CheckCircleOutlined,
     ClockCircleOutlined,
     CarOutlined,
-    EyeOutlined
+    EyeOutlined,
+    EnvironmentOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -15,7 +16,8 @@ import {
     acceptOrder,
     updateShipperStatus,
     getShipperProfile,
-    updateOrderStatus
+    updateOrderStatus,
+    startDelivery
 } from '../services/shipperService';
 import '../css/ShipperDashboard.css';
 
@@ -27,11 +29,12 @@ const ShipperDashboard = () => {
     const [shipperStatus, setShipperStatus] = useState('OFFLINE'); // ONLINE, BUSY, OFFLINE
     const [loading, setLoading] = useState(true);
     const [shipperId, setShipperId] = useState(null);
+    const [acceptTime, setAcceptTime] = useState(null); // Thời gian shipper nhận đơn
     const [deliveryStartTime, setDeliveryStartTime] = useState(null); // Thời gian bắt đầu giao hàng
-    const [elapsedTime, setElapsedTime] = useState(0); // Thời gian đã trôi qua (giây)
+    const [elapsedAcceptTime, setElapsedAcceptTime] = useState(0); // Thời gian từ lúc nhận đơn (giây)
+    const [elapsedDeliveryTime, setElapsedDeliveryTime] = useState(0); // Thời gian từ lúc bắt đầu giao (giây)
     const [currentPage, setCurrentPage] = useState(1); // Trang hiện tại của phân trang
     const pageSize = 2; // Số đơn hàng mỗi trang
-    const mapRefs = useRef({}); // Lưu ref cho map của mỗi đơn hàng
 
     // Giả sử shipperId được lưu trong user object hoặc lấy từ API
     useEffect(() => {
@@ -75,13 +78,24 @@ const ShipperDashboard = () => {
                 // Xử lý timer cho đơn đang giao
                 const shippingOrder = my.find(o => o.status === 'SHIPPING');
                 if (profile.status === 'BUSY' && shippingOrder) {
-                    const startTime = shippingOrder.shippedAt 
-                        ? new Date(shippingOrder.shippedAt).getTime()
-                        : (shippingOrder.createdAt ? new Date(shippingOrder.createdAt).getTime() : null);
-                    setDeliveryStartTime(startTime);
+                    // Thời gian từ lúc nhận đơn (shippedAt)
+                    if (shippingOrder.shippedAt) {
+                        setAcceptTime(new Date(shippingOrder.shippedAt).getTime());
+                    } else {
+                        setAcceptTime(null);
+                    }
+                    
+                    // Thời gian từ lúc bắt đầu giao hàng (deliveryStartedAt)
+                    if (shippingOrder.deliveryStartedAt) {
+                        setDeliveryStartTime(new Date(shippingOrder.deliveryStartedAt).getTime());
+                    } else {
+                        setDeliveryStartTime(null);
+                    }
                 } else {
+                    setAcceptTime(null);
                     setDeliveryStartTime(null);
-                    setElapsedTime(0);
+                    setElapsedAcceptTime(0);
+                    setElapsedDeliveryTime(0);
                 }
             } else {
                 setMyOrders([]);
@@ -96,17 +110,34 @@ const ShipperDashboard = () => {
         }
     };
 
-    // Timer đếm thời gian giao hàng
+    // Timer đếm thời gian từ lúc nhận đơn
+    useEffect(() => {
+        let interval = null;
+        if (shipperStatus === 'BUSY' && acceptTime) {
+            interval = setInterval(() => {
+                const now = Date.now();
+                const elapsed = Math.floor((now - acceptTime) / 1000);
+                setElapsedAcceptTime(elapsed);
+            }, 1000);
+        } else {
+            setElapsedAcceptTime(0);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [shipperStatus, acceptTime]);
+
+    // Timer đếm thời gian từ lúc bắt đầu giao hàng
     useEffect(() => {
         let interval = null;
         if (shipperStatus === 'BUSY' && deliveryStartTime) {
             interval = setInterval(() => {
                 const now = Date.now();
-                const elapsed = Math.floor((now - deliveryStartTime) / 1000); // Đếm bằng giây
-                setElapsedTime(elapsed);
+                const elapsed = Math.floor((now - deliveryStartTime) / 1000);
+                setElapsedDeliveryTime(elapsed);
             }, 1000);
         } else {
-            setElapsedTime(0);
+            setElapsedDeliveryTime(0);
         }
         return () => {
             if (interval) clearInterval(interval);
@@ -189,12 +220,29 @@ const ShipperDashboard = () => {
             message.success('Nhận đơn hàng thành công!');
             // Cập nhật trạng thái thành BUSY
             setShipperStatus('BUSY');
+            setAcceptTime(null);
             setDeliveryStartTime(null);
-            setElapsedTime(0);
+            setElapsedAcceptTime(0);
+            setElapsedDeliveryTime(0);
             setShipperStatus('BUSY');
             await fetchData();
         } catch (error) {
             message.error(error.response?.data || 'Không thể nhận đơn hàng!');
+        }
+    };
+
+    // Bắt đầu giao hàng
+    const handleStartDelivery = async (orderId) => {
+        if (!shipperId) {
+            message.warning('Vui lòng đăng nhập để sử dụng chức năng này!');
+            return;
+        }
+        try {
+            await startDelivery(orderId, shipperId);
+            message.success('Đã bắt đầu giao hàng!');
+            await fetchData();
+        } catch (error) {
+            message.error(error.response?.data || 'Không thể bắt đầu giao hàng!');
         }
     };
 
@@ -246,7 +294,7 @@ const ShipperDashboard = () => {
     const formatDate = (dateString) => 
         dateString ? new Date(dateString).toLocaleString('vi-VN') : 'N/A';
 
-    // Lọc chỉ lấy đơn hàng đang giao (SHIPPING) để hiển thị trong phần "Đơn hàng của tôi"
+    // Lọc chỉ lấy đơn hàng đang giao (SHIPPING) để hiển thị trong phần "Đơn hàng đang ship"
     const shippingOrders = (myOrders || []).filter(o => o.status === 'SHIPPING');
     
     // Tính toán danh sách đơn hàng có sẵn để hiển thị theo phân trang
@@ -258,60 +306,7 @@ const ShipperDashboard = () => {
     const shippingCount = shippingOrders.length;
     const completedCount = (myOrders || []).filter(o => o.status === 'COMPLETED').length;
 
-    // Khởi tạo map cho đơn hàng
-    useEffect(() => {
-        if (!shippingOrders || shippingOrders.length === 0) {
-            return;
-        }
-        
-        // Delay nhỏ để đảm bảo DOM đã được render
-        const timer = setTimeout(() => {
-            try {
-                shippingOrders.forEach((order) => {
-                    if (order && order.shippingLat && order.shippingLong) {
-                        const mapId = `map-${order.id}`;
-                        const mapContainer = document.getElementById(mapId);
-                        
-                        if (mapContainer && !mapRefs.current[order.id]) {
-                            // Tính bounding box
-                            const padding = 0.01;
-                            const bbox = `${order.shippingLong - padding},${order.shippingLat - padding},${order.shippingLong + padding},${order.shippingLat + padding}`;
-                            const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${order.shippingLat},${order.shippingLong}`;
-                            
-                            const iframe = document.createElement('iframe');
-                            iframe.width = '100%';
-                            iframe.height = '100%';
-                            iframe.frameBorder = '0';
-                            iframe.scrolling = 'no';
-                            iframe.style.border = 'none';
-                            iframe.src = mapUrl;
-                            mapContainer.appendChild(iframe);
-                            mapRefs.current[order.id] = iframe;
-                        }
-                    }
-                });
-            } catch (error) {
-                console.error('Lỗi khi khởi tạo map:', error);
-            }
-        }, 100);
-
-        // Cleanup khi component unmount hoặc orders thay đổi
-        return () => {
-            clearTimeout(timer);
-            Object.keys(mapRefs.current).forEach((orderId) => {
-                const mapId = `map-${orderId}`;
-                const mapContainer = document.getElementById(mapId);
-                if (mapContainer && mapRefs.current[orderId]) {
-                    try {
-                        mapContainer.removeChild(mapRefs.current[orderId]);
-                    } catch (e) {
-                        // Ignore errors
-                    }
-                }
-            });
-            mapRefs.current = {};
-        };
-    }, [shippingOrders]);
+    // Không cần useEffect để tạo map nữa vì đã dùng iframe trực tiếp trong JSX
 
     if (loading) {
         return <div style={{ textAlign: 'center', marginTop: 50 }}><Spin size="large" /></div>;
@@ -339,20 +334,41 @@ const ShipperDashboard = () => {
                                         {shipperStatus === 'BUSY' && 'Đang giao hàng - Không thể nhận đơn mới'}
                                         {shipperStatus === 'OFFLINE' && 'Bật trạng thái ONLINE để nhận đơn hàng mới'}
                                     </p>
-                                    {shipperStatus === 'BUSY' && elapsedTime > 0 && (
-                                        <p style={{ 
-                                            margin: '8px 0 0 0', 
-                                            fontSize: '16px', 
-                                            fontWeight: 'bold', 
-                                            color: shippingOrders.some(o => o.isOverdue) ? '#ff4d4f' : '#faad14'
-                                        }}>
-                                            ⏱️ Thời gian giao hàng: {formatTime(elapsedTime)}
-                                            {shippingOrders.some(o => o.isOverdue) && (
-                                                <span style={{ marginLeft: '12px', color: '#ff4d4f' }}>
-                                                    ⚠️ Đơn hàng đang quá hạn!
-                                                </span>
+                                    {shipperStatus === 'BUSY' && shippingOrders.length > 0 && (
+                                        <div style={{ marginTop: '8px' }}>
+                                            {elapsedAcceptTime > 0 && (
+                                                <p style={{ 
+                                                    margin: '4px 0', 
+                                                    fontSize: '14px', 
+                                                    color: '#1890ff'
+                                                }}>
+                                                    ⏱️ Thời gian từ lúc nhận đơn: {formatTime(elapsedAcceptTime)}
+                                                </p>
                                             )}
-                                        </p>
+                                            {elapsedDeliveryTime > 0 ? (
+                                                <p style={{ 
+                                                    margin: '4px 0', 
+                                                    fontSize: '16px', 
+                                                    fontWeight: 'bold', 
+                                                    color: shippingOrders.some(o => o.isOverdue) ? '#ff4d4f' : '#52c41a'
+                                                }}>
+                                                    🚚 Thời gian giao hàng: {formatTime(elapsedDeliveryTime)}
+                                                    {shippingOrders.some(o => o.isOverdue) && (
+                                                        <span style={{ marginLeft: '12px', color: '#ff4d4f' }}>
+                                                            ⚠️ Đơn hàng đang quá hạn!
+                                                        </span>
+                                                    )}
+                                                </p>
+                                            ) : elapsedAcceptTime > 0 && (
+                                                <p style={{ 
+                                                    margin: '4px 0', 
+                                                    fontSize: '14px', 
+                                                    color: '#faad14'
+                                                }}>
+                                                    ⏳ Chưa bắt đầu giao hàng
+                                                </p>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                                 <Space direction="vertical" align="end" size="small">
@@ -385,7 +401,7 @@ const ShipperDashboard = () => {
                     <Col span={6}>
                         <Card>
                             <Statistic
-                                title="Đơn hàng có sẵn"
+                                title="Đơn hàng chờ ship"
                                 value={availableOrders.length}
                                 prefix={<ShoppingOutlined />}
                                 valueStyle={{ color: '#3f8600' }}
@@ -425,9 +441,9 @@ const ShipperDashboard = () => {
             )}
 
             <Row gutter={16}>
-                {/* Đơn hàng có sẵn */}
+                {/* Đơn hàng chờ ship */}
                 <Col span={shipperId ? 12 : 24}>
-                    <Card title="Đơn hàng có sẵn" style={{ marginBottom: 16 }}>
+                    <Card title="Đơn hàng chờ ship" style={{ marginBottom: 16 }}>
                         <List
                             dataSource={paginatedAvailableOrders}
                             renderItem={(order) => (
@@ -472,10 +488,10 @@ const ShipperDashboard = () => {
                     </Card>
                 </Col>
 
-                {/* Đơn hàng của tôi - Chỉ hiển thị đơn đang giao (SHIPPING) */}
+                {/* Đơn hàng đang ship - Chỉ hiển thị đơn đang giao (SHIPPING) */}
                 {shipperId && (
                     <Col span={12}>
-                        <Card title="Đơn hàng của tôi" style={{ marginBottom: 16 }}>
+                        <Card title="Đơn hàng đang ship" style={{ marginBottom: 16 }}>
                             {shippingOrders.length === 0 ? (
                                 <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
                                     Bạn chưa có đơn hàng đang giao nào
@@ -486,18 +502,62 @@ const ShipperDashboard = () => {
                                     renderItem={(order) => (
                                         <List.Item style={{ padding: '16px 0' }}>
                                             <Row gutter={16} style={{ width: '100%' }}>
-                                                {/* Map bên trái */}
+                                                {/* Mini Map bên trái - Click để xem bản đồ chi tiết */}
                                                 <Col span={12}>
                                                     <div
-                                                        id={`map-${order.id}`}
+                                                        onClick={() => navigate(`/shipper/map?orderId=${order.id}`)}
                                                         style={{
                                                             width: '100%',
                                                             height: '250px',
                                                             borderRadius: '8px',
                                                             overflow: 'hidden',
-                                                            border: '1px solid #d9d9d9'
+                                                            border: '1px solid #d9d9d9',
+                                                            cursor: 'pointer',
+                                                            position: 'relative'
                                                         }}
-                                                    />
+                                                        title="Click để xem bản đồ chi tiết"
+                                                    >
+                                                        {order.shippingLat && order.shippingLong ? (
+                                                            <iframe
+                                                                id={`map-${order.id}`}
+                                                                width="100%"
+                                                                height="100%"
+                                                                frameBorder="0"
+                                                                scrolling="no"
+                                                                style={{ border: 'none', pointerEvents: 'none' }}
+                                                                src={`https://www.openstreetmap.org/export/embed.html?bbox=${order.shippingLong - 0.01},${order.shippingLat - 0.01},${order.shippingLong + 0.01},${order.shippingLat + 0.01}&layer=mapnik&marker=${order.shippingLat},${order.shippingLong}`}
+                                                            />
+                                                        ) : (
+                                                            <div style={{
+                                                                width: '100%',
+                                                                height: '100%',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                backgroundColor: '#f5f5f5',
+                                                                color: '#999'
+                                                            }}>
+                                                                <div style={{ textAlign: 'center' }}>
+                                                                    <EnvironmentOutlined style={{ fontSize: '32px', marginBottom: '8px' }} />
+                                                                    <div>Không có tọa độ</div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        {/* Overlay để hiển thị hint */}
+                                                        <div style={{
+                                                            position: 'absolute',
+                                                            bottom: 8,
+                                                            right: 8,
+                                                            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                                            color: 'white',
+                                                            padding: '4px 8px',
+                                                            borderRadius: '4px',
+                                                            fontSize: '12px',
+                                                            pointerEvents: 'none'
+                                                        }}>
+                                                            Click để xem bản đồ
+                                                        </div>
+                                                    </div>
                                                 </Col>
                                                 {/* Thông tin đơn hàng bên phải */}
                                                 <Col span={12}>
@@ -534,15 +594,39 @@ const ShipperDashboard = () => {
                                                                     >
                                                                         Xem chi tiết
                                                                     </Button>
-                                                                    <Space style={{ width: '100%' }} size="small">
+                                                                    {!order.deliveryStartedAt && (
                                                                         <Button
                                                                             type="primary"
-                                                                            style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
-                                                                            onClick={() => handleCompleteOrder(order.id)}
+                                                                            style={{ backgroundColor: '#1890ff', borderColor: '#1890ff' }}
+                                                                            icon={<CarOutlined />}
+                                                                            onClick={() => handleStartDelivery(order.id)}
                                                                             block
                                                                         >
-                                                                            Hoàn thành
+                                                                            Bắt đầu giao hàng
                                                                         </Button>
+                                                                    )}
+                                                                    {order.deliveryStartedAt && (
+                                                                        <p style={{ 
+                                                                            margin: '8px 0', 
+                                                                            fontSize: '12px', 
+                                                                            color: '#52c41a',
+                                                                            textAlign: 'center'
+                                                                        }}>
+                                                                            ✅ Đã bắt đầu giao hàng lúc: {formatDate(order.deliveryStartedAt)}
+                                                                        </p>
+                                                                    )}
+                                                                    <Space style={{ width: '100%' }} size="small">
+                                                                        {/* Chỉ hiển thị nút "Hoàn thành" khi đã bắt đầu giao hàng */}
+                                                                        {order.deliveryStartedAt && (
+                                                                            <Button
+                                                                                type="primary"
+                                                                                style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                                                                                onClick={() => handleCompleteOrder(order.id)}
+                                                                                block
+                                                                            >
+                                                                                Hoàn thành
+                                                                            </Button>
+                                                                        )}
                                                                         <Button
                                                                             danger
                                                                             onClick={() => handleCancelOrder(order.id)}
