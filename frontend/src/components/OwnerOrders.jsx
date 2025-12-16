@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import React, { useState, useEffect, useCallback, useContext } from "react";
 import axios from "axios";
 import { Row, Col, notification } from "antd"; // Giữ lại Row, Col từ React-Bootstrap để quản lý layout (hoặc có thể dùng Grid của antd)
@@ -144,7 +145,7 @@ export default function OwnerOrders() {
             console.error("Error fetching orders:", err);
             notification.error({
                 message: 'Lỗi Tải Đơn Hàng',
-                description: 'Không thể tải danh sách đơn hàng. Vui lòng kiểm tra kết nối Backend và cấu hình JOIN FETCH.',
+                description: 'Không thể tải danh sách đơn hàng.',
             });
             setOrders([]);
         }
@@ -374,7 +375,7 @@ export default function OwnerOrders() {
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         // Thêm xử lý khi nhấn Enter (tương đương với onSearch)
-                        onPressEnter={() => handleFilterChange('search', search)}
+                        onPressEnter={() => setPagination(prev => ({ ...prev, current: 1 }))}
                         style={{ width: 300, height: 33, marginLeft: 20 }}
                     />
                 </Col>
@@ -396,7 +397,7 @@ export default function OwnerOrders() {
                 pagination={{
                     ...pagination,
                     showSizeChanger: true,
-                    pageSizeOptions: ['5','10', '20', '50'],
+                    pageSizeOptions: ['5', '10', '20', '50'],
                     showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} đơn`,
                     locale: { items_per_page: '/ trang' }
                 }}

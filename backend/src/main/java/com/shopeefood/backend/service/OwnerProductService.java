@@ -42,15 +42,20 @@ public class OwnerProductService {
     public Page<OwnerProductDTO> getProductsByOwner(
             Integer ownerId,
             Integer restaurantId,
+            Integer categoryId,
+            Boolean isAvailable,
             String search,
             Pageable pageable) {
 
         Integer filterRestaurantId = (restaurantId != null && restaurantId > 0) ? restaurantId : null;
+        Integer filterCategoryId = (categoryId != null && categoryId > 0) ? categoryId : null;
         String filterSearch = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
 
         Page<Product> productPage = productRepository.findProductsByOwnerIdAndFilters(
                 ownerId,
                 filterRestaurantId,
+                filterCategoryId,
+                isAvailable,
                 filterSearch,
                 pageable);
 
@@ -65,7 +70,8 @@ public class OwnerProductService {
     @Transactional(readOnly = true)
     public OwnerProductDTO getProductById(Integer productId) {
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found with id: " + productId)); 
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Product not found with id: " + productId));
         return new OwnerProductDTO(product);
     }
 
@@ -78,7 +84,8 @@ public class OwnerProductService {
 
         // 1. Tìm sản phẩm hiện có
         Product existingProduct = productRepository.findById(productId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found with id: " + productId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Product not found with id: " + productId));
 
         // 2. Xử lý Ảnh
         if (imageFile != null && !imageFile.isEmpty()) {
@@ -88,7 +95,7 @@ public class OwnerProductService {
                         HttpStatus.BAD_REQUEST,
                         "Định dạng file ảnh không hợp lệ cho sản phẩm. Chỉ chấp nhận JPG, JPEG, và PNG.");
             }
-            
+
             try {
                 String newImageUrl = cloudinaryService.uploadImage(imageFile);
                 existingProduct.setImage(newImageUrl);
@@ -98,7 +105,7 @@ public class OwnerProductService {
                         "Lỗi khi tải ảnh sản phẩm lên Cloudinary: " + e.getMessage(), e);
             }
         }
-        
+
         // 3. Cập nhật các trường chính từ DTO
         existingProduct.setName(requestDto.getName());
         existingProduct.setDescription(requestDto.getDescription());
@@ -108,12 +115,12 @@ public class OwnerProductService {
         }
         existingProduct.setIsAvailable(requestDto.getIsAvailable());
 
-
         // 4. Cập nhật Category
         if (requestDto.getCategoryId() != null) {
             Category category = categoryRepository.findById(requestDto.getCategoryId())
                     .orElseThrow(
-                            () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found with id: " + requestDto.getCategoryId())); 
+                            () -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                                    "Category not found with id: " + requestDto.getCategoryId()));
             existingProduct.setCategory(category);
         }
 
@@ -126,7 +133,7 @@ public class OwnerProductService {
 
         // Xóa các chi tiết cũ không còn trong request
         currentDetails.removeIf(detail -> detail.getId() != null && !newDetailRequestMap.containsKey(detail.getId()));
-        
+
         for (ProductDetailRequest newDetailDto : requestDto.getProductDetails()) {
             if (newDetailDto.getId() != null) {
                 currentDetails.stream()
@@ -138,7 +145,7 @@ public class OwnerProductService {
                         });
             } else {
                 if (newDetailDto.getAttributeId() == null) {
-                    throw new IllegalArgumentException("Attribute ID is required for a new product detail."); 
+                    throw new IllegalArgumentException("Attribute ID is required for a new product detail.");
                 }
 
                 ProductDetail newDetail = new ProductDetail();
@@ -149,7 +156,8 @@ public class OwnerProductService {
                 CategoryAttribute categoryAttribute = categoryAttributeRepository
                         .findById(newDetailDto.getAttributeId())
                         .orElseThrow(
-                                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category Attribute not found with id: " + newDetailDto.getAttributeId())); 
+                                () -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                                        "Category Attribute not found with id: " + newDetailDto.getAttributeId()));
 
                 newDetail.setAttribute(categoryAttribute);
 
@@ -166,8 +174,9 @@ public class OwnerProductService {
     @Transactional
     public void deleteProduct(Integer productId) {
         productRepository.findById(productId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found with id: " + productId));
-            
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Product not found with id: " + productId));
+
         productRepository.deleteById(productId);
     }
 

@@ -1,18 +1,18 @@
 package com.shopeefood.backend.repository;
 
-import com.shopeefood.backend.entity.Restaurant;
-import com.shopeefood.backend.entity.Restaurant.RestaurantStatus;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-import org.springframework.data.repository.query.Param;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
-import java.util.List;
-import java.time.LocalDateTime;
-import java.util.Optional;
+import com.shopeefood.backend.entity.Restaurant;
+import com.shopeefood.backend.entity.Restaurant.RestaurantStatus;
 
 @Repository
 public interface RestaurantRepository extends JpaRepository<Restaurant, Integer> {
@@ -42,6 +42,8 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Integer>
          * Dùng cho màn admin quản lý chủ nhà hàng.
          */
         List<Restaurant> findByOwnerAccountIdIn(List<Integer> ownerAccountIds);
+
+        List<Restaurant> findByOwnerAccountId(Integer ownerAccountId);
 
         List<Restaurant> findByStatus(RestaurantStatus status);
 

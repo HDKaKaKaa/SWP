@@ -39,6 +39,7 @@ import CustomerIssueCreate from './pages/CustomerIssueCreate';
 import CustomerIssueHistory from './pages/CustomerIssueHistory';
 import AdminIssuesPage from "./pages/AdminIssuesPage.jsx";
 import ShipperManagementPage from "./pages/ShipperManagementPage.jsx";
+import OwnerFeedbackPage from './components/OwnerFeedbackPage';
 import LiveMapPage from "./pages/LiveMapPage.jsx";
 
 
@@ -131,6 +132,7 @@ function App() {
           <Route path="dashboard" element={<OwnerRestaurantPage />} />
           <Route path="products" element={<OwnerProducts />} />
           <Route path="orders" element={<OwnerOrders />} />
+          <Route path="feedback" element={<OwnerFeedbackPage />} />
           {/* <Route path="reports" element={<OwnerReports />} />       */}
         </Route>
      
