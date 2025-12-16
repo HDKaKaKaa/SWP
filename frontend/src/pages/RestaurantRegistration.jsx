@@ -111,7 +111,6 @@ const RestaurantRegistration = () => {
     return e?.fileList;
   };
 
-  // Hàm chuyển file sang base64 để preview
   const getBase64 = (file) =>
     new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -348,7 +347,6 @@ const RestaurantRegistration = () => {
                       message: 'Vui lòng chọn địa chỉ trên bản đồ',
                     },
                   ]}
-                  hasFeedback
                 >
                   <Input
                     prefix={<EnvironmentOutlined />}
@@ -379,7 +377,7 @@ const RestaurantRegistration = () => {
             </Divider>
 
             <Row gutter={40}>
-              {/* 1. COVER IMAGE - Custom Render */}
+              {/* 1. COVER IMAGE */}
               <Col xs={24} md={12}>
                 <Form.Item
                   name="coverImage"
@@ -436,18 +434,15 @@ const RestaurantRegistration = () => {
               {/* 2. LICENSE IMAGES */}
               <Col xs={24} md={12}>
                 <Form.Item label="Giấy phép kinh doanh" required>
-                  {/* Container chứa các ảnh đã upload + nút thêm */}
                   <div className="license-list-container">
-                    {/* Render danh sách ảnh thủ công */}
                     {licenseFileList.map((file) => {
-                      // Logic lấy URL an toàn
                       let src = '';
                       if (file.url) {
-                        src = file.url; // Trường hợp ảnh cũ (Edit) hoặc đã có link
+                        src = file.url;
                       } else if (file.originFileObj) {
-                        src = URL.createObjectURL(file.originFileObj); // Trường hợp Antd Upload File
+                        src = URL.createObjectURL(file.originFileObj);
                       } else if (file instanceof File) {
-                        src = URL.createObjectURL(file); // [QUAN TRỌNG] Trường hợp File object thuần (do beforeUpload trả về false)
+                        src = URL.createObjectURL(file);
                       }
 
                       return (
@@ -456,7 +451,6 @@ const RestaurantRegistration = () => {
                             src={src}
                             alt="license"
                             onLoad={() => {
-                              // Giải phóng bộ nhớ nếu là blob URL
                               if (src.startsWith('blob:'))
                                 URL.revokeObjectURL(src);
                             }}
