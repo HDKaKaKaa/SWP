@@ -56,17 +56,24 @@ public class AdminRestaurantService {
 
     // 2. Duyệt hoặc Từ chối quán
     @Transactional
-    public void approveRestaurant(Integer id, boolean isApproved) {
+    public void approveRestaurant(Integer id, boolean isApproved, String reason) {
         Restaurant restaurant = restaurantRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy quán ăn với ID: " + id));
 
         if (isApproved) {
             restaurant.setStatus(Restaurant.RestaurantStatus.ACTIVE);
+            restaurant.setRejectionReason(null); // Nếu duyệt thì xóa lý do cũ (nếu có)
         } else {
             restaurant.setStatus(Restaurant.RestaurantStatus.REJECTED);
+            // Lưu lý do từ chối
+            if (reason == null || reason.trim().isEmpty()) {
+                throw new RuntimeException("Vui lòng nhập lý do từ chối!");
+            }
+            restaurant.setRejectionReason(reason);
         }
 
         restaurantRepository.save(restaurant);
+
     }
 
 
