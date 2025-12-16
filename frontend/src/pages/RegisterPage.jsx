@@ -18,9 +18,37 @@ const RegisterPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
+  const normalizeNoSpace = (value) => {
+    if (!value) return value;
+    return value.replace(/\s/g, '');
+  };
+
+  const normalizeNumber = (value) => {
+    if (!value) return value;
+    return value.replace(/[^0-9]/g, '');
+  };
+
+  const normalizeName = (value) => {
+    if (!value) return value;
+    let result = value.trimStart();
+    result = result.replace(
+      /[^a-zA-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựỳỵýỷỹ\s]/g,
+      ''
+    );
+    return result;
+  };
+
   const onFinish = async (values) => {
     setLoading(true);
     try {
+      const cleanData = {
+        username: values.username.trim(),
+        fullName: values.fullName.trim(),
+        email: values.email.trim(),
+        phone: values.phone,
+        password: values.password,
+      };
+
       // Loại bỏ confirmPassword trước khi gửi lên server
       const { confirmPassword, ...dataToSend } = values;
 
@@ -65,29 +93,48 @@ const RegisterPage = () => {
           <Form.Item
             name="username"
             label="Tên đăng nhập"
-            normalize={(v) => v?.replace(/\s/g, '')}
+            normalize={normalizeNoSpace}
             rules={[
-              { required: true, message: 'Nhập Username!' },
-              { min: 4, message: 'Tối thiểu 4 ký tự!' },
+              { required: true, message: 'Vui lòng nhập Tên đăng nhập' },
+              { min: 4, message: 'Tối thiểu 4 ký tự' },
+              { max: 30, message: 'Tối đa 30 ký tự' },
+              {
+                pattern: /^[a-zA-Z0-9.]+$/,
+                message: 'Chỉ chứa chữ không dấu, số hoặc dấu chấm',
+              },
             ]}
           >
-            <Input prefix={<UserOutlined />} placeholder="user123" />
+            <Input
+              prefix={<UserOutlined />}
+              placeholder="user123"
+              maxLength={30}
+            />
           </Form.Item>
 
           <Form.Item
             name="fullName"
             label="Họ và tên"
-            rules={[{ required: true, message: 'Nhập họ tên!' }]}
+            normalize={normalizeName}
+            rules={[
+              { required: true, message: 'Vui lòng nhập Họ tên' },
+              { min: 2, message: 'Họ tên quá ngắn' },
+              { max: 50, message: 'Họ tên quá dài' },
+            ]}
           >
-            <Input prefix={<SmileOutlined />} placeholder="Nguyễn Văn A" />
+            <Input
+              prefix={<SmileOutlined />}
+              placeholder="Nguyễn Văn A"
+              maxLength={50}
+            />
           </Form.Item>
 
           <Form.Item
             name="email"
             label="Email"
+            normalize={(v) => v?.trim()}
             rules={[
-              { type: 'email', message: 'Email sai định dạng!' },
-              { required: true, message: 'Nhập Email!' },
+              { required: true, message: 'Vui lòng nhập Email' },
+              { type: 'email', message: 'Email không đúng định dạng' },
             ]}
           >
             <Input prefix={<MailOutlined />} placeholder="user@example.com" />
@@ -96,9 +143,13 @@ const RegisterPage = () => {
           <Form.Item
             name="phone"
             label="Số điện thoại"
+            normalize={normalizeNumber}
             rules={[
-              { required: true, message: 'Nhập SĐT!' },
-              { pattern: /^0\d{9}$/, message: 'SĐT không hợp lệ!' },
+              { required: true, message: 'Vui lòng nhập SĐT' },
+              {
+                pattern: /^0\d{9}$/,
+                message: 'SĐT không hợp lệ (10 số, bắt đầu bằng 0)',
+              },
             ]}
           >
             <Input
@@ -111,9 +162,10 @@ const RegisterPage = () => {
           <Form.Item
             name="password"
             label="Mật khẩu"
+            normalize={normalizeNoSpace}
             rules={[
-              { required: true, message: 'Nhập mật khẩu!' },
-              { min: 6, message: 'Tối thiểu 6 ký tự!' },
+              { required: true, message: 'Vui lòng nhập mật khẩu' },
+              { min: 6, message: 'Mật khẩu ít nhất 6 ký tự' },
             ]}
             hasFeedback
           >
@@ -129,12 +181,15 @@ const RegisterPage = () => {
             dependencies={['password']}
             hasFeedback
             rules={[
-              { required: true, message: 'Xác nhận mật khẩu!' },
+              { required: true, message: 'Vui lòng xác nhận mật khẩu!' },
               ({ getFieldValue }) => ({
                 validator(_, value) {
-                  if (!value || getFieldValue('password') === value)
+                  if (!value || getFieldValue('password') === value) {
                     return Promise.resolve();
-                  return Promise.reject(new Error('Mật khẩu không khớp!'));
+                  }
+                  return Promise.reject(
+                    new Error('Mật khẩu nhập lại không khớp!')
+                  );
                 },
               }),
             ]}

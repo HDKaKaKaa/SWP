@@ -47,6 +47,26 @@ const RestaurantRegistration = () => {
 
   const [form] = Form.useForm();
 
+  const normalizeNumber = (value) => {
+    if (!value) return value;
+    return value.replace(/[^0-9]/g, '');
+  };
+
+  const normalizeName = (value) => {
+    if (!value) return value;
+    let result = value.trimStart();
+    result = result.replace(
+      /[^a-zA-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựỳỵýỷỹ\s]/g,
+      ''
+    );
+    return result;
+  };
+
+  const normalizeText = (value) => {
+    if (!value) return value;
+    return value.trimStart();
+  };
+
   const handleCancelPreview = () => setPreviewOpen(false);
 
   const handlePreview = async (file) => {
@@ -91,7 +111,6 @@ const RestaurantRegistration = () => {
     return e?.fileList;
   };
 
-  // Hàm chuyển file sang base64 để preview
   const getBase64 = (file) =>
     new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -138,6 +157,13 @@ const RestaurantRegistration = () => {
   const onFinish = async (values) => {
     setLoading(true);
     try {
+      const cleanValues = {
+        ...values,
+        ownerFullName: values.ownerFullName.trim(),
+        restaurantName: values.restaurantName.trim(),
+        description: values.description ? values.description.trim() : '',
+      };
+
       if (!user || !user.id) {
         message.error('Vui lòng đăng nhập!');
         return;
@@ -242,23 +268,55 @@ const RestaurantRegistration = () => {
                 <Form.Item
                   name="ownerFullName"
                   label="Họ và tên"
-                  rules={[{ required: true, message: 'Nhập họ tên!' }]}
+                  normalize={normalizeName}
+                  rules={[
+                    { required: true, message: 'Vui lòng nhập họ tên' },
+                    { min: 2, message: 'Tên quá ngắn' },
+                    { max: 50, message: 'Tên quá dài' },
+                  ]}
                 >
-                  <Input prefix={<UserOutlined />} />
+                  <Input
+                    prefix={<UserOutlined />}
+                    placeholder="Nhập họ và tên đầy đủ"
+                    allowClear
+                    maxLength={50}
+                  />
                 </Form.Item>
                 <Form.Item
                   name="idCardNumber"
                   label="Số CCCD / CMND"
-                  rules={[{ required: true, message: 'Nhập CCCD!' }]}
+                  normalize={normalizeNumber}
+                  rules={[
+                    { required: true, message: 'Vui lòng nhập số CCCD' },
+                    {
+                      pattern: /^(\d{9}|\d{12})$/,
+                      message: 'CCCD phải là 9 hoặc 12 số',
+                    },
+                  ]}
                 >
-                  <Input prefix={<IdcardOutlined />} />
+                  <Input
+                    prefix={<IdcardOutlined />}
+                    placeholder="Nhập số CCCD / CMND (9 hoặc 12 số)"
+                    maxLength={12}
+                  />
                 </Form.Item>
                 <Form.Item
                   name="phone"
                   label="Số điện thoại"
-                  rules={[{ required: true, message: 'Nhập SĐT!' }]}
+                  normalize={normalizeNumber}
+                  rules={[
+                    { required: true, message: 'Vui lòng nhập số điện thoại' },
+                    {
+                      pattern: /^0\d{9}$/,
+                      message: 'SĐT không hợp lệ (10 số, bắt đầu bằng 0)',
+                    },
+                  ]}
                 >
-                  <Input prefix={<PhoneOutlined />} />
+                  <Input
+                    prefix={<PhoneOutlined />}
+                    placeholder="Nhập số điện thoại"
+                    maxLength={10}
+                  />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
@@ -266,25 +324,50 @@ const RestaurantRegistration = () => {
                 <Form.Item
                   name="restaurantName"
                   label="Tên quán"
-                  rules={[{ required: true, message: 'Nhập tên quán!' }]}
+                  normalize={normalizeText}
+                  rules={[
+                    { required: true, message: 'Vui lòng nhập tên quán' },
+                    { min: 5, message: 'Tên quán tối thiểu 5 ký tự' },
+                    { max: 100, message: 'Tên quán tối đa 100 ký tự' },
+                  ]}
                 >
-                  <Input prefix={<ShopOutlined />} />
+                  <Input
+                    prefix={<ShopOutlined />}
+                    placeholder="Nhập tên quán"
+                    allowClear
+                    maxLength={100}
+                  />
                 </Form.Item>
                 <Form.Item
                   name="address"
                   label="Địa chỉ"
-                  rules={[{ required: true, message: 'Chọn địa chỉ!' }]}
+                  rules={[
+                    {
+                      required: true,
+                      message: 'Vui lòng chọn địa chỉ trên bản đồ',
+                    },
+                  ]}
                 >
                   <Input
                     prefix={<EnvironmentOutlined />}
                     readOnly
                     onClick={() => setIsMapOpen(true)}
                     style={{ cursor: 'pointer' }}
-                    placeholder="Chọn trên bản đồ"
+                    placeholder="Nhấn để chọn vị trí chính xác trên bản đồ"
                   />
                 </Form.Item>
-                <Form.Item name="description" label="Mô tả">
-                  <TextArea rows={2} />
+                <Form.Item
+                  name="description"
+                  label="Mô tả"
+                  normalize={normalizeText}
+                  rules={[{ max: 500, message: 'Mô tả tối đa 500 ký tự!' }]}
+                >
+                  <TextArea
+                    rows={2}
+                    placeholder="Giới thiệu về quán, các món ăn..."
+                    showCount
+                    maxLength={500}
+                  />
                 </Form.Item>
               </Col>
             </Row>
@@ -294,7 +377,7 @@ const RestaurantRegistration = () => {
             </Divider>
 
             <Row gutter={40}>
-              {/* 1. COVER IMAGE - Custom Render */}
+              {/* 1. COVER IMAGE */}
               <Col xs={24} md={12}>
                 <Form.Item
                   name="coverImage"
@@ -302,7 +385,7 @@ const RestaurantRegistration = () => {
                   valuePropName="fileList"
                   getValueFromEvent={normFile}
                   rules={[
-                    { required: true, message: 'Vui lòng chọn ảnh đại diện!' },
+                    { required: true, message: 'Vui lòng chọn ảnh đại diện' },
                   ]}
                 >
                   <Upload
@@ -351,18 +434,15 @@ const RestaurantRegistration = () => {
               {/* 2. LICENSE IMAGES */}
               <Col xs={24} md={12}>
                 <Form.Item label="Giấy phép kinh doanh" required>
-                  {/* Container chứa các ảnh đã upload + nút thêm */}
                   <div className="license-list-container">
-                    {/* Render danh sách ảnh thủ công */}
                     {licenseFileList.map((file) => {
-                      // Logic lấy URL an toàn
                       let src = '';
                       if (file.url) {
-                        src = file.url; // Trường hợp ảnh cũ (Edit) hoặc đã có link
+                        src = file.url;
                       } else if (file.originFileObj) {
-                        src = URL.createObjectURL(file.originFileObj); // Trường hợp Antd Upload File
+                        src = URL.createObjectURL(file.originFileObj);
                       } else if (file instanceof File) {
-                        src = URL.createObjectURL(file); // [QUAN TRỌNG] Trường hợp File object thuần (do beforeUpload trả về false)
+                        src = URL.createObjectURL(file);
                       }
 
                       return (
@@ -371,7 +451,6 @@ const RestaurantRegistration = () => {
                             src={src}
                             alt="license"
                             onLoad={() => {
-                              // Giải phóng bộ nhớ nếu là blob URL
                               if (src.startsWith('blob:'))
                                 URL.revokeObjectURL(src);
                             }}
@@ -398,7 +477,7 @@ const RestaurantRegistration = () => {
                         rules={[
                           {
                             required: true,
-                            message: 'Vui lòng upload giấy phép!',
+                            message: 'Vui lòng đăng tải giấy phép kinh doanh',
                           },
                         ]}
                         style={{ margin: 0 }}
