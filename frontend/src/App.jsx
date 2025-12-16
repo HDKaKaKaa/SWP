@@ -39,7 +39,7 @@ import CustomerIssueCreate from './pages/CustomerIssueCreate';
 import CustomerIssueHistory from './pages/CustomerIssueHistory';
 import AdminIssuesPage from "./pages/AdminIssuesPage.jsx";
 import ShipperManagementPage from "./pages/ShipperManagementPage.jsx";
-
+import OwnerFeedbackPage from './components/OwnerFeedbackPage';
 
 const ClientLayoutWithFooter = () => (
   <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -129,6 +129,7 @@ function App() {
           <Route path="dashboard" element={<OwnerRestaurantPage />} />
           <Route path="products" element={<OwnerProducts />} />
           <Route path="orders" element={<OwnerOrders />} />
+          <Route path="feedback" element={<OwnerFeedbackPage />} />
           {/* <Route path="reports" element={<OwnerReports />} />       */}
         </Route>
      
