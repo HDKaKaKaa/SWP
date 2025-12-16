@@ -62,11 +62,7 @@ public class RestaurantService {
         restaurant.setCoverImage(request.getCoverImageUrl());
         restaurant.setLatitude(request.getLatitude());
         restaurant.setLongitude(request.getLongitude());
-        if (request.getLicenseImages() != null && !request.getLicenseImages().isEmpty()) {
-            // Nối các URL lại bằng dấu phẩy (hoặc dùng thư viện Gson/Jackson để lưu JSON)
-            String licenseImagesString = String.join(",", request.getLicenseImages());
-            restaurant.setLicenseImage(licenseImagesString);
-        }
+       
 
         // Set quan hệ
         restaurant.setOwner(owner);
@@ -91,10 +87,6 @@ public class RestaurantService {
         restaurant.setDescription(request.getDescription());
         restaurant.setCoverImage(request.getCoverImageUrl());
 
-        if (request.getLicenseImages() != null) {
-            String licenseImagesString = String.join(",", request.getLicenseImages());
-            restaurant.setLicenseImage(licenseImagesString);
-        }
 
         // Cập nhật tọa độ
         if (request.getLatitude() != null && request.getLongitude() != null) {
