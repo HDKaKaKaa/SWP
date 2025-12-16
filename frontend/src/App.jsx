@@ -40,6 +40,8 @@ import CustomerIssueHistory from './pages/CustomerIssueHistory';
 import AdminIssuesPage from "./pages/AdminIssuesPage.jsx";
 import ShipperManagementPage from "./pages/ShipperManagementPage.jsx";
 import OwnerFeedbackPage from './components/OwnerFeedbackPage';
+import LiveMapPage from "./pages/LiveMapPage.jsx";
+
 
 const ClientLayoutWithFooter = () => (
   <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -78,6 +80,7 @@ function App() {
         <Route path="users" element={<AdminUsersPage />} />
         <Route path="shippers" element={<ShipperManagementPage />} />
         <Route path="issues" element={<AdminIssuesPage />} />
+        <Route path="map" element={<LiveMapPage />} />
       </Route>
 
       {/* ======================================================= */}

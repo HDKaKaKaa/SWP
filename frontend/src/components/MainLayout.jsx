@@ -9,6 +9,7 @@ import {
     AppstoreOutlined,
     HomeOutlined,
     AuditOutlined,
+    GlobalOutlined,
     ExclamationCircleOutlined
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
@@ -32,6 +33,7 @@ const MainLayout = () => {
         { key: '/admin/orders', icon: <FileTextOutlined />, label: 'Đơn hàng' },
         { key: '/admin/users', icon: <UserOutlined />, label: 'Người dùng' },
         { key: '/admin/shippers', icon: <CarOutlined />, label: 'Quản lý shipper' },
+        { key: '/admin/map', icon: <GlobalOutlined />, label: 'Bản đồ hoạt động' },
         { key: '/admin/issues', icon: <ExclamationCircleOutlined />, label: 'Khiếu nại / Hỗ trợ' },
 
         { type: 'divider' },
