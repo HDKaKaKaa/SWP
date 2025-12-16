@@ -131,7 +131,14 @@ const LiveMapPage = () => {
                                         />
                                         <div>
                                             <div style={{ fontWeight: 'bold' }}>{loc.name}</div>
-                                            <Tag color="green">{loc.status}</Tag>
+                                            {/* LOGIC MỚI: Đổi màu tag dựa theo trạng thái */}
+                                            <Tag color={
+                                                loc.status === 'ACTIVE' || loc.status === 'ONLINE'
+                                                    ? 'success' // Màu xanh lá
+                                                    : 'default' // Màu xám (cho CLOSE/BLOCKED)
+                                            }>
+                                                {loc.status}
+                                            </Tag>
                                         </div>
                                     </div>
                                     <div style={{ fontSize: 12 }}>📍 {loc.info}</div>

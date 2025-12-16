@@ -25,29 +25,33 @@ public class AdminMapService {
     public List<MapLocationDTO> getAllLocations() {
         List<MapLocationDTO> locations = new ArrayList<>();
 
-        // --- SỬA Ở ĐÂY: Dùng findAll() thay vì findByStatus() ---
-        // Lấy tất cả nhà hàng bất kể trạng thái (CLOSE, PENDING, BLOCKED...)
+        // 1. LẤY DANH SÁCH NHÀ HÀNG
         List<Restaurant> restaurants = restaurantRepository.findAll();
 
         for (Restaurant r : restaurants) {
-            // Chỉ cần có tọa độ là hiển thị
+            // Điều kiện 1: Phải có tọa độ
             if (r.getLatitude() != null && r.getLongitude() != null) {
 
-                // Xử lý null safe cho status và phone
-                String statusStr = (r.getStatus() != null) ? r.getStatus().name() : "UNKNOWN";
-                String phoneStr = (r.getPhone() != null) ? r.getPhone() : "";
+                // Điều kiện 2: Chỉ lấy trạng thái ACTIVE hoặc CLOSE
+                boolean isVisible = r.getStatus() == Restaurant.RestaurantStatus.ACTIVE
+                        || r.getStatus() == Restaurant.RestaurantStatus.CLOSE;
 
-                locations.add(new MapLocationDTO(
-                        r.getId(),
-                        r.getName(),
-                        "RESTAURANT",
-                        r.getLatitude(),
-                        r.getLongitude(),
-                        statusStr,              // Hiển thị đúng status hiện tại (VD: CLOSE)
-                        r.getAddress(),
-                        r.getCoverImage(),
-                        phoneStr
-                ));
+                if (isVisible) {
+                    String statusStr = (r.getStatus() != null) ? r.getStatus().name() : "UNKNOWN";
+                    String phoneStr = (r.getPhone() != null) ? r.getPhone() : "";
+
+                    locations.add(new MapLocationDTO(
+                            r.getId(),
+                            r.getName(),
+                            "RESTAURANT",
+                            r.getLatitude(),
+                            r.getLongitude(),
+                            statusStr,
+                            r.getAddress(),
+                            r.getCoverImage(),
+                            phoneStr
+                    ));
+                }
             }
         }
 
