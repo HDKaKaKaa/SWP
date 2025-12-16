@@ -24,9 +24,6 @@ public class Restaurant {
     @Column(name = "cover_image")
     private String coverImage;
 
-    @Column(name = "license_image")
-    private String licenseImage;
-
     @OneToMany(mappedBy = "restaurant")
     @JsonManagedReference
     private List<Product> products;
@@ -40,8 +37,7 @@ public class Restaurant {
         PENDING,
         ACTIVE,
         BLOCKED,
-        REJECTED,
-        REFUNDED
+        REJECTED
     }
 
     @Enumerated(EnumType.STRING)
