@@ -175,4 +175,6 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate
     );
+
+    long countByShipperAccountIdAndStatus(Integer shipperId, String status);
 }

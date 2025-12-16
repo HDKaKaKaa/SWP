@@ -31,7 +31,7 @@ const MainLayout = () => {
         { key: '/admin/restaurants', icon: <ShopOutlined />, label: 'Danh sách Nhà hàng' },
         { key: '/admin/orders', icon: <FileTextOutlined />, label: 'Đơn hàng' },
         { key: '/admin/users', icon: <UserOutlined />, label: 'Người dùng' },
-        { key: '/admin/shippers', icon: <CarOutlined />, label: 'Tài xế' },
+        { key: '/admin/shippers', icon: <CarOutlined />, label: 'Quản lý shipper' },
         { key: '/admin/issues', icon: <ExclamationCircleOutlined />, label: 'Khiếu nại / Hỗ trợ' },
 
         { type: 'divider' },
