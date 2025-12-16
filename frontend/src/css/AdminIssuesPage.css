@@ -1,0 +1,165 @@
+.admin-issues-page {
+    padding: 16px;
+}
+
+.admin-issues-card {
+    border-radius: 14px;
+}
+
+.admin-issues-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.admin-issues-title {
+    margin: 0 !important;
+}
+
+.admin-issues-filters {
+    display: grid;
+    grid-template-columns: 1.3fr 0.8fr 0.8fr;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.admin-issues-filter {
+    width: 100%;
+}
+
+.admin-issues-table .ant-table {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+/* Detail modal scroll + scrollbar đẹp */
+.admin-issue-detail-modal .ant-modal-body {
+    max-height: 72vh;
+    overflow: auto;
+}
+
+.admin-issue-detail-modal .ant-modal-body::-webkit-scrollbar {
+    width: 7px;
+}
+.admin-issue-detail-modal .ant-modal-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+.admin-issue-detail-modal .ant-modal-body::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.22);
+    border-radius: 999px;
+}
+.admin-issue-detail-modal .ant-modal-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.35);
+}
+
+.admin-issue-detail-card {
+    border-radius: 12px;
+}
+
+.admin-issue-desc {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+/* Attachments */
+.admin-issue-attachments {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.admin-issue-attachments-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.admin-issue-attachment-item {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.admin-issue-attachment-item img {
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+    display: block;
+}
+
+.admin-issue-attachment-caption {
+    padding: 8px 10px;
+}
+
+/* Admin credit action */
+.admin-issue-action {
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 12px;
+    padding: 12px;
+    background: rgba(255,255,255,0.02);
+}
+
+.admin-issue-action-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    gap: 10px;
+}
+
+.admin-issue-action-form .ant-form-item {
+    margin-bottom: 12px;
+}
+
+.admin-issue-action-buttons {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.admin-issue-action-summary {
+    margin-bottom: 10px;
+}
+
+/* Reply */
+.admin-issue-reply {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.admin-issue-reply-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* Timeline collapse content */
+.admin-issue-events {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 4px;
+}
+
+.admin-issue-event-row {
+    display: grid;
+    grid-template-columns: 180px 160px 1fr;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(0,0,0,0.06);
+}
+
+@media (max-width: 900px) {
+    .admin-issues-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-issue-attachments-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .admin-issue-event-row {
+        grid-template-columns: 1fr;
+    }
+}

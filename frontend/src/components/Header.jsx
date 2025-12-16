@@ -11,6 +11,7 @@ import {
   ShopOutlined,
   DashOutlined,
   ShoppingCartOutlined,
+  SaveOutlined,
 } from '@ant-design/icons';
 
 const Header = () => {
@@ -63,8 +64,26 @@ const Header = () => {
     {
       key: 'history-reg',
       label: 'Lịch sử đăng ký quán',
-      icon: <ShopOutlined />,
+      icon: <SaveOutlined />,
       onClick: () => navigate('/my-registrations'),
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: 'support',
+      label: 'Yêu cầu hỗ trợ / Khiếu nại',
+      icon: <ProfileOutlined />,
+      onClick: () => navigate('/support/new'),
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: 'support-history',
+      label: 'Lịch sử yêu cầu hỗ trợ',
+      icon: <ShoppingCartOutlined />,
+      onClick: () => navigate('/support'),
     },
     {
       type: 'divider',

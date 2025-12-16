@@ -182,7 +182,7 @@ export const DecreaseComboModal = ({
                                             disabled={addingProductId === item.productId}
                                         >
                                             <span className="option-item-label">
-                                                Trừ 1 phần combo này
+                                                Bỏ lựa chọn
                                             </span>
                                             <span className="option-item-price">
                                                 −{formatPrice(item.unitPrice)}

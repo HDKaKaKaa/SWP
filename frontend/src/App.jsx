@@ -35,6 +35,9 @@ import OrderSuccessPage from './pages/OrderSuccessPage';
 import OrderDetailPage from './pages/OrderDetailPage';
 import MyRegistrations from './pages/MyRegistrations';
 import RestaurantEdit from './pages/RestaurantEdit';
+import CustomerIssueCreate from './pages/CustomerIssueCreate';
+import CustomerIssueHistory from './pages/CustomerIssueHistory';
+import AdminIssuesPage from "./pages/AdminIssuesPage.jsx";
 
 const ShippersPage = () => <h2>Quản lý Tài xế</h2>;
 
@@ -74,6 +77,7 @@ function App() {
         <Route path="orders" element={<OrdersPage />} />
         <Route path="users" element={<AdminUsersPage />} />
         <Route path="shippers" element={<ShippersPage />} />
+        <Route path="issues" element={<AdminIssuesPage />} />
       </Route>
 
       {/* ======================================================= */}
@@ -103,12 +107,11 @@ function App() {
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/order-success" element={<OrderSuccessPage />} />
         <Route path="/orders" element={<OrderDetailPage />} />
-        <Route
-          path="/restaurant-registration"
-          element={<RestaurantRegistration />}
-        />
+        <Route path="/restaurant-registration" element={<RestaurantRegistration />} />
         <Route path="/my-registrations" element={<MyRegistrations />} />
         <Route path="/restaurant/edit/:id" element={<RestaurantEdit />} />
+        <Route path="/support/new" element={<CustomerIssueCreate />} />
+        <Route path="/support" element={<CustomerIssueHistory />} />
       </Route>
 
       <Route element={<AuthLayoutNoFooter />}>
