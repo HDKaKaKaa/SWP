@@ -2,6 +2,8 @@ package com.shopeefood.backend.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -9,7 +11,6 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.data.domain.Sort;
 import com.shopeefood.backend.service.OwnerProductService;
 import com.shopeefood.backend.dto.OwnerProductDTO;
-import com.shopeefood.backend.dto.ProductDTO;
 import com.shopeefood.backend.dto.ProductUpdateRequestDTO;
 
 @RestController
@@ -35,30 +36,26 @@ public class OwnerProductController {
     }
 
     @GetMapping("/{productId}")
-    public ResponseEntity<ProductDTO> getProductDetails(@PathVariable Integer productId) {
-        ProductDTO product = ownerProductService.getProductById(productId);
+    public ResponseEntity<OwnerProductDTO> getProductDetails(@PathVariable Integer productId) {
+        OwnerProductDTO product = ownerProductService.getProductById(productId);
         return ResponseEntity.ok(product);
     }
 
     @PutMapping("/{productId}")
-    public ResponseEntity<ProductDTO> updateProduct(
-            @RequestParam Integer ownerId,
+    public ResponseEntity<OwnerProductDTO> updateProduct(
             @PathVariable Integer productId,
-            @RequestBody ProductUpdateRequestDTO requestDto
-    // @AuthenticationPrincipal UserDetails userDetails // Sử dụng nếu có Security
-    ) {
-        // Gọi Service để cập nhật sản phẩm.
-        // Service sẽ ném RuntimeException nếu Product, Category không tồn tại, hoặc lỗi
-        // Security.
-        ProductDTO updatedProduct = ownerProductService.updateProduct(
+            @RequestPart("productRequest") ProductUpdateRequestDTO requestDto,
+            @RequestParam(value = "imageFile", required = false) MultipartFile imageFile) {
+        OwnerProductDTO updatedProduct = ownerProductService.updateProduct(
                 productId,
                 requestDto,
-                ownerId);
+                imageFile);
         return ResponseEntity.ok(updatedProduct);
     }
 
     @DeleteMapping("/{productId}")
     public ResponseEntity<Void> deleteProduct(@PathVariable Integer productId) {
+
         ownerProductService.deleteProduct(productId);
         return ResponseEntity.noContent().build();
     }

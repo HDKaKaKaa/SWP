@@ -8,12 +8,13 @@ import com.shopeefood.backend.repository.RestaurantRepository;
 import com.shopeefood.backend.service.CloudinaryService;
 
 import jakarta.persistence.EntityNotFoundException;
-
+import org.springframework.http.HttpStatus;
 import com.shopeefood.backend.repository.OwnerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.util.List;
@@ -96,9 +97,10 @@ public class OwnerRestaurantService {
                 .orElseThrow(() -> new SecurityException(
                         "Không tìm thấy Nhà hàng hoặc bạn không có quyền sở hữu để cập nhật."));
 
-        // 3. Cập nhật thông tin Owner
+        // 3. Cập nhật thông tin Owner và lưu Entity Owner
         owner.setFullName(request.getOwnerFullName());
         owner.setIdCardNumber(request.getIdCardNumber());
+        ownerRepository.save(owner);
 
         // 4. Cập nhật thông tin Restaurant từ DTO
         restaurant.setName(request.getRestaurantName());
@@ -110,16 +112,28 @@ public class OwnerRestaurantService {
 
         // 5. Xử lý Ảnh bìa mới
         if (newImageFile != null && !newImageFile.isEmpty()) {
+            String contentType = newImageFile.getContentType();
+            if (contentType == null || !isValidImageType(contentType)) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Định dạng file ảnh không hợp lệ. Chỉ chấp nhận JPG, JPEG, và PNG.");
+            }
             String newImageUrl = cloudinaryService.uploadImage(newImageFile);
             restaurant.setCoverImage(newImageUrl);
-        } else {
-            restaurant.setCoverImage(request.getCoverImageUrl());
         }
 
-        // 6. THÊM LOGIC: Bắt buộc chuyển trạng thái sang PENDING khi thông tin thay đổi
+        // 6. LOGIC NGHIỆP VỤ: Bắt buộc chuyển trạng thái sang PENDING khi thông tin
+        // quan trọng thay đổi
         restaurant.setStatus(Restaurant.RestaurantStatus.PENDING);
 
         Restaurant updatedRestaurant = restaurantRepository.save(restaurant);
         return new RestaurantDTO(updatedRestaurant);
+    }
+
+    private boolean isValidImageType(String contentType) {
+        // Chấp nhận: image/jpeg, image/png
+        return contentType.startsWith("image/jpeg")
+                || contentType.startsWith("image/png")
+                || contentType.startsWith("image/jpg");
     }
 }

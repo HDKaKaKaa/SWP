@@ -10,10 +10,10 @@ public class ProductUpdateRequestDTO {
     private String name;
     private String description;
     private BigDecimal price; 
-    private String image;
     private Boolean isAvailable; 
     private Integer categoryId; 
     private Integer restaurantId;
+
 
     private List<ProductDetailRequest> productDetails;
 }
