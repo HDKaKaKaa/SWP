@@ -267,7 +267,20 @@ export default function AddProduct({ onProductAdded, restaurants = [] }) {
 
         } catch (apiError) {
             console.error('Lỗi khi thêm sản phẩm:', apiError.response || apiError);
-            const errorMsg = apiError.response?.data?.message || 'Lỗi kết nối hoặc lỗi dữ liệu. Vui lòng kiểm tra ảnh và các trường bắt buộc.';
+            const status = apiError.response?.status;
+            let errorMsg = 'Lỗi kết nối hoặc lỗi dữ liệu. Vui lòng kiểm tra ảnh và các trường bắt buộc.';
+
+            if (status === 400) {
+                // Bắt lỗi 400 Bad Request (ví dụ: Định dạng ảnh không hợp lệ)
+                errorMsg = apiError.response?.data?.message || "Định dạng ảnh không hợp lệ.";
+            } else if (status === 413) {
+                // Xử lý lỗi 413 Payload Too Large (Kích thước file vượt quá giới hạn)
+                errorMsg = "Kích thước ảnh quá lớn. Vui lòng chọn ảnh nhỏ hơn.";
+            } else if (status === 500) {
+                // Bắt lỗi 500 (Ví dụ: Lỗi Cloudinary)
+                errorMsg = apiError.response?.data?.message || "Lỗi máy chủ nội bộ. Vui lòng thử lại sau.";
+            }
+
             setError(errorMsg);
         } finally {
             setLoading(false);

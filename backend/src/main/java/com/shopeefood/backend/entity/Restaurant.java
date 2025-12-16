@@ -43,8 +43,7 @@ public class Restaurant {
         PENDING,
         ACTIVE,
         BLOCKED,
-        REJECTED,
-        REFUNDED
+        REJECTED
     }
 
     @Enumerated(EnumType.STRING)
