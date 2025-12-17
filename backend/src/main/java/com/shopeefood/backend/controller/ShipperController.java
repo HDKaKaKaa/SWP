@@ -665,10 +665,8 @@ public class ShipperController {
             restaurant.put("name", order.getRestaurant().getName());
             restaurant.put("address", order.getRestaurant().getAddress());
             restaurant.put("phone", order.getRestaurant().getPhone());
-            // Note: Restaurant entity không có lat/long fields
-            // Nếu cần, có thể thêm vào database và entity sau
-            restaurant.put("lat", null);
-            restaurant.put("long", null);
+            restaurant.put("lat", order.getRestaurant().getLatitude());
+            restaurant.put("long", order.getRestaurant().getLongitude());
             result.put("restaurant", restaurant);
         }
 
@@ -700,6 +698,27 @@ public class ShipperController {
                 return itemMap;
             }).collect(Collectors.toList());
             result.put("orderItems", items);
+        }
+
+        if (order.getShipper() != null) {
+            Map<String, Object> shipperMap = new HashMap<>();
+            shipperMap.put("id", order.getShipper().getAccountId());
+            shipperMap.put("fullName", order.getShipper().getFullName());
+
+            // Kiểm tra null an toàn cho Account
+            String phone = "N/A";
+            if (order.getShipper().getAccount() != null) {
+                phone = order.getShipper().getAccount().getPhone();
+            }
+            shipperMap.put("phone", phone);
+
+            shipperMap.put("licensePlate", order.getShipper().getLicensePlate());
+            shipperMap.put("vehicleType", order.getShipper().getVehicleType());
+            shipperMap.put("avatar", order.getShipper().getAvatar()); // Thêm avatar nếu có
+
+            // Quan trọng: Put shipperId ra ngoài root để frontend check
+            result.put("shipperId", order.getShipper().getAccountId());
+            result.put("shipper", shipperMap);
         }
 
         return ResponseEntity.ok(result);
