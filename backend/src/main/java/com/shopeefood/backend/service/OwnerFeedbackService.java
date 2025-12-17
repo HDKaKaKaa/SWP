@@ -48,31 +48,37 @@ public class OwnerFeedbackService {
         LocalDateTime endDateTime = endDate != null ? endDate.atTime(23, 59, 59) : null;
         Sort currentSort = pageable.getSort();
         Sort newSort = Sort.unsorted();
-
         for (Sort.Order order : currentSort) {
             String propertyName = order.getProperty();
             String sqlColumnName;
+            Sort.Order newOrder; 
+
             switch (propertyName) {
                 case "createdAt":
                     sqlColumnName = "feedbackCreatedAt";
+                    newOrder = Sort.Order.by(sqlColumnName).with(order.getDirection());
                     break;
                 case "rating":
                     sqlColumnName = "feedbackRating";
+                    newOrder = new Sort.Order(order.getDirection(), sqlColumnName, Sort.NullHandling.NULLS_LAST);
                     break;
                 case "orderId":
                     sqlColumnName = "orderIdCol";
+                    newOrder = Sort.Order.by(sqlColumnName).with(order.getDirection());
+                    break;
+                case "orderNumber":
+                    sqlColumnName = "orderNumberCol";
+                    newOrder = Sort.Order.by(sqlColumnName).with(order.getDirection());
                     break;
                 default:
-                    // Giữ nguyên các thuộc tính không được ánh xạ rõ ràng
                     sqlColumnName = propertyName;
+                    newOrder = Sort.Order.by(sqlColumnName).with(order.getDirection());
             }
-
-            newSort = newSort.and(Sort.by(order.getDirection(), sqlColumnName));
+            newSort = newSort.and(Sort.by(newOrder));
         }
 
-        // Tạo Pageable mới với Sort đã được ánh xạ (quan trọng!)
+        // Tạo Pageable mới với Sort đã được ánh xạ
         Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), newSort);
-        // 🌟 END FIX 🌟
 
         Page<Feedback> feedbackPage = feedbackRepository.findFilteredFeedbacksByOwner(
                 ownerId,

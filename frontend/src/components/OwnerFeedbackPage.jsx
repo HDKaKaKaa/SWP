@@ -17,11 +17,10 @@ import {
     Input,
     DatePicker,
     Descriptions,
-    List, // Thêm List
+    List,
 } from 'antd';
 import { StarFilled, ReloadOutlined, PhoneOutlined, ShoppingOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-// Thêm AuthContext
 import { AuthContext } from '../context/AuthContext';
 
 const { Option } = Select;
@@ -36,8 +35,10 @@ const API_DATE_FORMAT = 'YYYY-MM-DD';
 
 // Hàm định dạng tiền tệ
 const formatCurrency = (amount) => {
-    if (typeof amount !== 'number') return amount;
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+    // Chuyển đổi sang số nếu cần, nếu null/undefined thì trả về chuỗi rỗng
+    const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    if (typeof numericAmount !== 'number' || isNaN(numericAmount)) return '-';
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(numericAmount);
 };
 
 
@@ -67,10 +68,9 @@ const OwnerFeedbackPage = () => {
 
     // --- 4. Trạng thái Drawer xem chi tiết ---
     const [isDrawerVisible, setIsDrawerVisible] = useState(false);
-    const [selectedFeedback, setSelectedFeedback] = useState(null);
-    // Giả định: selectedOrderDetails sẽ chứa các trường orderId, totalAmount, orderItems
-    const [selectedOrderDetails, setSelectedOrderDetails] = useState(null);
-    const [loadingOrderDetails, setLoadingOrderDetails] = useState(false); // Dùng cho trường hợp call API riêng
+    const [selectedFeedback, setSelectedFeedback] = useState(null); // Giữ thông tin feedback (tên KH, tên NH, orderId)
+    const [selectedOrderDetails, setSelectedOrderDetails] = useState(null); // Giữ chi tiết đơn hàng (items, totalAmount)
+    const [loadingOrderDetails, setLoadingOrderDetails] = useState(false);
 
 
     // =================================================================
@@ -82,7 +82,6 @@ const OwnerFeedbackPage = () => {
         // Logic 1: Lấy Owner ID từ Account ID
         const fetchOwnerId = async () => {
             try {
-                // Endpoint giả định: GET /api/owner/byAccount/{accountId}
                 const res = await axios.get(`${API_BASE_URL}/byAccount/${user.id}`);
                 const fetchedOwnerId = res.data;
                 setOwnerId(fetchedOwnerId);
@@ -92,7 +91,6 @@ const OwnerFeedbackPage = () => {
 
             } catch (err) {
                 console.error("Không lấy được ownerId:", err);
-                message.error("Không thể xác định Owner ID.");
             }
         };
 
@@ -116,7 +114,11 @@ const OwnerFeedbackPage = () => {
     // B. Tải Feedback (Paging, Sorting, Filtering, Search)
     // =================================================================
     const fetchFeedbacks = useCallback(async (current, pageSize, sorter) => {
-        if (!ownerId) return;
+        if (!ownerId) {
+            setFeedbacks([]); // Xóa dữ liệu cũ nếu ownerId không có
+            setLoading(false);
+            return;
+        }
 
         setLoading(true);
 
@@ -143,7 +145,6 @@ const OwnerFeedbackPage = () => {
             // Gọi API feedbacks
             const response = await axios.get(`${API_BASE_URL}/feedbacks`, { params });
 
-            // GIẢ ĐỊNH: response.data.content đã bao gồm orderId, totalAmount, orderItems
             setFeedbacks(response.data.content);
             setPagination(prev => ({
                 ...prev,
@@ -166,15 +167,35 @@ const OwnerFeedbackPage = () => {
     // Trigger việc tải lại dữ liệu khi ownerId hoặc bộ lọc/tìm kiếm thay đổi
     useEffect(() => {
         if (ownerId !== null) {
+            // Khi bộ lọc thay đổi, reset về trang 1
             fetchFeedbacks(1, pagination.pageSize, { field: pagination.sortField, order: pagination.sortOrder });
         }
     }, [ownerId, filterRestaurantId, searchKeyword, filterDateRange]);
+
+
+    //Chi tiết đơn cho Owner
+    const fetchOrderDetails = useCallback(async (orderId) => {
+        setLoadingOrderDetails(true);
+        try {
+            const res = await axios.get(`${API_BASE_URL}/orders/${orderId}/details`);
+            // API này trả về đầy đủ thông tin: items, totalAmount, createdAt, id, ...
+            setSelectedOrderDetails(res.data);
+
+        } catch (err) {
+            console.error("Lỗi tải chi tiết đơn hàng:", err);
+            message.error(`Không thể tải chi tiết đơn hàng #${orderId}.`);
+            setSelectedOrderDetails(null);
+        } finally {
+            setLoadingOrderDetails(false);
+        }
+    }, []);
 
 
     // =================================================================
     // C. Xử lý Sự kiện Thay đổi Table (Sắp xếp và Phân trang)
     // =================================================================
     const handleTableChange = (newPagination, filters, sorter, extra) => {
+        // Xử lý sorter khi sắp xếp nhiều cột hoặc một cột
         const sortParams = Array.isArray(sorter) ? sorter[0] : sorter;
 
         fetchFeedbacks(
@@ -187,22 +208,35 @@ const OwnerFeedbackPage = () => {
         );
     };
 
-    const handleSearch = () => {
-        setSearchKeyword(inputSearchValue);
+    const handleSearch = (value) => {
+        setInputSearchValue(value);
+        setSearchKeyword(value.trim() === '' ? null : value);
     };
 
     const handleDateRangeChange = (dates) => {
+        // Khi thay đổi range date, reset về trang 1
         setFilterDateRange(dates);
     };
 
     const handleFilterChange = (setter, value) => {
+        // Khi thay đổi filter, reset về trang 1
         setter(value);
     }
 
     const handleViewDetails = (record) => {
+        // 1. Lưu record để hiển thị thông tin cơ bản (Tên KH, Tên NH, Rating)
         setSelectedFeedback(record);
-        setSelectedOrderDetails(record); // Gán record (đã chứa Order Items) vào state chi tiết
+
+        // 2. Reset chi tiết đơn hàng cũ và mở Drawer
+        setSelectedOrderDetails(null);
         setIsDrawerVisible(true);
+
+        // 3. Gọi API để tải chi tiết đơn hàng
+        if (record.orderId) {
+            fetchOrderDetails(record.orderId);
+        } else {
+            message.warning("Đánh giá này không liên kết với Mã đơn hàng.");
+        }
     };
 
     const handleCloseDrawer = () => {
@@ -215,18 +249,20 @@ const OwnerFeedbackPage = () => {
     const columns = [
         {
             title: 'Mã Đơn',
-            dataIndex: 'orderId',
-            key: 'orderId',
-            width: 100,
+            dataIndex: 'orderNumber',
+            key: 'orderNumber',
+            width: 150,
             sorter: true,
+            align: 'center',
             sortDirections: ['descend', 'ascend'],
-            render: (text) => <b>#{text}</b>
+            render: (text) => <b>{text}</b>
         },
         {
             title: 'Khách hàng',
             dataIndex: 'customerName',
             key: 'customerName',
-            width: 180,
+            width: 200,
+            align: 'center',
             sorter: true,
             sortDirections: ['ascend', 'descend'],
             render: (name, record) => (
@@ -247,11 +283,12 @@ const OwnerFeedbackPage = () => {
             title: 'Nhà hàng',
             dataIndex: 'restaurantName',
             key: 'restaurantName',
-            width: 200,
+            width: 180,
+            align: 'center',
             render: (name) => <Text ellipsis={{ tooltip: name }}>{name}</Text>
         },
         {
-            title: 'Sao',
+            title: 'Rating',
             dataIndex: 'rating',
             key: 'rating',
             width: 120,
@@ -259,7 +296,7 @@ const OwnerFeedbackPage = () => {
             sortDirections: ['descend', 'ascend'],
             align: 'center',
             render: (rating) => (
-                <Rate disabled defaultValue={rating} count={5} character={<StarFilled />} style={{ fontSize: 16 }} />
+                <Rate disabled defaultValue={rating} count={5} character={<StarFilled />} style={{ fontSize: 11 }} />
             ),
         },
         {
@@ -267,6 +304,7 @@ const OwnerFeedbackPage = () => {
             dataIndex: 'comment',
             key: 'comment',
             ellipsis: true,
+            align: 'center',
             render: (text) => (
                 <Text
                     ellipsis={{ tooltip: text || 'Không có bình luận.' }}
@@ -282,10 +320,10 @@ const OwnerFeedbackPage = () => {
             key: 'createdAt',
             width: 180,
             sorter: true,
+            align: 'center',
             sortDirections: ['descend', 'ascend'],
             render: (dateString) => {
                 if (!dateString) return '';
-                // Giả định createdAt là ngày đánh giá
                 return dayjs(dateString).format(DISPLAY_DATE_FORMAT);
             },
         },
@@ -295,7 +333,13 @@ const OwnerFeedbackPage = () => {
             width: 100,
             align: 'center',
             render: (_, record) => (
-                <Button type="link" onClick={() => handleViewDetails(record)} size="small">
+                // Chỉ cho phép xem chi tiết nếu có orderId
+                <Button
+                    type="link"
+                    onClick={() => handleViewDetails(record)}
+                    size="small"
+                    disabled={!record.orderId}
+                >
                     Chi tiết
                 </Button>
             ),
@@ -312,28 +356,16 @@ const OwnerFeedbackPage = () => {
         return col;
     });
 
+
     const filterOptions = (
         <Space size="middle" wrap>
-            {/* 1. Ô Tìm kiếm Mã đơn, Tên KH, Comment */}
-            <Input.Search
-                placeholder="Tìm kiếm Mã đơn, Tên KH, Comment..."
-                allowClear
-                onSearch={handleSearch}
-                onChange={(e) => setInputSearchValue(e.target.value)}
-                value={inputSearchValue}
-                style={{ width: 350 }}
-                enterButton
-                loading={loading}
-                disabled={loading}
-            />
-
-            {/* 2. Lọc theo Nhà hàng */}
+            {/* 1. Lọc theo Nhà hàng */}
             <Select
                 style={{ width: 250 }}
                 placeholder="Lọc theo Nhà hàng"
                 value={filterRestaurantId}
                 onChange={(value) => handleFilterChange(setFilterRestaurantId, value)}
-                disabled={loading}
+                disabled={loading || restaurants.length === 0}
             >
                 <Option value="null">Tất cả Nhà hàng</Option>
                 {restaurants.map(r => (
@@ -343,7 +375,7 @@ const OwnerFeedbackPage = () => {
                 ))}
             </Select>
 
-            {/* 3. Lọc theo Ngày tạo (RangePicker) */}
+            {/* 2. Lọc theo Ngày tạo (RangePicker) */}
             <RangePicker
                 style={{ width: 280 }}
                 value={filterDateRange}
@@ -352,7 +384,18 @@ const OwnerFeedbackPage = () => {
                 placeholder={["Ngày bắt đầu", "Ngày kết thúc"]}
                 disabled={loading}
             />
-
+            {/* 3. Ô Tìm kiếm Mã đơn, Tên KH, Comment */}
+            <Input.Search
+                placeholder="Tìm kiếm Mã đơn, Tên KH, Comment..."
+                allowClear
+                onSearch={handleSearch}
+                onChange={(e) => setInputSearchValue(e.target.value)}
+                value={inputSearchValue}
+                style={{ width: 400, height: 32 }}
+                enterButton
+                loading={loading}
+                disabled={loading}
+            />
             <Button
                 icon={<ReloadOutlined />}
                 onClick={() => {
@@ -374,13 +417,6 @@ const OwnerFeedbackPage = () => {
                 {filterOptions}
             </Card>
 
-            {/* Thông báo nếu chưa có ownerId */}
-            {ownerId === null && !loading && (
-                <div style={{ padding: 20, textAlign: 'center', color: 'red' }}>
-                    <Text type="danger">Không thể tải dữ liệu. Vui lòng kiểm tra quyền truy cập Owner.</Text>
-                </div>
-            )}
-
             <Spin spinning={loading || ownerId === null}>
                 <Table
                     columns={dynamicColumns}
@@ -396,67 +432,93 @@ const OwnerFeedbackPage = () => {
                     style={{ marginTop: '20px' }}
                     locale={{ emptyText: "Không tìm thấy đánh giá nào." }}
                     scroll={{ x: 1000 }}
+                    loading={loading} // Gán loading vào Table
                 />
             </Spin>
 
-            {/* --- DRAWER XEM CHI TIẾT (Đã cập nhật) --- */}
-            {selectedFeedback && selectedOrderDetails && (
-                <Drawer
-                    title={`Chi tiết Đánh giá (Mã đơn #${selectedFeedback.orderId})`}
-                    width={450}
-                    placement="right"
-                    onClose={handleCloseDrawer}
-                    open={isDrawerVisible}
-                >
-                    <Spin spinning={loadingOrderDetails}>
+            {/* --- DRAWER XEM CHI TIẾT --- */}
+            <Drawer
+                title={`Chi tiết Đơn Hàng (Mã đơn #${selectedOrderDetails?.orderNumber || selectedFeedback?.orderNumber || 'N/A'})`}
+                width={450}
+                placement="right"
+                onClose={handleCloseDrawer}
+                open={isDrawerVisible}
+                // Dùng selectedFeedback để đảm bảo title luôn có thông tin dù chi tiết đơn hàng đang load
+                destroyOnClose={true} // Đảm bảo state bên trong Drawer được reset
+            >
+                <Spin spinning={loadingOrderDetails}>
+                    {selectedOrderDetails && selectedFeedback ? (
+                        <>
+                            {/* 1. THÔNG TIN ĐƠN HÀNG */}
+                            <Title level={5} style={{ marginTop: 0 }}>
+                                <ShoppingOutlined style={{ marginRight: 8, color: '#1890ff' }} />
+                                Thông tin Đơn hàng
+                            </Title>
+                            <Descriptions column={1} bordered size="small" style={{ marginBottom: 20 }}>
+                                <Descriptions.Item label="Mã Đơn hàng">
+                                    <Text strong>#{selectedOrderDetails.orderNumber}</Text>
+                                </Descriptions.Item>
+                                <Descriptions.Item label="Tổng tiền">
+                                    {/* Sử dụng totalAmount từ selectedOrderDetails */}
+                                    <Text strong type="danger">{formatCurrency(selectedOrderDetails.totalAmount)}</Text>
+                                </Descriptions.Item>
+                                <Descriptions.Item label="Thời gian đặt">
+                                    {/* Sử dụng createdAt từ selectedOrderDetails */}
+                                    {dayjs(selectedOrderDetails.createdAt).format(DISPLAY_DATE_FORMAT)}
+                                </Descriptions.Item>
+                                <Descriptions.Item label="Nhà hàng">
+                                    {/* Sử dụng restaurantName từ selectedFeedback */}
+                                    {selectedFeedback.restaurantName}
+                                </Descriptions.Item>
+                                <Descriptions.Item label="Khách hàng">
+                                    {/* Sử dụng customerName/customerPhone từ selectedFeedback */}
+                                    {selectedFeedback.customerName || 'Ẩn danh'} - {selectedFeedback.customerPhone || 'Không có SĐT'}
+                                </Descriptions.Item>
+                            </Descriptions>
 
-                        {/* 1. THÔNG TIN ĐƠN HÀNG */}
-                        <Title level={5} style={{ marginTop: 0 }}>
-                            <ShoppingOutlined style={{ marginRight: 8, color: '#1890ff' }} />
-                            Thông tin Đơn hàng
-                        </Title>
-                        <Descriptions column={1} bordered size="small" style={{ marginBottom: 20 }}>
-                            <Descriptions.Item label="Mã Đơn hàng">
-                                <Text strong>#{selectedOrderDetails.orderId}</Text>
-                            </Descriptions.Item>
-                            <Descriptions.Item label="Tổng tiền">
-                                <Text strong type="danger">{formatCurrency(selectedOrderDetails.totalAmount)}</Text>
-                            </Descriptions.Item>
-                            <Descriptions.Item label="Thời gian đặt">
-                                {selectedOrderDetails.orderDate
-                                    ? dayjs(selectedOrderDetails.orderDate).format(DISPLAY_DATE_FORMAT)
-                                    : dayjs(selectedOrderDetails.createdAt).format(DISPLAY_DATE_FORMAT)
-                                }
-                                {/* Sử dụng orderDate nếu có, không thì dùng createdAt của feedback */}
-                            </Descriptions.Item>
-                        </Descriptions>
-
-                        {/* 2. CHI TIẾT CÁC MÓN ĂN */}
-                        <Title level={5}>Chi tiết các món ăn:</Title>
-                        <Card style={{ marginBottom: 20, padding: 0 }} bodyStyle={{ padding: 0 }}>
-                            {selectedOrderDetails.orderItems && selectedOrderDetails.orderItems.length > 0 ? (
-                                <List
-                                    size="small"
-                                    dataSource={selectedOrderDetails.orderItems}
-                                    renderItem={(item) => (
-                                        <List.Item>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                                                <Text>{item.quantity} x {item.dishName}</Text>
-                                                <Text type="secondary">{formatCurrency(item.price * item.quantity)}</Text>
-                                            </div>
-                                        </List.Item>
-                                    )}
-                                />
-                            ) : (
-                                <div style={{ padding: 12, textAlign: 'center' }}>
-                                    <Text type="secondary">Không có chi tiết món ăn (Cần cập nhật Backend).</Text>
-                                </div>
-                            )}
-                        </Card>
-                    </Spin>
-                </Drawer>
-            )}
-        </div>
+                            {/* 2. CHI TIẾT CÁC MÓN ĂN */}
+                            <Title level={5}>Chi tiết đơn ({selectedOrderDetails.items?.length || 0} món):</Title>
+                            <Card style={{ marginBottom: 20, padding: 0 }} bodyStyle={{ padding: 0 }}>
+                                {selectedOrderDetails.items && selectedOrderDetails.items.length > 0 ? (
+                                    <List
+                                        size="small"
+                                        dataSource={selectedOrderDetails.items}
+                                        renderItem={(item) => (
+                                            <List.Item>
+                                                <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                                                    {/* Dòng 1: Tên món ăn và Tổng tiền */}
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                                                        <Text strong>
+                                                            {item.quantity} x {item.productName}
+                                                        </Text>
+                                                        {/* price * quantity là tổng tiền cho món đó */}
+                                                        <Text type="secondary" style={{ whiteSpace: 'nowrap' }}>{formatCurrency(item.price * item.quantity)}</Text>
+                                                    </div>
+                                                    {/* Dòng 2: Hiển thị Options */}
+                                                    {item.options && item.options.length > 0 && (
+                                                        <div style={{ marginTop: 4, fontSize: '0.85em', color: '#8c8c8c' }}>
+                                                            {item.options.map((option, index) => (
+                                                                <div key={index}>+ {option}</div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </List.Item>
+                                        )}
+                                    />
+                                ) : (
+                                    <div style={{ padding: 12, textAlign: 'center' }}>
+                                        <Text type="secondary">Đơn hàng này không có chi tiết món ăn.</Text>
+                                    </div>
+                                )}
+                            </Card>
+                        </>
+                    ) : (
+                        !loadingOrderDetails && <Text type="warning">Không thể tải chi tiết đơn hàng này.</Text>
+                    )}
+                </Spin>
+            </Drawer>
+        </div >
     );
 };
 

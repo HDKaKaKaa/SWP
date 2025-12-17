@@ -52,4 +52,13 @@ public class OwnerOrderController {
         // 2. CHUYỂN Order Entity SANG OrderDTO TRƯỚC KHI TRẢ VỀ
         return new OrderDTO(updatedOrder);
     }
+
+    @GetMapping("/{orderId}/details")
+    public OrderDTO getOrderDetails(@PathVariable Integer orderId) {
+        Order order = orderService.getOrderDetailsById(orderId);
+
+        if (order == null) {
+        }
+        return new OrderDTO(order);
+    }
 }
