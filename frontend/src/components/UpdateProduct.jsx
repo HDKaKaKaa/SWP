@@ -1,81 +1,102 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Form, Button, Container, Row, Col, Card, Alert, Table, InputGroup, Spinner } from 'react-bootstrap';
+import {
+    Form,
+    Input,
+    Button,
+    Row,
+    Col,
+    Card,
+    Alert,
+    Spin,
+    Select,
+    InputNumber,
+    Switch,
+    Space,
+    List,
+    Typography,
+    Divider,
+} from 'antd';
 import axios from 'axios';
 
+const { Option } = Select;
+const { TextArea } = Input;
+const { Title, Text } = Typography;
 const API_BASE_URL = "http://localhost:8080/api";
 
-// --- Component con để quản lý Product Details (Giữ nguyên) ---
 const AttributeEditor = React.memo(({ attribute, details, onAddDetail, onDetailChange, onRemoveDetail }) => {
     return (
-        <Card className="mb-4 border-primary border-opacity-25" bg="light">
-            <Card.Header as="h5" className="text-primary text-center">
-                {attribute.name}
-            </Card.Header>
-            <Card.Body className="p-3">
-                <Table striped bordered hover size="sm">
-                    <thead>
-                        <tr>
-                            <th className="w-45">{attribute.name}</th>
-                            <th className="w-35">Giá Điều chỉnh (VND)</th>
-                            <th className="w-20">Hành động</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {details.map((detail, index) => (
-                            <tr key={detail.id || index}>
-                                <td>
-                                    <Form.Control
-                                        type="text"
-                                        value={detail.value}
-                                        onChange={(e) => onDetailChange(attribute.id, index, 'value', e.target.value)}
-                                        placeholder={`Nhập giá trị, VD: L, 50%`}
-                                        required
-                                    />
-                                </td>
-                                <td>
-                                    <InputGroup>
-                                        <Form.Control
-                                            type="number"
-                                            value={detail.priceAdjustment}
-                                            onChange={(e) => onDetailChange(attribute.id, index, 'priceAdjustment', e.target.value)}
-                                            min="0"
-                                            step="1000"
-                                            required
-                                        />
-                                        <InputGroup.Text>VND</InputGroup.Text>
-                                    </InputGroup>
-                                </td>
-                                <td>
-                                    <Button
-                                        variant="danger"
-                                        size="sm"
-                                        onClick={() => onRemoveDetail(attribute.id, index)}
-                                        className="w-100">
-                                        Xóa
-                                    </Button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </Table>
+        <Card
+            title={
+                <Title level={5} style={{ color: '#1890ff', textAlign: 'center', margin: 0 }}>
+                    {attribute.name}
+                </Title>
+            }
+            bordered={true}
+            style={{ marginBottom: 24, borderColor: 'rgba(24, 144, 255, 0.25)', backgroundColor: '#fafafa' }}
+            bodyStyle={{ padding: 12 }}
+        >
+            <List
+                itemLayout="horizontal"
+                dataSource={details}
+                renderItem={(detail, index) => (
+                    <List.Item
+                        key={detail.id || index}
+                        style={{ padding: '8px 0', borderBottom: index < details.length - 1 ? '1px solid #f0f0f0' : 'none' }}
+                    >
+                        <Row gutter={[24, 8]} style={{ width: '120%' }}>
+                            <Col xs={24} sm={12} md={12}> 
+                                <Input
+                                    value={detail.value}
+                                    onChange={(e) => onDetailChange(attribute.id, index, 'value', e.target.value)}
+                                    placeholder={`Nhập giá trị, VD: L, 50%`}
+                                />
+                            </Col>
 
-                <Button
-                    variant="info"
-                    onClick={() => onAddDetail(attribute.id)}
-                    className="mt-2 text-white">
-                    + Thêm Tùy chọn cho {attribute.name}
-                </Button>
-            </Card.Body>
+                            <Col xs={24} sm={8} md={8}>
+                                <InputNumber
+                                    style={{ width: '100%', height: '45px' }}
+                                    formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                    parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                                    min={0}
+                                    step={1000}
+                                    value={detail.priceAdjustment}
+                                    onChange={(value) => onDetailChange(attribute.id, index, 'priceAdjustment', value || 0)}
+                                    
+                                />
+                            </Col>
+                            <Col xs={24} sm={4} md={4}>
+                                <Button
+                                    danger
+                                    type="primary"
+                                    size="middle"
+                                    onClick={() => onRemoveDetail(attribute.id, index)}
+                                    style={{ width: '100%' }}
+                                >
+                                    Xóa
+                                </Button>
+                            </Col>
+                        </Row>
+                    </List.Item>
+                )}
+            />
+
+            <Button
+                type="dashed"
+                onClick={() => onAddDetail(attribute.id)}
+                style={{ width: '100%', marginTop: 8 }}
+                icon={<span style={{ fontWeight: 'bold' }}>+</span>}
+            >
+                Thêm Tùy chọn cho {attribute.name}
+            </Button>
         </Card>
     );
 });
-
+// =================================================================
+// 2. UpdateProduct Component (Refactored to AntD)
+// =================================================================
 
 export default function UpdateProduct({ onProductActionSuccess, restaurants = [], productData }) {
-    console.log("Product Data received:", productData);
-    console.log("Restaurant ID in state:", productData?.restaurant?.id?.toString());
-    console.log("Category ID in state:", productData?.category?.id?.toString());
-    // --- Khởi tạo trạng thái dựa trên dữ liệu sản phẩm hiện có ---
+
     const [categories, setCategories] = useState([]);
     const [loadingInitial, setLoadingInitial] = useState(true);
     const [loading, setLoading] = useState(false);
@@ -83,21 +104,34 @@ export default function UpdateProduct({ onProductActionSuccess, restaurants = []
     const [activeAttributes, setActiveAttributes] = useState([]);
 
     // Dùng useMemo để tạo dữ liệu sản phẩm cần cập nhật
-    const initialProductState = useMemo(() => ({
-        id: productData?.id || null,
-        name: productData?.name || '',
-        description: productData?.description || '',
-        categoryId: productData?.category?.id?.toString() || '',
-        price: productData?.price || 0,
-        isAvailable: productData?.isAvailable ?? true,
-        restaurantId: productData?.restaurant?.id?.toString() || ''
-    }), [productData]);
+    const initialProductState = useMemo(() => {
+        // Hàm trợ giúp để tìm ID từ nhiều vị trí phổ biến
+        const findId = (data, primaryKey, nestedKey) => {
+            if (!data) return '';
+            const idValue = data[primaryKey];
+            const nestedIdValue = data[nestedKey]?.id;
+            const simpleIdValue = (typeof data[nestedKey] === 'number' && data[nestedKey] > 0) ? data[nestedKey] : null;
+            const finalId = idValue || nestedIdValue || simpleIdValue;
+            // Chuyển sang string cho Select của AntD
+            return finalId ? finalId.toString() : '';
+        };
+
+        return {
+            id: productData?.id || null,
+            name: productData?.name || '',
+            description: productData?.description || '',
+            categoryId: findId(productData, 'categoryId', 'category'),
+            price: productData?.price || 0,
+            isAvailable: productData?.isAvailable ?? true,
+            restaurantId: findId(productData, 'restaurantId', 'restaurant')
+        };
+    }, [productData]);
 
 
     const [productFormData, setProductData] = useState(initialProductState);
     const [productImage, setProductImage] = useState(null);
-    // Lưu ý: imagePreview cần được set ban đầu là ảnh cũ (imageUrl)
-    const [imagePreview, setImagePreview] = useState(productData?.imageUrl || null);
+    const [imagePreview, setImagePreview] = useState(productData?.image || null);
+
     const [productDetails, setProductDetails] = useState({});
 
 
@@ -120,24 +154,22 @@ export default function UpdateProduct({ onProductActionSuccess, restaurants = []
 
     // --- Cập nhật trạng thái khi dữ liệu ban đầu thay đổi (Khi Modal mở) ---
     useEffect(() => {
-        // Cập nhật ProductData từ initialProductState
         setProductData(initialProductState);
-        // Cập nhật Ảnh cũ khi productData thay đổi
+        // Cập nhật Ảnh cũ khi productData thay đổi 
         setImagePreview(productData?.image || null);
     }, [initialProductState, productData?.image]);
 
 
     // --- 2. Fetch Attributes & Khởi tạo Product Details khi Category đổi/Load lần đầu ---
     useEffect(() => {
-        // Sử dụng Number() để đảm bảo categoryId được truyền đi là số
         const categoryId = Number(productFormData.categoryId);
 
-        // Logic để nhóm chi tiết cũ theo Attribute ID (Giữ nguyên)
         const groupDetailsByAttribute = (details) => {
             const grouped = {};
             if (!Array.isArray(details)) return grouped;
 
             details.forEach(detail => {
+                // Sử dụng Number(detail.attributeId) để đảm bảo key là number (nếu cần)
                 const attributeId = detail.attributeId;
                 if (!grouped[attributeId]) {
                     grouped[attributeId] = [];
@@ -161,11 +193,8 @@ export default function UpdateProduct({ onProductActionSuccess, restaurants = []
                 const res = await axios.get(`${API_BASE_URL}/categories/${id}/attributes`);
                 const attributes = res.data;
                 setActiveAttributes(attributes);
-
                 const existingDetails = productData?.productDetails || [];
-
-                // CHỈ DÙNG existingDetails khi categoryId hiện tại khớp với categoryId ban đầu của productData
-                const groupedExistingDetails = (id === Number(productData?.categoryId))
+                const groupedExistingDetails = (id === Number(initialProductState.categoryId))
                     ? groupDetailsByAttribute(existingDetails)
                     : {};
 
@@ -185,32 +214,31 @@ export default function UpdateProduct({ onProductActionSuccess, restaurants = []
         if (categoryId) {
             fetchAttributes(categoryId);
         }
-    }, [productFormData.categoryId, productData?.productDetails, productData?.categoryId]);
+    }, [productFormData.categoryId, productData?.productDetails, initialProductState.categoryId]);
 
 
     // --- Handlers ---
 
-    const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
-
-        setProductData({
-            ...productFormData,
-            [name]: type === 'checkbox' || type === 'switch' ? checked : value,
-        });
+    const handleChange = (name, value) => {
+        setProductData(prev => ({
+            ...prev,
+            [name]: value,
+        }));
     };
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         if (file) {
             setProductImage(file);
-            setImagePreview(URL.createObjectURL(file)); // Ảnh mới
+            setImagePreview(URL.createObjectURL(file));
         } else {
             setProductImage(null);
-            setImagePreview(productData?.imageUrl || null); // Trở lại ảnh cũ (nếu có)
+            // Giữ ảnh cũ nếu người dùng không chọn file mới và không xóa file
+            setImagePreview(productData?.image || null);
         }
     };
 
-    // Giữ nguyên các hàm handleDetail (Add, Change, Remove)
+    // Giữ nguyên các hàm handleDetail (Add, Change, Remove) - Đã dùng useCallback
     const handleAddDetail = useCallback((attributeId) => {
         const newDetail = { id: undefined, value: '', priceAdjustment: 0 };
         setProductDetails(prevDetails => ({
@@ -247,17 +275,15 @@ export default function UpdateProduct({ onProductActionSuccess, restaurants = []
             [attributeId]: prevDetails[attributeId].filter((_, i) => i !== index)
         }));
     }, []);
-    // ...
 
     // --- Xử lý Submit (Cập nhật) ---
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const handleSubmit = async () => {
         setError(null);
         setLoading(true);
 
         const { id, name, price, restaurantId, categoryId, description, isAvailable } = productFormData;
 
-        // 1. CHUYỂN ĐỔI KIỂU DỮ LIỆU SANG NUMBER
+        // 1. CHUYỂN ĐỔI KIỂU DỮ LIỆU SANG NUMBER (vì AntD Select và InputNumber trả về string hoặc number)
         const restaurantIdNum = Number(restaurantId);
         const categoryIdNum = Number(categoryId);
         const priceNum = Number(price);
@@ -275,22 +301,12 @@ export default function UpdateProduct({ onProductActionSuccess, restaurants = []
             !isRestaurantIdValid ||
             !isCategoryIdValid
         ) {
-            console.error("Validation Failed:", {
-                Name: name,
-                Price: priceNum,
-                RestaurantId: restaurantIdNum,
-                CategoryId: categoryIdNum,
-                isRestaurantIdValid,
-                isCategoryIdValid,
-                isPriceValid
-            });
-
             setError("Vui lòng điền đầy đủ thông tin cơ bản (Tên, Giá, Nhà hàng, Danh mục) và đảm bảo các ID hợp lệ.");
             setLoading(false);
             return;
         }
 
-        // Kiểm tra ảnh: Ảnh cũ hoặc ảnh mới
+        // Kiểm tra ảnh
         if (!imagePreview) {
             setError("Sản phẩm phải có ít nhất một ảnh (Ảnh hiện tại hoặc ảnh mới).");
             setLoading(false);
@@ -298,7 +314,7 @@ export default function UpdateProduct({ onProductActionSuccess, restaurants = []
         }
 
 
-        // Chuẩn bị Product Details
+        // Chuẩn bị Product Details 
         const productDetailsList = Object.entries(productDetails).flatMap(([attributeId, detailsArray]) =>
             detailsArray
                 .filter(detail => detail.value.trim() !== '')
@@ -310,19 +326,20 @@ export default function UpdateProduct({ onProductActionSuccess, restaurants = []
                 }))
         );
 
-        // 4. TẠO OBJECT JSON cho ProductRequest DTO
+        // 4. TẠO OBJECT JSON cho ProductUpdateRequestDTO
         const productRequestData = {
-            id,
             name: name.trim(),
             description: description.trim(),
             categoryId: categoryIdNum,
             price: priceNum,
             isAvailable,
-            restaurantId: restaurantIdNum,
             productDetails: productDetailsList
         };
 
+        // 5. GỬI REQUEST
         const formData = new FormData();
+
+        // ProductRequest DTO
         formData.append(
             'productRequest',
             new Blob([JSON.stringify(productRequestData)], { type: 'application/json' })
@@ -334,14 +351,32 @@ export default function UpdateProduct({ onProductActionSuccess, restaurants = []
         }
 
         try {
-            const API_UPDATE_PRODUCT = `${API_BASE_URL}/products/${id}`;
-            await axios.put(API_UPDATE_PRODUCT, formData, {});
+            const API_UPDATE_PRODUCT = `${API_BASE_URL}/owner/products/${id}`;
+            await axios.put(API_UPDATE_PRODUCT, formData, {
+                headers: {
+                    // Cần thiết nếu có gửi token/auth, nhưng ở đây chỉ cần đảm bảo content type
+                }
+            });
 
             onProductActionSuccess(`Đã cập nhật sản phẩm "${name}" thành công.`);
 
         } catch (apiError) {
             console.error('Lỗi khi cập nhật sản phẩm:', apiError.response || apiError);
-            const errorMsg = apiError.response?.data?.message || 'Lỗi kết nối hoặc lỗi dữ liệu. Vui lòng kiểm tra lại.';
+            const status = apiError.response?.status;
+            let errorMsg = 'Lỗi kết nối hoặc lỗi dữ liệu. Vui lòng kiểm tra lại.';
+
+            if (status === 400) {
+                errorMsg = apiError.response?.data?.message || "Định dạng ảnh không hợp lệ.";
+            } else if (status === 404) {
+                errorMsg = "Không tìm thấy sản phẩm hoặc tài nguyên liên quan.";
+            } else if (status === 403) {
+                errorMsg = "Không có quyền truy cập để sửa sản phẩm này.";
+            } else if (status === 413) {
+                errorMsg = "Kích thước ảnh quá lớn. Vui lòng chọn ảnh nhỏ hơn.";
+            } else if (status === 500) {
+                errorMsg = apiError.response?.data?.message || "Lỗi máy chủ nội bộ. Vui lòng thử lại sau.";
+            }
+
             setError(errorMsg);
         } finally {
             setLoading(false);
@@ -350,146 +385,187 @@ export default function UpdateProduct({ onProductActionSuccess, restaurants = []
 
     // --- Render ---
     if (!productData?.id) {
-        return <Alert variant="warning" className="m-3 text-center">🛑 **Lỗi**: Không có dữ liệu sản phẩm để cập nhật. Vui lòng chọn một sản phẩm hợp lệ.</Alert>;
+        return <Alert
+            type="warning"
+            showIcon
+            message="Lỗi"
+            description="Không có dữ liệu sản phẩm để cập nhật. Vui lòng chọn một sản phẩm hợp lệ."
+            style={{ margin: 24 }}
+        />;
     }
 
-
     return (
-        <Container className="py-2">
-            <Row className="justify-content-center">
-                <Col md={12}>
-                    <Card className="shadow">
-                        <Card.Body>
-                            <h3 className="text-center mb-4 text-primary">
-                                Cập Nhật Sản Phẩm
-                            </h3>
+        <div style={{ padding: '16px 0' }}>
+            <Row justify="center">
+                <Col xs={24} md={22} lg={18}>
+                    <Card style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' }}>
+                        <Title level={3} style={{ textAlign: 'center', color: '#1890ff', marginBottom: 24 }}>
+                            Cập Nhật Sản Phẩm
+                        </Title>
 
-                            {loadingInitial && (
-                                <Alert variant="info" className="text-center">
-                                    <Spinner animation="border" size="sm" className="me-2" /> Đang tải dữ liệu ban đầu...
-                                </Alert>
-                            )}
-                            {error && <Alert variant="danger">{error}</Alert>}
+                        <Spin spinning={loadingInitial} tip="Đang tải dữ liệu ban đầu...">
+                            {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} />}
 
-                            <Form onSubmit={handleSubmit}>
+                            {/* Ant Design Form with manual state handling */}
+                            <Form
+                                layout="vertical"
+                                onFinish={handleSubmit}
+                                initialValues={initialProductState}
+                            >
 
                                 {/* 1. THÔNG TIN SẢN PHẨM CƠ BẢN */}
-                                <fieldset className="border p-4 rounded mb-4">
-                                    <legend className="float-none w-auto px-2 fs-5 text-primary">1. Thông tin cơ bản</legend>
-
-                                    <Row className="mb-3">
-                                        <Form.Group as={Col} controlId="productName" md={6}>
-                                            <Form.Label className="fw-bold">Tên sản phẩm:</Form.Label>
-                                            <Form.Control type="text" name="name" value={productFormData.name} onChange={handleChange} required placeholder="Ví dụ: Trà sữa Trân châu Đường đen" />
-                                        </Form.Group>
-                                        <Form.Group as={Col} controlId="productPrice" md={6}>
-                                            <Form.Label className="fw-bold">Giá (VND):</Form.Label>
-                                            <InputGroup>
-                                                <Form.Control type="number" name="price" value={productFormData.price} onChange={handleChange} required min="0" step="1000" />
-                                                <InputGroup.Text>VND</InputGroup.Text>
-                                            </InputGroup>
-                                        </Form.Group>
+                                <Card title={<Title level={5} style={{ color: '#1890ff', margin: 0 }}>1. Thông tin cơ bản</Title>} style={{ marginBottom: 24 }}>
+                                    <Row gutter={16}>
+                                        <Col span={12}>
+                                            <Form.Item
+                                                label={<Text strong>Tên sản phẩm:</Text>}
+                                                required
+                                                tooltip="Tên sản phẩm không được để trống"
+                                            >
+                                                <Input
+                                                    name="name"
+                                                    value={productFormData.name}
+                                                    onChange={(e) => handleChange('name', e.target.value)}
+                                                    placeholder="Ví dụ: Trà sữa Trân châu Đường đen"
+                                                />
+                                            </Form.Item>
+                                        </Col>
+                                        <Col span={12}>
+                                            <Form.Item
+                                                label={<Text strong>Giá (VND):</Text>}
+                                                required
+                                            >
+                                                <InputNumber
+                                                    style={{ width: '100%' }}
+                                                    name="price"
+                                                    min={0}
+                                                    step={1000}
+                                                    value={productFormData.price}
+                                                    onChange={(value) => handleChange('price', value || 0)}
+                                                    addonAfter="VND"
+                                                />
+                                            </Form.Item>
+                                        </Col>
                                     </Row>
 
-                                    <Row className="mb-3">
-                                        {/* Select Restaurant - ĐÃ SỬA: Bỏ .toString() trong value */}
-                                        <Form.Group as={Col} controlId="restaurantId" md={4}>
-                                            <Form.Label className="fw-bold">Gán cho Nhà hàng:</Form.Label>
-                                            <Form.Select
-                                                name="restaurantId"
-                                                // CHỈ SỬ DỤNG GIÁ TRỊ TRONG STATE (ĐÃ LÀ CHUỖI HOẶC RỖNG)
-                                                value={productFormData.restaurantId || ""}
-                                                onChange={handleChange}
+                                    <Row gutter={16} style={{ marginBottom: 16 }}>
+                                        {/* Select Restaurant */}
+                                        <Col xs={24} md={8}>
+                                            <Form.Item
+                                                label={<Text strong>Gán cho Nhà hàng:</Text>}
                                                 required
-                                                disabled={restaurants.length === 0}
                                             >
-                                                <option value="">Chọn Nhà hàng</option>
-                                                {restaurants.map((r) => (
-                                                    <option key={r.id} value={r.id.toString()}>
-                                                        {r.name}
-                                                    </option>
-                                                ))}
-                                            </Form.Select>
-                                            {restaurants.length === 0 && <Form.Text className="text-danger">Owner chưa có nhà hàng nào.</Form.Text>}
-                                        </Form.Group>
+                                                <Select
+                                                    value={productFormData.restaurantId || undefined}
+                                                    placeholder="Chọn Nhà hàng"
+                                                    onChange={(value) => handleChange('restaurantId', value)}
+                                                    disabled={restaurants.length === 0}
+                                                >
+                                                    {restaurants.map((r) => (
+                                                        <Option key={r.id.toString()} value={r.id.toString()}>
+                                                            {r.name}
+                                                        </Option>
+                                                    ))}
+                                                </Select>
+                                                {restaurants.length === 0 && <Text type="danger">Owner chưa có nhà hàng nào.</Text>}
+                                            </Form.Item>
+                                        </Col>
 
-                                        {/* Select Category - ĐÃ SỬA: Bỏ .toString() trong value */}
-                                        <Form.Group as={Col} controlId="categoryId" md={4}>
-                                            <Form.Label className="fw-bold">Danh mục:</Form.Label>
-                                            <Form.Select
-                                                name="categoryId"
-                                                value={productFormData.categoryId || ""}
-                                                onChange={handleChange}
+                                        {/* Select Category */}
+                                        <Col xs={24} md={8}>
+                                            <Form.Item
+                                                label={<Text strong>Danh mục:</Text>}
                                                 required
-                                                disabled={loadingInitial || categories.length === 0}
                                             >
-                                                <option value="">Chọn Danh mục</option>
-                                                {categories.map((cat) => (
-                                                    <option key={cat.id} value={cat.id.toString()}>
-                                                        {cat.name}
-                                                    </option>
-                                                ))}
-                                            </Form.Select>
-                                        </Form.Group>
+                                                <Select
+                                                    value={productFormData.categoryId || undefined}
+                                                    placeholder="Chọn Danh mục"
+                                                    onChange={(value) => handleChange('categoryId', value)}
+                                                    disabled={loadingInitial || categories.length === 0}
+                                                >
+                                                    {categories.map((cat) => (
+                                                        <Option key={cat.id.toString()} value={cat.id.toString()}>
+                                                            {cat.name}
+                                                        </Option>
+                                                    ))}
+                                                </Select>
+                                            </Form.Item>
+                                        </Col>
 
-                                        {/* Checkbox Trạng Thái (Đã hoạt động đúng) */}
-                                        <Form.Group as={Col} controlId="isAvailable" md={4} className="d-flex align-items-center">
-                                            <Form.Label className="fw-bold me-3 mt-4">Trạng Thái:</Form.Label>
-                                            <Form.Check
-                                                type="switch"
-                                                id="isAvailableSwitch"
-                                                name="isAvailable"
-                                                label={productFormData.isAvailable ? "Đang Bán" : "Ngừng Bán"}
-                                                checked={productFormData.isAvailable}
-                                                onChange={handleChange}
-                                                className="mt-4"
-                                            />
-                                        </Form.Group>
+                                        {/* Switch Trạng Thái */}
+                                        <Col xs={24} md={8}>
+                                            <Form.Item
+                                                label={<Text strong>Trạng Thái:</Text>}
+                                                // AntD Switch uses `checked` prop, so we need to pass a boolean
+                                                valuePropName="checked"
+                                            >
+                                                <Switch
+                                                    checkedChildren="Đang Bán"
+                                                    unCheckedChildren="Ngừng Bán"
+                                                    checked={productFormData.isAvailable}
+                                                    onChange={(checked) => handleChange('isAvailable', checked)}
+                                                />
+                                            </Form.Item>
+                                        </Col>
                                     </Row>
 
                                     {/* Mô tả */}
-                                    <Form.Group controlId="productDescription" className="mb-3">
-                                        <Form.Label className="fw-bold">Miêu tả:</Form.Label>
-                                        <Form.Control as="textarea" rows={3} name="description" value={productFormData.description} onChange={handleChange} placeholder="Mô tả chi tiết sản phẩm" />
-                                    </Form.Group>
+                                    <Form.Item
+                                        label={<Text strong>Miêu tả:</Text>}
+                                    >
+                                        <TextArea
+                                            rows={3}
+                                            name="description"
+                                            value={productFormData.description}
+                                            onChange={(e) => handleChange('description', e.target.value)}
+                                            placeholder="Mô tả chi tiết sản phẩm"
+                                        />
+                                    </Form.Item>
 
                                     {/* Ảnh sản phẩm - LOGIC HIỂN THỊ ẢNH CŨ/MỚI */}
-                                    <Row className="mb-3">
-                                        <Form.Group as={Col} controlId="productImageFile" md={8}>
-                                            <Form.Label className="fw-bold">Ảnh sản phẩm (Chọn ảnh mới để thay thế ảnh cũ):</Form.Label>
-                                            <Form.Control type="file" onChange={handleFileChange} accept="image/*" />
+                                    <Form.Item
+                                        label={<Text strong>Ảnh sản phẩm (Chọn ảnh mới để thay thế ảnh cũ):</Text>}
+                                    >
+                                        <Space direction="vertical" style={{ width: '100%' }}>
+                                            {/* Sử dụng input type="file" chuẩn để giữ nguyên logic handleFileChange */}
+                                            <input
+                                                type="file"
+                                                onChange={handleFileChange}
+                                                accept="image/*"
+                                                style={{ border: '1px solid #d9d9d9', padding: 4, borderRadius: 6, width: '100%' }}
+                                            />
 
                                             {/* Hiển thị ảnh xem trước/ảnh cũ */}
                                             {imagePreview && (
-                                                <div className="mt-2">
+                                                <Space align="center">
                                                     <img
                                                         src={imagePreview}
                                                         alt="Xem trước ảnh sản phẩm"
                                                         style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #ddd' }}
                                                     />
-                                                    <Form.Text className="ms-3 text-success">
+                                                    <Text type="success" style={{ marginLeft: 8 }}>
                                                         {productImage ? "Ảnh mới được chọn." : "Ảnh sản phẩm hiện tại."}
-                                                    </Form.Text>
-                                                </div>
+                                                    </Text>
+                                                </Space>
                                             )}
 
                                             {/* Hiển thị cảnh báo nếu không có ảnh nào */}
-                                            {!imagePreview && <Form.Text className="text-danger d-block mt-2">Sản phẩm chưa có ảnh. Vui lòng tải lên.</Form.Text>}
-                                        </Form.Group>
-                                    </Row>
+                                            {!imagePreview && <Text type="danger">Sản phẩm chưa có ảnh. Vui lòng tải lên.</Text>}
+                                        </Space>
+                                    </Form.Item>
 
-                                </fieldset>
+                                </Card>
+
+                                <Divider />
 
                                 {/* 2. THUỘC TÍNH SẢN PHẨM */}
-                                <fieldset className="border p-4 rounded mb-4">
-                                    <legend className="float-none w-auto px-2 fs-5 text-primary">2. Tùy chọn & Thuộc tính (Options)</legend>
+                                <Card title={<Title level={5} style={{ color: '#1890ff', margin: 0 }}>2. Tùy chọn & Thuộc tính (Options)</Title>} style={{ marginBottom: 24 }}>
 
-                                    {/* Sử dụng Number() để kiểm tra logic */}
                                     {Number(productFormData.categoryId) > 0 ? (
-                                        <Row>
+                                        <Row gutter={[16, 16]}>
                                             {activeAttributes.length > 0 ? (
                                                 activeAttributes.map(attr => (
-                                                    <Col md={12} key={attr.id}>
+                                                    <Col xs={24} md={24} key={attr.id}>
                                                         <AttributeEditor
                                                             attribute={attr}
                                                             details={productDetails[attr.id] || []}
@@ -500,30 +576,45 @@ export default function UpdateProduct({ onProductActionSuccess, restaurants = []
                                                     </Col>
                                                 ))
                                             ) : (
-                                                <Alert variant="info" className="text-center m-3">
-                                                    Danh mục hiện tại ({categories.find(c => c.id.toString() === productFormData.categoryId)?.name || 'N/A'}) không có thuộc tính nào.
-                                                </Alert>
+                                                <Col span={24}>
+                                                    <Alert
+                                                        type="info"
+                                                        message={`Danh mục hiện tại (${categories.find(c => c.id.toString() === productFormData.categoryId)?.name || 'N/A'}) không có thuộc tính nào.`}
+                                                        showIcon
+                                                        style={{ textAlign: 'center' }}
+                                                    />
+                                                </Col>
                                             )}
                                         </Row>
                                     ) : (
-                                        <Alert variant="warning" className="text-center">
-                                            Vui lòng chọn **Danh mục** để hiển thị và quản lý thuộc tính.
-                                        </Alert>
+                                        <Alert
+                                            type="warning"
+                                            message="Vui lòng chọn Danh mục để hiển thị và quản lý thuộc tính."
+                                            showIcon
+                                            style={{ textAlign: 'center' }}
+                                        />
                                     )}
-                                </fieldset>
+                                </Card>
 
                                 {/* Nút Submit */}
-                                <div className="text-center mt-4">
-                                    <Button variant="primary" type="submit" disabled={loading || loadingInitial || restaurants.length === 0} className="px-5">
-                                        {loading ? <Spinner animation="border" size="sm" className="me-2" /> : 'Lưu Cập Nhật'}
+                                <div style={{ textAlign: 'center', marginTop: 24 }}>
+                                    <Button
+                                        type="primary"
+                                        htmlType="submit"
+                                        loading={loading}
+                                        disabled={loadingInitial || restaurants.length === 0}
+                                        size="large"
+                                        style={{ padding: '0 40px' }}
+                                    >
+                                        Lưu Cập Nhật
                                     </Button>
-                                    {restaurants.length === 0 && <Form.Text className="d-block text-danger mt-2">Không thể lưu vì Owner chưa có nhà hàng.</Form.Text>}
+                                    {restaurants.length === 0 && <Text type="danger" style={{ display: 'block', marginTop: 8 }}>Không thể lưu vì Owner chưa có nhà hàng.</Text>}
                                 </div>
                             </Form>
-                        </Card.Body>
+                        </Spin>
                     </Card>
                 </Col>
             </Row>
-        </Container>
+        </div>
     );
 }

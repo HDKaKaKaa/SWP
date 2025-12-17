@@ -38,8 +38,10 @@ import RestaurantEdit from './pages/RestaurantEdit';
 import CustomerIssueCreate from './pages/CustomerIssueCreate';
 import CustomerIssueHistory from './pages/CustomerIssueHistory';
 import AdminIssuesPage from "./pages/AdminIssuesPage.jsx";
+import ShipperManagementPage from "./pages/ShipperManagementPage.jsx";
+import OwnerFeedbackPage from './components/OwnerFeedbackPage';
+import LiveMapPage from "./pages/LiveMapPage.jsx";
 
-const ShippersPage = () => <h2>Quản lý Tài xế</h2>;
 
 const ClientLayoutWithFooter = () => (
   <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -76,8 +78,9 @@ function App() {
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="users" element={<AdminUsersPage />} />
-        <Route path="shippers" element={<ShippersPage />} />
+        <Route path="shippers" element={<ShipperManagementPage />} />
         <Route path="issues" element={<AdminIssuesPage />} />
+        <Route path="map" element={<LiveMapPage />} />
       </Route>
 
       {/* ======================================================= */}
@@ -129,6 +132,7 @@ function App() {
           <Route path="dashboard" element={<OwnerRestaurantPage />} />
           <Route path="products" element={<OwnerProducts />} />
           <Route path="orders" element={<OwnerOrders />} />
+          <Route path="feedback" element={<OwnerFeedbackPage />} />
           {/* <Route path="reports" element={<OwnerReports />} />       */}
         </Route>
      

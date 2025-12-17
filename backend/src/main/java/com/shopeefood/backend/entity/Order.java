@@ -65,7 +65,10 @@ public class Order {
     private LocalDateTime restaurantAcceptedAt;
 
     @Column(name = "shipped_at")
-    private LocalDateTime shippedAt;
+    private LocalDateTime shippedAt; // Thời gian shipper nhận đơn (accept order)
+
+    @Column(name = "delivery_started_at")
+    private LocalDateTime deliveryStartedAt; // Thời gian shipper bắt đầu giao hàng
 
     @Column(name = "completed_at")
     private LocalDateTime completedAt;

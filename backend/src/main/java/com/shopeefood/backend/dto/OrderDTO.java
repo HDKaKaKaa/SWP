@@ -1,14 +1,15 @@
 package com.shopeefood.backend.dto;
 
-import com.shopeefood.backend.entity.Order;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import com.shopeefood.backend.entity.Order;
+
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
@@ -19,7 +20,7 @@ public class OrderDTO {
     private BigDecimal shippingFee;
     private BigDecimal totalAmount;
     private String paymentMethod;
-
+    private String orderNumber;
     // --- Thông tin hiển thị ---
     private String customerName;
     private String customerPhone;
@@ -27,15 +28,18 @@ public class OrderDTO {
     private String restaurantPhone;
     private String shipperName;
     private String shipperEmail;
-    private String shipperPhone;    // SĐT Shipper
-    private Integer rating;         // Sao đánh giá
-    private String comment;         // Nội dung đánh giá
+    private String shipperPhone; // SĐT Shipper
+    private Integer rating; // Sao đánh giá
+    private String comment; // Nội dung đánh giá
     private Integer shipperRating;
     private String shipperComment;
-
     // --- Thông tin chi tiết ---
     private String shippingAddress;
     private String note;
+
+    private Double shippingLat;
+    private Double shippingLong;
+    private Integer shipperId;
 
     // --- Timeline ---
     private LocalDateTime createdAt;
@@ -56,7 +60,9 @@ public class OrderDTO {
         this.paymentMethod = order.getPaymentMethod();
         this.shippingAddress = order.getShippingAddress();
         this.note = order.getNote();
-
+        this.shippingLat = order.getShippingLat();
+        this.shippingLong = order.getShippingLong();
+        this.orderNumber = order.getOrderNumber();
         // Map timeline
         this.createdAt = order.getCreatedAt();
         this.restaurantAcceptedAt = order.getRestaurantAcceptedAt();
@@ -72,6 +78,7 @@ public class OrderDTO {
         // email)
         if (order.getShipper() != null) {
             this.shipperName = order.getShipper().getFullName();
+            this.shipperId = order.getShipper().getAccountId();
             if (order.getShipper().getAccount() != null) {
                 this.shipperEmail = order.getShipper().getAccount().getEmail();
             }
@@ -83,7 +90,7 @@ public class OrderDTO {
                     .map(OrderItemDTO::new)
                     .collect(Collectors.toList());
         }
-        //Map khách hàng
+        // Map khách hàng
         if (order.getCustomer() != null) {
             this.customerName = order.getCustomer().getUsername();
         }

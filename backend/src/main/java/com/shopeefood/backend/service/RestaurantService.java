@@ -14,7 +14,8 @@ import com.shopeefood.backend.dto.RestaurantLandingDTO;
 import com.shopeefood.backend.repository.FeedbackRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-
+import com.shopeefood.backend.dto.RestaurantRatingSummary;
+import java.util.stream.Collectors;
 import java.time.LocalDateTime;
 
 @Service
@@ -62,6 +63,7 @@ public class RestaurantService {
         restaurant.setCoverImage(request.getCoverImageUrl());
         restaurant.setLatitude(request.getLatitude());
         restaurant.setLongitude(request.getLongitude());
+       
 
         // Set quan hệ
         restaurant.setOwner(owner);
@@ -86,13 +88,14 @@ public class RestaurantService {
         restaurant.setDescription(request.getDescription());
         restaurant.setCoverImage(request.getCoverImageUrl());
 
-        // Cập nhật tọa độ nếu có (đề phòng user đổi địa chỉ map)
+
+        // Cập nhật tọa độ
         if (request.getLatitude() != null && request.getLongitude() != null) {
             restaurant.setLatitude(request.getLatitude());
             restaurant.setLongitude(request.getLongitude());
         }
 
-        // 3. Cập nhật thông tin Owner (vì user có thể sửa lỗi chính tả tên/CCCD)
+        // 3. Cập nhật thông tin Owner
         Owner owner = restaurant.getOwner();
         if (owner != null) {
             owner.setFullName(request.getOwnerFullName());

@@ -26,6 +26,16 @@ export const acceptOrder = async (orderId, shipperId) => {
     return response.data;
 };
 
+// Bắt đầu giao hàng
+export const startDelivery = async (orderId, shipperId) => {
+    const response = await axios.post(
+        `${API_BASE_URL}/orders/${orderId}/start-delivery`,
+        null,
+        { params: { shipperId } }
+    );
+    return response.data;
+};
+
 // Cập nhật trạng thái đơn hàng
 export const updateOrderStatus = async (orderId, status) => {
     const response = await axios.put(
@@ -50,6 +60,30 @@ export const updateShipperProfile = async (shipperId, updates) => {
         `${API_BASE_URL}/profile`,
         updates,
         { params: { shipperId } }
+    );
+    return response.data;
+};
+
+// Upload ảnh đại diện
+export const uploadAvatar = async (shipperId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await axios.post(
+        `${API_BASE_URL}/profile/avatar`,
+        formData,
+        { 
+            params: { shipperId },
+            headers: { 'Content-Type': 'multipart/form-data' }
+        }
+    );
+    return response.data;
+};
+
+// Đổi mật khẩu
+export const changePassword = async (accountId, oldPassword, newPassword, confirmPassword) => {
+    const response = await axios.put(
+        `${API_BASE_URL}/change-password`,
+        { accountId, oldPassword, newPassword, confirmPassword }
     );
     return response.data;
 };
@@ -91,6 +125,5 @@ export const getOrderDetail = async (orderId, shipperId) => {
     );
     return response.data;
 };
-
 
 

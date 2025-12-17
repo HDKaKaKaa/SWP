@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Form, Input, Button, message, Spin, Row, Col, Switch, Space } from 'antd';
-import { UserOutlined, CarOutlined, SaveOutlined } from '@ant-design/icons';
+import { Card, Form, Input, Button, message, Spin, Row, Col, Switch, Space, Upload, Avatar, Divider, Modal } from 'antd';
+import { UserOutlined, CarOutlined, SaveOutlined, CameraOutlined, LockOutlined, UploadOutlined } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
 import {
     getShipperProfile,
     updateShipperProfile,
-    updateShipperStatus
+    updateShipperStatus,
+    uploadAvatar,
+    changePassword
 } from '../services/shipperService';
 
 const ShipperProfile = () => {
@@ -16,6 +18,10 @@ const ShipperProfile = () => {
     const [shipperId, setShipperId] = useState(null);
     const [isOnline, setIsOnline] = useState(false);
     const [profile, setProfile] = useState(null);
+    const [passwordForm] = Form.useForm();
+    const [uploading, setUploading] = useState(false);
+    const [changingPassword, setChangingPassword] = useState(false);
+    const [passwordModalVisible, setPasswordModalVisible] = useState(false);
 
     useEffect(() => {
         if (user && user.id) {
@@ -42,6 +48,7 @@ const ShipperProfile = () => {
                 email: data.email,
                 phone: data.phone,
             });
+            passwordForm.resetFields();
         } catch (error) {
             message.error('Không thể tải thông tin!');
         } finally {
@@ -72,6 +79,44 @@ const ShipperProfile = () => {
         }
     };
 
+    const handleUploadAvatar = async (file) => {
+        try {
+            setUploading(true);
+            const result = await uploadAvatar(shipperId, file);
+            message.success('Upload ảnh thành công!');
+            await fetchProfile(); // Reload để hiển thị ảnh mới
+        } catch (error) {
+            message.error(error.response?.data || 'Không thể upload ảnh!');
+        } finally {
+            setUploading(false);
+        }
+        return false; // Prevent auto upload
+    };
+
+    const handleChangePassword = async (values) => {
+        try {
+            setChangingPassword(true);
+            await changePassword(user.id, values.oldPassword, values.newPassword, values.confirmPassword);
+            message.success('Đổi mật khẩu thành công!');
+            passwordForm.resetFields();
+            setPasswordModalVisible(false); // Đóng modal sau khi đổi mật khẩu thành công
+        } catch (error) {
+            message.error(error.response?.data || 'Không thể đổi mật khẩu!');
+        } finally {
+            setChangingPassword(false);
+        }
+    };
+
+    const handleOpenPasswordModal = () => {
+        setPasswordModalVisible(true);
+        passwordForm.resetFields();
+    };
+
+    const handleClosePasswordModal = () => {
+        setPasswordModalVisible(false);
+        passwordForm.resetFields();
+    };
+
     if (loading) {
         return <div style={{ textAlign: 'center', marginTop: 50 }}><Spin size="large" /></div>;
     }
@@ -88,6 +133,32 @@ const ShipperProfile = () => {
                         }
                         style={{ marginBottom: 16 }}
                     >
+                        {/* Phần hiển thị và upload ảnh đại diện */}
+                        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                            <Avatar
+                                size={120}
+                                src={profile?.avatar}
+                                icon={<UserOutlined />}
+                                style={{ marginBottom: 16 }}
+                            />
+                            <div>
+                                <Upload
+                                    beforeUpload={handleUploadAvatar}
+                                    showUploadList={false}
+                                    accept="image/*"
+                                >
+                                    <Button
+                                        icon={<CameraOutlined />}
+                                        loading={uploading}
+                                        disabled={uploading}
+                                    >
+                                        {uploading ? 'Đang upload...' : 'Thay đổi ảnh đại diện'}
+                                    </Button>
+                                </Upload>
+                            </div>
+                        </div>
+
+                        <Divider />
                         <Form
                             form={form}
                             layout="vertical"
@@ -126,16 +197,24 @@ const ShipperProfile = () => {
                                     <Form.Item
                                         label="Email"
                                         name="email"
+                                        rules={[
+                                            { required: true, message: 'Vui lòng nhập email!' },
+                                            { type: 'email', message: 'Email không hợp lệ!' }
+                                        ]}
                                     >
-                                        <Input disabled />
+                                        <Input />
                                     </Form.Item>
                                 </Col>
                                 <Col span={12}>
                                     <Form.Item
                                         label="Số điện thoại"
                                         name="phone"
+                                        rules={[
+                                            { required: true, message: 'Vui lòng nhập số điện thoại!' },
+                                            { pattern: /^[0-9]{10,11}$/, message: 'Số điện thoại không hợp lệ!' }
+                                        ]}
                                     >
-                                        <Input disabled />
+                                        <Input />
                                     </Form.Item>
                                 </Col>
                             </Row>
@@ -155,30 +234,117 @@ const ShipperProfile = () => {
                 </Col>
 
                 <Col span={8}>
-                    <Card title="Trạng thái hoạt động">
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                            <div>
-                                <p><strong>Trạng thái hiện tại:</strong></p>
-                                <Switch
-                                    checked={isOnline}
-                                    onChange={handleToggleStatus}
-                                    checkedChildren="ONLINE"
-                                    unCheckedChildren="OFFLINE"
-                                    size="large"
-                                />
-                            </div>
-                            <div style={{ marginTop: 16 }}>
-                                <p><strong>Hướng dẫn:</strong></p>
-                                <ul style={{ paddingLeft: 20 }}>
-                                    <li>Bật ONLINE để nhận đơn hàng mới</li>
-                                    <li>Trạng thái BUSY sẽ tự động bật khi bạn nhận đơn</li>
-                                    <li>Trạng thái sẽ tự động về ONLINE khi hoàn thành đơn</li>
-                                </ul>
-                            </div>
-                        </Space>
-                    </Card>
+                    <Space direction="vertical" style={{ width: '100%' }} size="large">
+                        <Card title="Trạng thái hoạt động">
+                            <Space direction="vertical" style={{ width: '100%' }}>
+                                <div>
+                                    <p><strong>Trạng thái hiện tại:</strong></p>
+                                    <Switch
+                                        checked={isOnline}
+                                        onChange={handleToggleStatus}
+                                        checkedChildren="ONLINE"
+                                        unCheckedChildren="OFFLINE"
+                                        size="large"
+                                    />
+                                </div>
+                                <div style={{ marginTop: 16 }}>
+                                    <p><strong>Hướng dẫn:</strong></p>
+                                    <ul style={{ paddingLeft: 20 }}>
+                                        <li>Bật ONLINE để nhận đơn hàng mới</li>
+                                        <li>Trạng thái BUSY sẽ tự động bật khi bạn nhận đơn</li>
+                                        <li>Trạng thái sẽ tự động về ONLINE khi hoàn thành đơn</li>
+                                    </ul>
+                                </div>
+                            </Space>
+                        </Card>
+
+                        <Card>
+                            <Button
+                                type="primary"
+                                icon={<LockOutlined />}
+                                onClick={handleOpenPasswordModal}
+                                block
+                                size="large"
+                            >
+                                Đổi mật khẩu
+                            </Button>
+                        </Card>
+                    </Space>
                 </Col>
             </Row>
+
+            {/* Modal đổi mật khẩu */}
+            <Modal
+                title={
+                    <span>
+                        <LockOutlined /> Đổi mật khẩu
+                    </span>
+                }
+                open={passwordModalVisible}
+                onCancel={handleClosePasswordModal}
+                footer={null}
+                width={500}
+            >
+                <Form
+                    form={passwordForm}
+                    layout="vertical"
+                    onFinish={handleChangePassword}
+                >
+                    <Form.Item
+                        label="Mật khẩu cũ"
+                        name="oldPassword"
+                        rules={[{ required: true, message: 'Vui lòng nhập mật khẩu cũ!' }]}
+                    >
+                        <Input.Password placeholder="Nhập mật khẩu cũ" />
+                    </Form.Item>
+
+                    <Form.Item
+                        label="Mật khẩu mới"
+                        name="newPassword"
+                        rules={[
+                            { required: true, message: 'Vui lòng nhập mật khẩu mới!' },
+                            { min: 6, message: 'Mật khẩu phải có ít nhất 6 ký tự!' }
+                        ]}
+                    >
+                        <Input.Password placeholder="Nhập mật khẩu mới" />
+                    </Form.Item>
+
+                    <Form.Item
+                        label="Xác nhận mật khẩu"
+                        name="confirmPassword"
+                        dependencies={['newPassword']}
+                        rules={[
+                            { required: true, message: 'Vui lòng xác nhận mật khẩu!' },
+                            ({ getFieldValue }) => ({
+                                validator(_, value) {
+                                    if (!value || getFieldValue('newPassword') === value) {
+                                        return Promise.resolve();
+                                    }
+                                    return Promise.reject(new Error('Mật khẩu xác nhận không khớp!'));
+                                },
+                            }),
+                        ]}
+                    >
+                        <Input.Password placeholder="Xác nhận mật khẩu mới" />
+                    </Form.Item>
+
+                    <Form.Item style={{ marginBottom: 0, marginTop: 24 }}>
+                        <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+                            <Button onClick={handleClosePasswordModal}>
+                                Hủy
+                            </Button>
+                            <Button
+                                type="primary"
+                                htmlType="submit"
+                                icon={<LockOutlined />}
+                                loading={changingPassword}
+                            >
+                                Đổi mật khẩu
+                            </Button>
+                        </Space>
+                    </Form.Item>
+                </Form>
+            </Modal>
         </div>
     );
 };

@@ -13,6 +13,7 @@ import {
   Col,
   Typography,
   Divider,
+  Modal,
 } from 'antd';
 import {
   UserOutlined,
@@ -24,6 +25,7 @@ import {
   LoadingOutlined,
   EnvironmentOutlined,
   DeleteOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import MapModal from '../components/MapModal';
 import { motion } from 'framer-motion';
@@ -36,34 +38,53 @@ const RestaurantRegistration = () => {
   const [loading, setLoading] = useState(false);
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [coordinates, setCoordinates] = useState(null);
-
-  // State quản lý ảnh upload
+  const [licenseFileList, setLicenseFileList] = useState([]);
   const [fileList, setFileList] = useState([]);
   const [previewImage, setPreviewImage] = useState('');
+  const [coverFileList, setCoverFileList] = useState([]);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewTitle, setPreviewTitle] = useState('');
 
-  // Form instance để xử lý dữ liệu
   const [form] = Form.useForm();
 
-  // useEffect(() => {
-  //   if (!user) {
-  //     message.warning('Bạn cần đăng nhập để thực hiện chức năng này!');
-  //     navigate('/login');
-  //   }
-  // }, [user, navigate]);
+  const normalizeNumber = (value) => {
+    if (!value) return value;
+    return value.replace(/[^0-9]/g, '');
+  };
 
-  // Xử lý khi người dùng chọn ảnh
+  const normalizeName = (value) => {
+    if (!value) return value;
+    let result = value.trimStart();
+    result = result.replace(
+      /[^a-zA-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựỳỵýỷỹ\s]/g,
+      ''
+    );
+    return result;
+  };
+
+  const normalizeText = (value) => {
+    if (!value) return value;
+    return value.trimStart();
+  };
+
+  const handleCancelPreview = () => setPreviewOpen(false);
+
   const handlePreview = async (file) => {
     if (!file.url && !file.preview) {
       file.preview = await getBase64(file.originFileObj);
     }
     setPreviewImage(file.url || file.preview);
+    setPreviewOpen(true);
+    setPreviewTitle(
+      file.name || file.url.substring(file.url.lastIndexOf('/') + 1)
+    );
   };
 
-  const handleRemoveImage = (e) => {
+  const handleRemoveCoverImage = (e) => {
     e.stopPropagation();
-
-    setFileList([]);
+    setCoverFileList([]);
     setPreviewImage('');
+    form.setFieldsValue({ coverImage: [] });
   };
 
   const handleChange = ({ fileList: newFileList }) => setFileList(newFileList);
@@ -71,7 +92,7 @@ const RestaurantRegistration = () => {
   const beforeUpload = (file) => {
     const isJpgOrPng = file.type === 'image/jpeg' || file.type === 'image/png';
     if (!isJpgOrPng) {
-      message.error('Bạn chỉ có thể upload file JPG/PNG!');
+      message.error('Chỉ có thể upload file JPG/PNG!');
       return Upload.LIST_IGNORE;
     }
     const isLt5M = file.size / 1024 / 1024 < 5;
@@ -79,11 +100,17 @@ const RestaurantRegistration = () => {
       message.error('Dung lượng ảnh phải nhỏ hơn 5MB!');
       return Upload.LIST_IGNORE;
     }
-
     return false;
   };
 
-  // Hàm chuyển file sang base64 để preview
+  const handleChangeCover = ({ fileList }) => setCoverFileList(fileList);
+  const handleChangeLicense = ({ fileList }) => setLicenseFileList(fileList);
+
+  const normFile = (e) => {
+    if (Array.isArray(e)) return e;
+    return e?.fileList;
+  };
+
   const getBase64 = (file) =>
     new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -121,35 +148,47 @@ const RestaurantRegistration = () => {
     }
   };
 
+  const handleRemoveLicenseImage = (file) => {
+    const newFileList = licenseFileList.filter((item) => item.uid !== file.uid);
+    setLicenseFileList(newFileList);
+  };
+
   // XỬ LÝ SUBMIT FORM
   const onFinish = async (values) => {
     setLoading(true);
-
     try {
+      const cleanValues = {
+        ...values,
+        ownerFullName: values.ownerFullName.trim(),
+        restaurantName: values.restaurantName.trim(),
+        description: values.description ? values.description.trim() : '',
+      };
+
       if (!user || !user.id) {
-        message.error('Lỗi thông tin người dùng. Vui lòng đăng nhập lại.');
+        message.error('Vui lòng đăng nhập!');
         return;
       }
 
-      // 1. Kiểm tra ảnh
-      if (fileList.length === 0) {
-        message.error('Vui lòng chọn ảnh đại diện cho quán!');
-        setLoading(false);
-        return;
-      }
-
-      // 2. Upload ảnh lên Cloudinary (hoặc server của bạn)
-      const uploadData = new FormData();
-      // fileList[0].originFileObj là file gốc
-      uploadData.append('file', fileList[0].originFileObj);
-
-      const uploadRes = await axios.post(
+      // 1. Upload Cover Image
+      const coverData = new FormData();
+      coverData.append('file', values.coverImage[0].originFileObj);
+      const coverRes = await axios.post(
         'http://localhost:8080/api/upload/image',
-        uploadData,
-        { headers: { 'Content-Type': 'multipart/form-data' } }
+        coverData
       );
+      const coverUrl = coverRes.data;
 
-      const coverImageUrl = uploadRes.data;
+      // 2. Upload License Images
+      const licenseUrls = [];
+      for (const file of values.licenseImages) {
+        const formData = new FormData();
+        formData.append('file', file.originFileObj);
+        const res = await axios.post(
+          'http://localhost:8080/api/upload/image',
+          formData
+        );
+        licenseUrls.push(res.data);
+      }
 
       // 3. Gửi dữ liệu đăng ký
       const registrationData = {
@@ -159,7 +198,8 @@ const RestaurantRegistration = () => {
         description: values.description,
         ownerFullName: values.ownerFullName,
         idCardNumber: values.idCardNumber,
-        coverImageUrl: coverImageUrl,
+        coverImageUrl: coverUrl,
+        licenseImages: licenseUrls,
         accountId: user.id,
         latitude: coordinates?.latitude || null,
         longitude: coordinates?.longitude || null,
@@ -182,6 +222,13 @@ const RestaurantRegistration = () => {
     }
   };
 
+  const uploadButton = (label) => (
+    <div>
+      <PlusOutlined className="upload-icon" />
+      <div className="upload-text">{label}</div>
+    </div>
+  );
+
   return (
     <div className="modern-page-container">
       <motion.div
@@ -203,6 +250,16 @@ const RestaurantRegistration = () => {
           onConfirm={handleMapConfirm}
         />
 
+        {/* Modal Preview Ảnh */}
+        <Modal
+          open={previewOpen}
+          title={previewTitle}
+          footer={null}
+          onCancel={handleCancelPreview}
+        >
+          <img alt="preview" style={{ width: '100%' }} src={previewImage} />
+        </Modal>
+
         <div className="modern-body">
           <Form form={form} layout="vertical" onFinish={onFinish} size="large">
             <Row gutter={40}>
@@ -211,140 +268,249 @@ const RestaurantRegistration = () => {
                 <Form.Item
                   name="ownerFullName"
                   label="Họ và tên"
-                  rules={[{ required: true, message: 'Nhập họ tên!' }]}
+                  normalize={normalizeName}
+                  rules={[
+                    { required: true, message: 'Vui lòng nhập họ tên' },
+                    { min: 2, message: 'Tên quá ngắn' },
+                    { max: 50, message: 'Tên quá dài' },
+                  ]}
                 >
                   <Input
                     prefix={<UserOutlined />}
-                    placeholder="Nhập họ và tên"
+                    placeholder="Nhập họ và tên đầy đủ"
+                    allowClear
+                    maxLength={50}
                   />
                 </Form.Item>
                 <Form.Item
                   name="idCardNumber"
                   label="Số CCCD / CMND"
-                  rules={[{ required: true, message: 'Nhập CCCD!' }]}
+                  normalize={normalizeNumber}
+                  rules={[
+                    { required: true, message: 'Vui lòng nhập số CCCD' },
+                    {
+                      pattern: /^(\d{9}|\d{12})$/,
+                      message: 'CCCD phải là 9 hoặc 12 số',
+                    },
+                  ]}
                 >
                   <Input
                     prefix={<IdcardOutlined />}
-                    placeholder="Số giấy tờ tùy thân"
+                    placeholder="Nhập số CCCD / CMND (9 hoặc 12 số)"
+                    maxLength={12}
                   />
                 </Form.Item>
                 <Form.Item
                   name="phone"
                   label="Số điện thoại"
-                  rules={[{ required: true, message: 'Nhập SĐT!' }]}
+                  normalize={normalizeNumber}
+                  rules={[
+                    { required: true, message: 'Vui lòng nhập số điện thoại' },
+                    {
+                      pattern: /^0\d{9}$/,
+                      message: 'SĐT không hợp lệ (10 số, bắt đầu bằng 0)',
+                    },
+                  ]}
                 >
                   <Input
                     prefix={<PhoneOutlined />}
-                    placeholder="Số điện thoại liên hệ"
+                    placeholder="Nhập số điện thoại"
+                    maxLength={10}
                   />
                 </Form.Item>
               </Col>
-
               <Col xs={24} md={12}>
-                <div className="section-title">Thông tin quán ăn</div>
+                <div className="section-title">Thông tin quán</div>
                 <Form.Item
                   name="restaurantName"
                   label="Tên quán"
-                  rules={[{ required: true, message: 'Nhập tên quán!' }]}
+                  normalize={normalizeText}
+                  rules={[
+                    { required: true, message: 'Vui lòng nhập tên quán' },
+                    { min: 5, message: 'Tên quán tối thiểu 5 ký tự' },
+                    { max: 100, message: 'Tên quán tối đa 100 ký tự' },
+                  ]}
                 >
                   <Input
                     prefix={<ShopOutlined />}
-                    placeholder="Tên quán hiển thị"
+                    placeholder="Nhập tên quán"
+                    allowClear
+                    maxLength={100}
                   />
                 </Form.Item>
                 <Form.Item
                   name="address"
                   label="Địa chỉ"
-                  rules={[{ required: true, message: 'Chọn địa chỉ!' }]}
+                  rules={[
+                    {
+                      required: true,
+                      message: 'Vui lòng chọn địa chỉ trên bản đồ',
+                    },
+                  ]}
                 >
                   <Input
                     prefix={<EnvironmentOutlined />}
-                    placeholder="Nhấn để chọn trên bản đồ"
                     readOnly
                     onClick={() => setIsMapOpen(true)}
                     style={{ cursor: 'pointer' }}
+                    placeholder="Nhấn để chọn vị trí chính xác trên bản đồ"
                   />
                 </Form.Item>
-                <Form.Item name="description" label="Mô tả ngắn">
-                  <TextArea rows={2} placeholder="Giới thiệu về quán..." />
+                <Form.Item
+                  name="description"
+                  label="Mô tả"
+                  normalize={normalizeText}
+                  rules={[{ max: 500, message: 'Mô tả tối đa 500 ký tự!' }]}
+                >
+                  <TextArea
+                    rows={2}
+                    placeholder="Giới thiệu về quán, các món ăn..."
+                    showCount
+                    maxLength={500}
+                  />
                 </Form.Item>
               </Col>
             </Row>
 
-            <Divider
-              orientation="left"
-              style={{
-                borderColor: '#ffe6de',
-                color: '#ff6b35',
-                fontSize: '14px',
-              }}
-            >
-              HÌNH ẢNH ĐẠI DIỆN
+            <Divider style={{ borderColor: '#ffe6de', color: '#ff6b35' }}>
+              HÌNH ẢNH & GIẤY PHÉP
             </Divider>
 
-            <Row justify="center">
-              <Col span={24}>
-                <Form.Item required style={{ textAlign: 'center' }}>
+            <Row gutter={40}>
+              {/* 1. COVER IMAGE */}
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="coverImage"
+                  label="Ảnh đại diện quán"
+                  valuePropName="fileList"
+                  getValueFromEvent={normFile}
+                  rules={[
+                    { required: true, message: 'Vui lòng chọn ảnh đại diện' },
+                  ]}
+                >
                   <Upload
                     listType="picture-card"
                     className="avatar-uploader"
+                    fileList={coverFileList}
                     showUploadList={false}
                     beforeUpload={beforeUpload}
-                    onChange={handleChange}
+                    onChange={handleChangeCover}
                     maxCount={1}
-                    style={{ width: '100%', height: '400px' }}
                   >
-                    {fileList.length > 0 ? (
-                      <div
-                        style={{
-                          position: 'relative',
-                          width: '100%',
-                          height: '100%',
-                        }}
-                      >
+                    {coverFileList.length > 0 ? (
+                      <div className="custom-upload-item">
                         <img
                           src={
                             previewImage ||
-                            URL.createObjectURL(fileList[0].originFileObj)
+                            coverFileList[0].url ||
+                            URL.createObjectURL(coverFileList[0].originFileObj)
                           }
                           alt="avatar"
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                            borderRadius: '16px',
-                          }}
                         />
-                        <Button
-                          type="primary"
-                          danger
-                          shape="circle"
-                          icon={<DeleteOutlined />}
-                          size="small"
-                          onClick={handleRemoveImage}
-                          style={{ position: 'absolute', top: 10, right: 10 }}
-                        />
-                      </div>
-                    ) : (
-                      <div>
-                        {loading ? (
-                          <LoadingOutlined />
-                        ) : (
-                          <PlusOutlined
-                            style={{ fontSize: 32, color: '#ff6b35' }}
+                        <div className="custom-upload-mask">
+                          <EyeOutlined
+                            className="mask-icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePreview(coverFileList[0]);
+                            }}
                           />
-                        )}
-                        <div style={{ marginTop: 8, color: '#666' }}>
-                          Tải ảnh đại diện (Tối đa 5MB)
+                          <DeleteOutlined
+                            className="mask-icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveCoverImage(e);
+                            }}
+                          />
                         </div>
                       </div>
+                    ) : (
+                      uploadButton('Thêm ảnh')
                     )}
                   </Upload>
                 </Form.Item>
               </Col>
+
+              {/* 2. LICENSE IMAGES */}
+              <Col xs={24} md={12}>
+                <Form.Item label="Giấy phép kinh doanh" required>
+                  <div className="license-list-container">
+                    {licenseFileList.map((file) => {
+                      let src = '';
+                      if (file.url) {
+                        src = file.url;
+                      } else if (file.originFileObj) {
+                        src = URL.createObjectURL(file.originFileObj);
+                      } else if (file instanceof File) {
+                        src = URL.createObjectURL(file);
+                      }
+
+                      return (
+                        <div className="custom-upload-item" key={file.uid}>
+                          <img
+                            src={src}
+                            alt="license"
+                            onLoad={() => {
+                              if (src.startsWith('blob:'))
+                                URL.revokeObjectURL(src);
+                            }}
+                          />
+                          <div className="custom-upload-mask">
+                            <EyeOutlined
+                              className="mask-icon"
+                              onClick={() => handlePreview(file)}
+                            />
+                            <DeleteOutlined
+                              className="mask-icon"
+                              onClick={() => handleRemoveLicenseImage(file)}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {licenseFileList.length < 5 && (
+                      <Form.Item
+                        name="licenseImages"
+                        valuePropName="fileList"
+                        getValueFromEvent={normFile}
+                        rules={[
+                          {
+                            required: true,
+                            message: 'Vui lòng đăng tải giấy phép kinh doanh',
+                          },
+                        ]}
+                        style={{ margin: 0 }}
+                      >
+                        <Upload
+                          listType="picture-card"
+                          className="license-uploader"
+                          fileList={[]}
+                          showUploadList={false}
+                          beforeUpload={(file) => {
+                            const isValid = beforeUpload(file);
+                            if (isValid === Upload.LIST_IGNORE)
+                              return Upload.LIST_IGNORE;
+                            if (!file.uid)
+                              file.uid = Date.now() + Math.random().toString();
+
+                            setLicenseFileList((prev) => [...prev, file]);
+
+                            return false;
+                          }}
+                          multiple={true}
+                          maxCount={5}
+                        >
+                          {uploadButton('Thêm ảnh')}
+                        </Upload>
+                      </Form.Item>
+                    )}
+                  </div>
+                </Form.Item>
+              </Col>
             </Row>
 
-            <Form.Item style={{ marginTop: 20 }}>
+            <Form.Item style={{ marginTop: 30 }}>
               <Button type="primary" htmlType="submit" block loading={loading}>
                 GỬI YÊU CẦU ĐĂNG KÝ
               </Button>

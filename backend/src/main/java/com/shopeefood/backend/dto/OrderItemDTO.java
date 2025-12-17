@@ -1,13 +1,18 @@
 package com.shopeefood.backend.dto;
 
-import com.shopeefood.backend.entity.OrderItem;
-import com.shopeefood.backend.entity.ProductDetail;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
+
+import com.shopeefood.backend.entity.OrderItem;
+import com.shopeefood.backend.entity.ProductDetail;
+
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
@@ -26,7 +31,7 @@ public class OrderItemDTO {
         this.quantity = item.getQuantity();
         this.price = item.getPrice();
 
-        // --- SỬA LẠI: Gọi item.getOptions() thay vì item.getOrderItemOptions() ---
+        // --- Logic ánh xạ Options 
         if (item.getOptions() != null) {
             this.options = item.getOptions().stream()
                     .map(option -> {
@@ -45,8 +50,14 @@ public class OrderItemDTO {
 
                             // Format chuỗi: "Size: L (+5.000đ)"
                             String optionStr = attrName + ": " + value;
+                            
                             if (extra != null && extra.compareTo(BigDecimal.ZERO) > 0) {
-                                optionStr += " (+" + String.format("%,.0f", extra).replace(",", ".") + "đ)";
+                                DecimalFormatSymbols symbols = new DecimalFormatSymbols(new Locale("vi", "VN"));
+                                symbols.setGroupingSeparator('.'); 
+                                DecimalFormat formatter = new DecimalFormat("#,##0", symbols);
+                                String formattedExtra = formatter.format(extra.longValue()); 
+                                
+                                optionStr += " (+" + formattedExtra + "đ)";
                             }
                             return optionStr;
                         }

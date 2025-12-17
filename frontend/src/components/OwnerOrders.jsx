@@ -1,21 +1,58 @@
+/* eslint-disable react-hooks/preserve-manual-memoization */
+/* eslint-disable react-hooks/set-state-in-effect */
 import React, { useState, useEffect, useCallback, useContext } from "react";
 import axios from "axios";
-import { Table, Form, Button, Row, Col, Badge, Pagination } from "react-bootstrap";
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
+import { Row, Col, notification } from "antd"; // Giữ lại Row, Col từ React-Bootstrap để quản lý layout (hoặc có thể dùng Grid của antd)
+import { Table, Space, Tag, Select, Input, Button as AntButton, DatePicker } from 'antd'; // Ant Design Components
+import { SearchOutlined, ReloadOutlined } from '@ant-design/icons'; // Icons từ antd
 import { FaSort, FaSortUp, FaSortDown } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 
-const OrderStatusBadge = ({ status }) => {
-    const colors = {
-        PENDING: "secondary",
-        PREPARING: "info",
+// Cần import CSS của DatePicker
+import "react-datepicker/dist/react-datepicker.css";
+
+const { Option } = Select;
+const { Search } = Input;
+
+
+// --- Component con để hiển thị Trạng thái Đơn hàng bằng Tag của Ant Design ---
+const OrderStatusTag = ({ status }) => {
+    const colorMap = {
+        PENDING: "default",
+        PAID: "geekblue",
+        PREPARING: "processing",
         SHIPPING: "warning",
         COMPLETED: "success",
-        CANCELLED: "danger",
+        CANCELLED: "error",
     };
-    return <Badge bg={colors[status]}>{status}</Badge>;
+    return <Tag color={colorMap[status] || "default"}>{status}</Tag>;
 };
+// --- Component con để hiển thị chi tiết sản phẩm và thuộc tính (Không đổi) ---
+const OrderItemDetails = ({ items }) => {
+    if (!items || items.length === 0) {
+        return <p className="text-muted fst-italic mb-0">Không có sản phẩm.</p>;
+    }
+    return (
+        <ul className="list-unstyled mb-0 small">
+            {items.map((item, index) => (
+                <li key={index} className="mb-2 p-1 border-bottom">
+                    <div className="fontSize: '1.2rem' fw-bold text-dark">{item.productName} (x{item.quantity})</div>
+
+                    {item.options && item.options.length > 0 && (
+                        <div className="ms-2">
+                            {item.options.map((optionStr, optIndex) => (
+                                <div key={optIndex} className="text-secondary" style={{ fontSize: '0.8rem' }}>
+                                    • {optionStr}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </li>
+            ))}
+        </ul>
+    );
+};
+// ----------------------------------------------------------------
 
 export default function OwnerOrders() {
     const { user } = useContext(AuthContext);
@@ -24,27 +61,33 @@ export default function OwnerOrders() {
     const [orders, setOrders] = useState([]);
     const [restaurants, setRestaurants] = useState([]);
     const [selectedRestaurant, setSelectedRestaurant] = useState(null);
-
+    const [activeSearch, setActiveSearch] = useState("");
     const [search, setSearch] = useState("");
-    const [fromDate, setFromDate] = useState("");
-    const [toDate, setToDate] = useState("");
+    const [fromDate, setFromDate] = useState(null);
+    const [toDate, setToDate] = useState(null);
+    const [pagination, setPagination] = useState({
+        current: 1,
+        pageSize: 10,
+        total: 0,
+    });
 
-    const [page, setPage] = useState(0);
-    const [totalPages, setTotalPages] = useState(1);
-
-    const [sortField, setSortField] = useState("createdAt");
-    const [sortDir, setSortDir] = useState("desc");
+    const [sort, setSort] = useState({
+        field: "createdAt",
+        order: "descend",
+    });
 
     const [loading, setLoading] = useState(false);
-    const getSortIcon = (field) => {
-        if (sortField === field) {
-            return sortDir === "asc" ? <FaSortUp className="ms-1" /> : <FaSortDown className="ms-1" />;
-        }
-        return <FaSort className="ms-1 text-muted" />;
+
+    // Hàm chuyển đổi Ant Design Sort Order sang Backend Sort Dir
+    const mapSortOrderToDir = (order) => {
+        if (order === 'ascend') return 'asc';
+        if (order === 'descend') return 'desc';
+        return 'desc'; // Mặc định
     };
+
+    // Load Owner ID và Restaurants
     useEffect(() => {
         if (!user) return;
-
         const fetchOwnerId = async () => {
             try {
                 const res = await axios.get(`http://localhost:8080/api/owner/byAccount/${user.id}`);
@@ -53,12 +96,6 @@ export default function OwnerOrders() {
                 console.error("Không lấy được ownerId:", err);
             }
         };
-
-        fetchOwnerId();
-    }, [user]);
-
-    useEffect(() => {
-        if (!accountId) return;
 
         const loadRestaurants = async () => {
             try {
@@ -71,60 +108,71 @@ export default function OwnerOrders() {
             }
         };
 
+        fetchOwnerId();
         loadRestaurants();
-    }, [accountId]);
+    }, [user, accountId]);
 
+
+    // Fetch Orders (Sử dụng state pagination và sort mới)
     const fetchOrders = useCallback(async () => {
         if (!ownerId) return;
         setLoading(true);
+
+        const sortDir = mapSortOrderToDir(sort.order);
+
         try {
             const res = await axios.get("http://localhost:8080/api/owner/orders", {
                 params: {
                     ownerId,
                     restaurantId: selectedRestaurant || null,
-                    search,
-                    from: fromDate ? fromDate + "T00:00:00" : null,
-                    to: toDate ? toDate + "T23:59:59" : null,
-                    page,
-                    size: 10,
-                    sortField,
-                    sortDir,
+                    search: activeSearch,
+                    from: fromDate ? fromDate.startOf('day').toISOString() : null,
+                    to: toDate ? toDate.endOf('day').toISOString() : null,
+                    page: pagination.current - 1,
+                    size: pagination.pageSize,
+                    sortField: sort.field,
+                    sortDir: sortDir,
                 },
             });
             setOrders(res.data.content);
-            setTotalPages(res.data.totalPages);
+            setPagination(prev => ({
+                ...prev,
+                total: res.data.totalElements,
+            }));
         } catch (err) {
             console.error("Error fetching orders:", err);
+            notification.error({
+                message: 'Lỗi Tải Đơn Hàng',
+                description: 'Không thể tải danh sách đơn hàng.',
+            });
             setOrders([]);
-            setTotalPages(1);
         }
         setLoading(false);
-    }, [page, selectedRestaurant, sortField, sortDir, ownerId, search, fromDate, toDate]);
+    }, [ownerId, selectedRestaurant, activeSearch, fromDate, toDate, pagination.current, pagination.pageSize, sort.field, sort.order]);
 
-    useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        fetchOrders();
-    }, [fetchOrders]);
 
-    const handleFilter = () => {
-        setPage(0);
+    // Xử lý thay đổi Table (Phân trang và Sắp xếp)
+    const handleTableChange = (newPagination, filters, sorter) => {
+        setPagination(newPagination);
+        if (sorter.field) {
+            setSort({
+                field: sorter.field,
+                order: sorter.order || 'descend',
+            });
+        }
     };
 
-    const handleSort = (field) => {
-        const dir = sortField === field && sortDir === "asc" ? "desc" : "asc";
-        setSortField(field);
-        setSortDir(dir);
-        setPage(0);
-    };
+    // Hàm xử lý hành động (Sử dụng Button)
+    const handleAction = useCallback(async (orderId, currentStatus, targetStatus) => {
+        if (targetStatus === "CANCELLED" && !window.confirm("Bạn có chắc chắn muốn HỦY đơn hàng này?")) {
+            return;
+        }
 
-    const handleAction = async (orderId, action) => {
-        let newStatus = "";
-        if (action === "accept") newStatus = "PREPARING";
-        else if (action === "cancel") newStatus = "CANCELLED";
+        if (targetStatus === currentStatus) return;
 
         try {
             const res = await axios.put(`http://localhost:8080/api/owner/orders/${orderId}/status`, null, {
-                params: { status: newStatus },
+                params: { status: targetStatus },
             });
 
             const updatedOrder = res.data;
@@ -135,175 +183,235 @@ export default function OwnerOrders() {
                 )
             );
 
+            notification.success({
+                message: 'Cập nhật thành công',
+                description: `Đơn hàng #${orderId} đã được chuyển sang trạng thái ${updatedOrder.status}.`,
+            });
+
         } catch (err) {
             console.error("Error updating status:", err);
-            alert("Cập nhật trạng thái thất bại");
-            fetchOrders();
+            notification.error({
+                message: 'Cập nhật thất bại',
+                description: 'Đã có lỗi xảy ra trong quá trình cập nhật trạng thái đơn hàng.',
+            });
+            fetchOrders(); // Tải lại dữ liệu để đồng bộ
         }
+    }, [fetchOrders]);
+
+    const handleSearchSubmit = () => {
+        setActiveSearch(search);
+        setPagination(prev => ({ ...prev, current: 1 }));
     };
+    // Reset Filter
     const handleReset = () => {
         setSearch("");
+        setActiveSearch("");
         setSelectedRestaurant(null);
-        setFromDate("");
-        setToDate("");
-        setSortField("createdAt");
-        setSortDir("desc");
-        setPage(0);
+        setFromDate(null);
+        setToDate(null);
+        setSort({ field: "createdAt", order: "descend" });
+        setPagination(prev => ({ ...prev, current: 1 }));
     };
+    
+    useEffect(() => {
+        fetchOrders();
+    }, [ownerId, selectedRestaurant, fromDate, toDate, pagination.current, pagination.pageSize, sort.field, sort.order, activeSearch]);
+
+    // Định nghĩa cột cho Ant Design Table
+    const columns = [
+        {
+            title: 'STT',
+            key: 'stt',
+            width: 50,
+            render: (text, record, index) => (pagination.current - 1) * pagination.pageSize + index + 1,
+            align: 'center',
+        },
+        {
+            title: 'Mã đơn',
+            dataIndex: 'orderNumber',
+            key: 'orderNumber',
+            sorter: true,
+            width: 100,
+            align: 'center',
+        },
+        {
+            title: 'Đơn hàng & Chi tiết',
+            dataIndex: 'items',
+            key: 'items',
+            render: (items) => <OrderItemDetails items={items} />,
+            width: 250,
+            align: 'center'
+        },
+        {
+            title: 'Ghi chú',
+            dataIndex: 'note',
+            key: 'note',
+            render: (note) => note || '—',
+            align: 'center'
+        },
+        {
+            title: 'Tổng tiền',
+            dataIndex: 'subtotal',
+            key: 'subtotal',
+            sorter: true,
+            render: (subtotal) => (
+                <span className="fw-bold text-danger">
+                    {subtotal ? subtotal.toLocaleString('vi-VN') : 0}₫
+                </span>
+            ),
+            align: 'center',
+            width: 150,
+        },
+        {
+            title: 'Thanh toán',
+            dataIndex: 'paymentMethod',
+            key: 'paymentMethod',
+            width: 120,
+            align: 'center'
+        },
+        {
+            title: 'Ngày tạo',
+            dataIndex: 'createdAt',
+            key: 'createdAt',
+            sorter: true,
+            align: 'center',
+            render: (dateString) => {
+                const d = new Date(dateString);
+                const dd = String(d.getDate()).padStart(2, "0");
+                const mm = String(d.getMonth() + 1).padStart(2, "0");
+                const yyyy = d.getFullYear();
+                const hh = String(d.getHours()).padStart(2, "0");
+                const mi = String(d.getMinutes()).padStart(2, "0");
+                return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
+            },
+            width: 150,
+        },
+        {
+            title: 'Trạng thái',
+            dataIndex: 'status',
+            key: 'status',
+            render: (status) => <OrderStatusTag status={status} />,
+            align: 'center',
+            width: 120,
+        },
+        {
+            title: 'Hành động',
+            key: 'action',
+            render: (text, record) => (
+                <Space direction="vertical" size="small">
+                    {/* Nút Chấp nhận */}
+                    {(record.status === "PAID" || record.status === "PENDING") && (
+                        <AntButton
+                            type="primary"
+                            size="small"
+                            onClick={() => handleAction(record.id, record.status, "PREPARING")}
+                        >
+                            Chấp nhận
+                        </AntButton>
+                    )}
+
+                    {/* Nút Hủy */}
+                    {(record.status === "PAID" || record.status === "PENDING") && (
+                        <AntButton
+                            danger
+                            size="small"
+                            onClick={() => handleAction(record.id, record.status, "CANCELLED")}
+                        >
+                            Hủy đơn
+                        </AntButton>
+                    )}
+
+
+                </Space>
+            ),
+            width: 150,
+        },
+    ];
 
     return (
-        <div>
+        <div className="p-4">
             <h2 className="mb-4">Quản lý đơn hàng</h2>
 
-            <Row className="mb-3">
-                <Col md={3}>
-                    <Form.Select
-                        value={selectedRestaurant || ""}
-                        onChange={(e) => {
-                            setSelectedRestaurant(e.target.value || null);
-                            setPage(0);
-                        }}
-                    >
-                        <option value="">Tất cả nhà hàng</option>
-                        {restaurants.map((r) => (
-                            <option key={r.id} value={r.id}>{r.name}</option>
-                        ))}
-                    </Form.Select>
-                </Col>
+            <Space direction="horizontal" size="middle" className="mb-4 w-100" wrap>
+                {/* Lọc theo Nhà hàng (Ant Design Select) */}
+                <Select
+                    style={{ width: 200 }}
+                    placeholder="Chọn Nhà hàng"
+                    value={selectedRestaurant}
+                    allowClear
+                    onChange={(value) => {
+                        setSelectedRestaurant(value || null);
+                        setPagination(prev => ({ ...prev, current: 1 }));
+                    }}
+                >
+                    {restaurants.map((r) => (
+                        <Option key={r.id} value={r.id}>{r.name}</Option>
+                    ))}
+                </Select>
 
-                <Col md={3}>
-                    <Form.Control
-                        placeholder="Tìm kiếm theo mã đơn"
+                {/* Lọc theo Ngày tạo (Ant Design DatePicker Range) */}
+                <DatePicker
+                    placeholder="Từ ngày"
+                    value={fromDate}
+                    onChange={(date) => {
+                        setFromDate(date);
+                        setPagination(prev => ({ ...prev, current: 1 }));
+                    }}
+                    format="DD/MM/YYYY"
+                    style={{ width: 200 }}
+                    allowClear
+                />
+                <DatePicker
+                    placeholder="Đến ngày"
+                    value={toDate}
+                    onChange={(date) => {
+                        setToDate(date);
+                        setPagination(prev => ({ ...prev, current: 1 }));
+                    }}
+                    format="DD/MM/YYYY"
+                    style={{ width: 200 }}
+                    allowClear
+                />
+                {/* Tìm kiếm theo mã đơn (Ant Design Input Search) */}
+                <Space.Compact style={{ width: 300, marginLeft: 20 }}>
+                    <Input
+                        placeholder="Tìm theo mã đơn"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
+                        onPressEnter={handleSearchSubmit}
+                        style={{ width: 300, height: 33, marginLeft: 20 }}
                     />
-                </Col>
-
-                <Col md={2}>
-                    <DatePicker
-                        selected={fromDate ? new Date(fromDate) : null}
-                        onChange={(date) => {
-                            setFromDate(date ? date.toISOString().split('T')[0] : "");
-                            handleFilter();
-                        }}
-                        customInput={<Form.Control />}
-                        dateFormat="dd/MM/yyyy"
-                        placeholderText="Từ ngày"
-                        isClearable
+                    <AntButton
+                        type="primary"
+                        icon={<SearchOutlined/>}
+                        onClick={handleSearchSubmit}
                     />
-                </Col>
+                </Space.Compact>
+                {/* Nút Reset */}
+                <AntButton
+                    icon={<ReloadOutlined />}
+                    onClick={handleReset}
+                >
+                    Tải lại
+                </AntButton>
+            </Space>
 
-                <Col md={2}>
-                    <DatePicker
-                        selected={toDate ? new Date(toDate) : null}
-                        onChange={(date) => {
-                            setToDate(date ? date.toISOString().split('T')[0] : "");
-                            handleFilter();
-                        }}
-                        customInput={<Form.Control />}
-                        dateFormat="dd/MM/yyyy"
-                        placeholderText="Đến ngày"
-                        isClearable
-                    />
-                </Col>
-
-                <Col md={2}>
-                    <Button
-                        className="w-100"
-                        onClick={handleReset}
-                    >
-                        Reset
-                    </Button>
-                </Col>
-            </Row>
-
-            <Table striped bordered hover>
-                <thead>
-                    <tr>
-                        <th>STT</th>
-                        <th onClick={() => handleSort("id")} style={{ cursor: "pointer" }}>Mã đơn {getSortIcon("id")}</th>
-                        <th>Đơn hàng</th>
-                        <th>Ghi chú</th>
-                        {/* <th>Khách hàng</th> */}
-                        <th onClick={() => handleSort("totalAmount")} style={{ cursor: "pointer" }}>
-                            Tổng tiền {getSortIcon("totalAmount")}
-                        </th>
-
-                        <th>Thanh toán</th>
-                        <th onClick={() => handleSort("createdAt")} style={{ cursor: "pointer" }}>
-                            Ngày tạo {getSortIcon("createdAt")}
-                        </th>
-
-                        <th>Trạng thái</th>
-                        <th>Hành động</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    {loading ? (
-                        <tr><td colSpan="9" className="text-center">Đang tải...</td></tr>
-                    ) : orders.length === 0 ? (
-                        <tr><td colSpan="9" className="text-center">Không có đơn hàng</td></tr>
-                    ) : (
-                        orders.map((o, index) => (
-                            <tr key={o.id}>
-                                <td>{page * 10 + index + 1}</td>
-                                <td>{o.id}</td>
-                                <td>
-                                    {o.items && o.items.length > 0 ? (
-                                        o.items.map((item, index) => (
-                                            // item.productName và item.quantity từ OrderItemDTO
-                                            <div key={index}>
-                                                {item.productName} - Số lượng: {item.quantity}
-                                            </div>
-                                        ))
-                                    ) : (
-                                        '—'
-                                    )}
-                                </td>
-                                <td>{o.note || '—'}</td>
-                                <td>{o.totalAmount.toLocaleString('vi-VN')}₫</td>
-                                <td>{o.paymentMethod}</td>
-                                <td>
-                                    {(() => {
-                                        const d = new Date(o.createdAt);
-                                        const dd = String(d.getDate()).padStart(2, "0");
-                                        const mm = String(d.getMonth() + 1).padStart(2, "0");
-                                        const yyyy = d.getFullYear();
-                                        const hh = String(d.getHours()).padStart(2, "0");
-                                        const mi = String(d.getMinutes()).padStart(2, "0");
-                                        return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
-                                    })()}
-                                </td>
-                                <td><OrderStatusBadge status={o.status} /></td>
-                                <td>
-                                    {o.status === "PAID" && (
-                                        <>
-                                            <Button size="sm" variant="success" onClick={() => handleAction(o.id, "accept")}>Chấp nhận</Button>{" "}
-                                            <Button size="sm" variant="danger" onClick={() => handleAction(o.id, "cancel")}>Hủy</Button>
-                                        </>
-                                    )}
-                                    {(o.status === "SHIPPING" || o.status === "COMPLETED" || o.status === "CANCELLED" || o.status === "PREPARING") && (
-                                        <span></span>
-                                    )}
-                                </td>
-                            </tr>
-                        ))
-                    )}
-                </tbody>
-            </Table>
-            <Row className="mt-3">
-                <Col className="d-flex justify-content-center">
-                    <Pagination>
-                        <Pagination.First disabled={page === 0} onClick={() => setPage(0)} />
-                        <Pagination.Prev disabled={page === 0} onClick={() => setPage(page - 1)} />
-                        <Pagination.Item active>{page + 1}</Pagination.Item>
-                        <Pagination.Next disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} />
-                        <Pagination.Last disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)} />
-                    </Pagination>
-                </Col>
-            </Row>
-
-        </div >
+            {/* Bảng Ant Design */}
+            <Table
+                columns={columns}
+                dataSource={orders}
+                rowKey="id"
+                loading={loading}
+                pagination={{
+                    ...pagination,
+                    showSizeChanger: true,
+                    pageSizeOptions: ['5', '10', '20', '50'],
+                    showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} đơn`,
+                    locale: { items_per_page: '/ trang' }
+                }}
+                onChange={handleTableChange}
+                sortDirections={['descend', 'ascend', null]}
+            />
+        </div>
     );
 }

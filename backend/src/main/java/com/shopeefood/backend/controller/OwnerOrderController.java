@@ -1,14 +1,20 @@
 package com.shopeefood.backend.controller;
 
-import com.shopeefood.backend.dto.OrderDTO;
-import com.shopeefood.backend.entity.Order;
-import com.shopeefood.backend.service.OrderService;
+import java.time.LocalDateTime;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDateTime;
+import com.shopeefood.backend.dto.OrderDTO;
+import com.shopeefood.backend.entity.Order;
+import com.shopeefood.backend.service.OrderService;
 
 @RestController
 @RequestMapping("/api/owner/orders")
@@ -45,5 +51,14 @@ public class OwnerOrderController {
 
         // 2. CHUYỂN Order Entity SANG OrderDTO TRƯỚC KHI TRẢ VỀ
         return new OrderDTO(updatedOrder);
+    }
+
+    @GetMapping("/{orderId}/details")
+    public OrderDTO getOrderDetails(@PathVariable Integer orderId) {
+        Order order = orderService.getOrderDetailsById(orderId);
+
+        if (order == null) {
+        }
+        return new OrderDTO(order);
     }
 }

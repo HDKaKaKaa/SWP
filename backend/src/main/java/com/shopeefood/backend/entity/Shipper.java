@@ -3,6 +3,8 @@ package com.shopeefood.backend.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.math.BigDecimal;
+import lombok.ToString;
+import lombok.EqualsAndHashCode;
 
 @Data
 @Entity
@@ -30,8 +32,13 @@ public class Shipper {
     // Trạng thái: OFFLINE, ONLINE, BUSY
     private String status;
 
+    @Column(name = "avatar")
+    private String avatar; // URL ảnh đại diện của shipper
+
     @OneToOne
     @MapsId
     @JoinColumn(name = "account_id")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Account account;
 }

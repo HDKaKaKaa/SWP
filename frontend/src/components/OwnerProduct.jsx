@@ -1,43 +1,77 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useCallback, useContext } from "react";
 import axios from "axios";
-import { Table, Button, Container, Row, Col, Badge, Spinner, Alert, Pagination, Form, Modal } from "react-bootstrap";
-import { FaEdit, FaTrash, FaPlus, FaCamera, FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
+import { Table, Space, Select, Input, Button as AntButton, Modal, Row, Col, Tag, notification, Spin } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
+import { FaCamera, FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
 import { AuthContext } from "../context/AuthContext";
 import AddProduct from "./AddProduct";
 import UpdateProduct from "./UpdateProduct";
+const { Option } = Select;
 
+// --- Component con: Hiển thị Trạng thái Sản phẩm bằng Tag của Ant Design ---
+const ProductStatusTag = ({ isAvailable }) => {
+    return (
+        <Tag color={isAvailable ? 'success' : 'default'} style={{ minWidth: 80, textAlign: 'center' }}>
+            {isAvailable ? 'Đang Bán' : 'Ngừng Bán'}
+        </Tag>
+    );
+};
+//Filter status
+const statusFilters = [
+    { text: 'Đang Bán', value: 'true' },
+    { text: 'Ngừng Bán', value: 'false' },
+];
+// --- Component chính ---
 const OwnerProducts = () => {
     const API_URL = "http://localhost:8080/api/owner/products";
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [message, setMessage] = useState(null);
-    const [variant, setVariant] = useState(null);
     const { user } = useContext(AuthContext);
-    const [ownerId, setOwnerId] = useState(null); // PK của Owner Entity
-    const [accountId, setAccountId] = useState(null); // ID của User/Account
+    const [ownerId, setOwnerId] = useState(null);
+    const [accountId, setAccountId] = useState(null);
 
+
+    //Xử lý lọc & tìm kiếm
     const [search, setSearch] = useState("");
-    const [page, setPage] = useState(0);
-    const [totalPages, setTotalPages] = useState(1);
-    const [sortField, setSortField] = useState("id");
-    const [sortDir, setSortDir] = useState("asc");
     const [restaurants, setRestaurants] = useState([]);
-    const [selectedRestaurant, setSelectedRestaurant] = useState("");
+    const [selectedRestaurant, setSelectedRestaurant] = useState(null);
+    const [categories, setCategories] = useState([]);
+    const [selectedCategory, setSelectedCategory] = useState(null);
+    const [statusFilter, setStatusFilter] = useState(null);
+
+
     const [showAddModal, setShowAddModal] = useState(false);
     const [showUpdateModal, setShowUpdateModal] = useState(false);
     const [productToUpdate, setProductToUpdate] = useState(null);
 
+    // Ant Design Pagination & Sort
+    const [pagination, setPagination] = useState({
+        current: 1,
+        pageSize: 10,
+        total: 0,
+    });
+    const [sort, setSort] = useState({
+        field: "id",
+        order: "ascend",
+    });
+
+    // Hàm chuyển đổi Ant Design Sort Order sang Backend Sort Dir
+    const mapSortOrderToDir = (order) => {
+        if (order === 'ascend') return 'asc';
+        if (order === 'descend') return 'desc';
+        return 'asc';
+    };
+
     // 1. Lấy ID Owner Entity và Account ID từ user
     useEffect(() => {
         if (!user) return;
-        setAccountId(user.id); // Lấy Account ID
-        
+        setAccountId(user.id);
+
         const fetchOwnerId = async () => {
             try {
-                // Giả định API này trả về PK của Owner Entity
                 const res = await axios.get(`http://localhost:8080/api/owner/byAccount/${user.id}`);
-                setOwnerId(res.data); 
+                setOwnerId(res.data);
             } catch (err) {
                 console.error("Không lấy được ownerId:", err);
             }
@@ -46,53 +80,70 @@ const OwnerProducts = () => {
         fetchOwnerId();
     }, [user]);
 
-    // Hàm chung để tải sản phẩm 
-    const fetchProducts = useCallback(async () => {
-        if (!ownerId) return; // Chỉ tải khi có Owner PK ID
-        setLoading(true);
-        try {
-            const response = await axios.get(API_URL, {
-                params: {
-                    ownerId, // Dùng Owner ID để lọc sản phẩm
-                    restaurantId: selectedRestaurant || null,
-                    search: search || null,
-                    page: page,
-                    size: 10,
-                    sort: `${sortField},${sortDir}`,
-                }
-            });
-            setProducts(response.data.content);
-            setTotalPages(response.data.totalPages);
-
-        } catch (error) {
-            console.error("Lỗi khi tải danh sách sản phẩm:", error);
-            setProducts([]);
-            setTotalPages(1);
-        } finally {
-            setLoading(false);
-        }
-    }, [ownerId, selectedRestaurant, search, page, sortField, sortDir]);
-
     // 2. Tải danh sách Nhà hàng
     useEffect(() => {
-        if (!accountId) return; // Chỉ tải khi có Account ID
+        if (!accountId) return;
 
         const loadRestaurants = async () => {
             try {
                 const res = await axios.get("http://localhost:8080/api/owner/restaurants", {
-                    params: { accountId }, 
+                    params: { accountId },
                 });
                 setRestaurants(res.data);
-                if (res.data.length > 0 && !selectedRestaurant) {
-                    setSelectedRestaurant(res.data[0].id.toString());
-                }
             } catch (err) {
                 console.error("Error fetching restaurants:", err);
             }
         };
-
+        const loadCategories = async () => {
+            try {
+                const res = await axios.get("http://localhost:8080/api/categories");
+                setCategories(res.data);
+            } catch (err) {
+                console.error("Error fetching categories:", err);
+            }
+        };
         loadRestaurants();
-    }, [accountId]); 
+        loadCategories();
+    }, [accountId]);
+
+    // Hàm chung để tải sản phẩm 
+    const fetchProducts = useCallback(async () => {
+        if (!ownerId) return;
+        setLoading(true);
+
+        const sortDir = mapSortOrderToDir(sort.order);
+        const sortParam = `${sort.field},${sortDir}`;
+        try {
+            const response = await axios.get(API_URL, {
+                params: {
+                    ownerId,
+                    restaurantId: selectedRestaurant || null,
+                    categoryId: selectedCategory || null,
+                    isAvailable: statusFilter,
+                    search: search || null,
+                    page: pagination.current - 1,
+                    size: pagination.pageSize,
+                    sort: sortParam,
+                }
+            });
+            setProducts(response.data.content);
+            setPagination(prev => ({
+                ...prev,
+                total: response.data.totalElements,
+            }));
+
+        } catch (error) {
+            console.error("Lỗi khi tải danh sách sản phẩm:", error);
+            notification.error({
+                message: 'Lỗi Tải Sản Phẩm',
+                description: 'Không thể tải danh sách sản phẩm. Vui lòng kiểm tra kết nối Backend.',
+            });
+            setProducts([]);
+            setPagination(prev => ({ ...prev, total: 0 }));
+        } finally {
+            setLoading(false);
+        }
+    }, [ownerId, selectedRestaurant, selectedCategory, statusFilter, search, pagination.current, pagination.pageSize, sort.field, sort.order]);
 
     // 3. Tải Sản phẩm khi có thay đổi
     useEffect(() => {
@@ -101,64 +152,90 @@ const OwnerProducts = () => {
 
     // --- LOGIC LỌC, TÌM KIẾM & SẮP XẾP ---
 
-    // Hàm xử lý lọc
-    const handleFilter = () => {
-        setPage(0);
-    };
-
-    // Xử lý sắp xếp
-    const handleSort = (field) => {
-        const dir = sortField === field && sortDir === "asc" ? "desc" : "asc";
-        setSortField(field);
-        setSortDir(dir);
-        setPage(0);
-    };
-
-    // hiển thị Icon sắp xếp
-    const getSortIcon = (field) => {
-        if (sortField === field) {
-            return sortDir === "asc" ? <FaSortUp className="ms-1" /> : <FaSortDown className="ms-1" />;
+    // Xử lý thay đổi Table (Phân trang và Sắp xếp)
+    const handleTableChange = (newPagination, filters, sorter) => {
+        setPagination(newPagination);
+        if (sorter.field) {
+            setSort({
+                field: sorter.field,
+                order: sorter.order || 'ascend',
+            });
         }
-        return <FaSort className="ms-1 text-muted" />;
+        const filteredStatus = filters.isAvailable ? filters.isAvailable[0] : null;
+        let newStatusFilter = null;
+        if (filteredStatus !== null) {
+            newStatusFilter = filteredStatus === 'true';
+        }
+
+        // Nếu giá trị lọc trạng thái thay đổi, cập nhật state và reset page
+        if (newStatusFilter !== statusFilter) {
+            setStatusFilter(newStatusFilter);
+            setPagination(prev => ({ ...prev, current: 1 }));
+        }
+    };
+
+    // Hàm xử lý lọc (chỉ cần reset page về 1)
+    const handleFilter = () => {
+        setPagination(prev => ({ ...prev, current: 1 }));
+    };
+
+    // Reset Filter
+    const handleReset = () => {
+        setSearch("");
+        setSelectedRestaurant(null);
+        setSelectedCategory(null);
+        setStatusFilter(null);
+        setSort({ field: "id", order: "ascend" });
+        setPagination(prev => ({ ...prev, current: 1 }));
     };
 
     const handleEdit = async (productId) => {
-        console.log(`Chỉnh sửa ID: ${productId}`);
-        setMessage(null);
         try {
-            // Lấy chi tiết sản phẩm để đổ vào form chỉnh sửa
             const response = await axios.get(`${API_URL}/${productId}`);
             setProductToUpdate(response.data);
             setShowUpdateModal(true);
         } catch (error) {
             console.error("Lỗi khi tải chi tiết sản phẩm:", error);
-            const errorMsg = error.response?.data?.message || `Tải sản phẩm ID ${productId} thất bại.`;
-            setMessage(errorMsg);
-            setVariant('danger');
+            notification.error({
+                message: 'Lỗi Tải Dữ Liệu',
+                description: `Tải sản phẩm ID ${productId} thất bại.`,
+            });
         }
     };
 
     const handleDelete = async (productId) => {
-        if (window.confirm(`Xác nhận xóa sản phẩm ID: ${productId}?`)) {
-            setMessage(null);
-            try {
-                // Endpoint DELETE không cần ownerId/accountId trong body
-                await axios.delete(`http://localhost:8080/api/owner/products/${productId}`);
-                fetchProducts();
-                setMessage(`Đã xóa sản phẩm ID ${productId} thành công.`);
-                setVariant('success');
-            } catch (error) {
-                console.error("Lỗi khi xóa sản phẩm:", error);
-                const errorMsg = error.response?.data?.message || `Xóa sản phẩm ID ${productId} thất bại.`;
-                setMessage(errorMsg);
-                setVariant('danger');
-            }
-        }
+        Modal.confirm({
+            title: 'Xác nhận xóa',
+            content: `Bạn có chắc chắn muốn xóa sản phẩm ID: ${productId}? Thao tác này không thể hoàn tác.`,
+            okText: 'Xóa',
+            okType: 'danger',
+            cancelText: 'Hủy',
+            onOk: async () => {
+                try {
+                    await axios.delete(`http://localhost:8080/api/owner/products/${productId}`);
+                    fetchProducts();
+                    notification.success({
+                        message: 'Thành công',
+                        description: `Đã xóa sản phẩm ID ${productId} thành công.`,
+                    });
+                } catch (error) {
+                    console.error("Lỗi khi xóa sản phẩm:", error);
+                    notification.error({
+                        message: 'Lỗi Xóa Sản Phẩm',
+                        description: `Xóa sản phẩm ID ${productId} thất bại.`,
+                    });
+                }
+            },
+            onCancel() {
+            },
+        });
     };
+
     const handleAdd = () => {
         setShowAddModal(true);
     };
-    //xử lý sau khi thêm/cập nhật
+
+    // xử lý sau khi thêm/cập nhật
     const handleProductActionSuccess = (successMessage, modalType = 'add') => {
         if (modalType === 'add') {
             setShowAddModal(false);
@@ -167,184 +244,233 @@ const OwnerProducts = () => {
             setProductToUpdate(null);
         }
         fetchProducts();
-        setMessage(successMessage || "Thao tác thành công!");
-        setVariant("success");
+        notification.success({
+            message: 'Thành công',
+            description: successMessage || "Thao tác thành công!",
+        });
     }
+
     const handleCloseUpdateModal = () => {
         setShowUpdateModal(false);
         setProductToUpdate(null);
     };
-    return (
-        <Container className="mt-4">
-            {/* Tiêu đề */}
-            <Row className="mb-4 align-items-center">
-                <Col md={3}></Col>
-                <Col md={6} className="text-center">
-                    <h3>Quản Lý Sản Phẩm</h3>
-                </Col>
 
-            </Row>
 
-            {/*Lọc và Tìm kiếm */}
-            <Row className="mb-3 align-items-end">
-                <Col md={4}>
-                    <Form.Select
-                        value={selectedRestaurant}
-                        onChange={(e) => {
-                            setSelectedRestaurant(e.target.value);
-                            handleFilter();
-                        }}
-                    >
-                        <option value="">Tất cả nhà hàng</option>
-                        {restaurants.map((r) => (
-                            <option key={r.id} value={r.id.toString()}>{r.name}</option>
-                        ))}
-                    </Form.Select>
-                </Col>
-                <Col md={5}>
-                    <Form.Control
-                        type="text"
-                        placeholder="Nhập tên sản phẩm..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        onKeyPress={(e) => {
-                            if (e.key === 'Enter') handleFilter();
-                        }}
-                    />
-                </Col>
-                <Col md={3} className="text-end">
-                    <Button variant="success" onClick={handleAdd}>
-                        <FaPlus className="me-2" /> Thêm Sản Phẩm
-                    </Button>
-                </Col>
-            </Row>
-
-            {message && (
-                <Alert variant={variant} onClose={() => setMessage(null)} dismissible>
-                    {message}
-                </Alert>
-            )}
-
-            <Table striped bordered hover responsive>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Ảnh</th>
-                        <th onClick={() => handleSort("name")} style={{ cursor: "pointer" }}>
-                            Tên Sản Phẩm {getSortIcon("name")}
-                        </th>
-                        <th>Danh Mục</th>
-                        <th onClick={() => handleSort("price")} style={{ cursor: "pointer" }}>
-                            Giá {getSortIcon("price")}
-                        </th>
-                        <th>Trạng Thái</th>
-                        <th>Hành Động</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {loading ? (
-                        <tr><td colSpan="7" className="text-center"><Spinner animation="border" size="sm" /> Đang tải...</td></tr>
-                    ) : products.length === 0 ? (
-                        <tr><td colSpan="7" className="text-center">Không có sản phẩm nào.</td></tr>
+    // Định nghĩa cột cho Ant Design Table
+    const columns = [
+        {
+            title: 'STT',
+            key: 'stt',
+            width: 50,
+            render: (text, record, index) => (pagination.current - 1) * pagination.pageSize + index + 1,
+            align: 'center',
+        },
+        {
+            title: 'Ảnh',
+            dataIndex: 'image',
+            key: 'image',
+            width: 80,
+            render: (image, record) => (
+                <div className="text-center">
+                    {image ? (
+                        <img
+                            src={image}
+                            alt={record.name}
+                            style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '4px' }}
+                        />
                     ) : (
-                        products.map((p) => (
-                            <tr key={p.id}>
-                                <td>{p.id}</td>
-                                <td className="text-center">
-                                    {p.image ? (
-                                        <img src={p.image} alt={p.name} style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '4px' }} />
-                                    ) : (
-                                        <FaCamera size={24} color="#ccc" />
-                                    )}
-                                </td>
-                                <td>{p.name}</td>
-                                <td>{p.categoryName || '—'}</td>
-                                <td>{p.price.toLocaleString('vi-VN')}₫</td>
-                                <td>
-                                    <Badge bg={p.isAvailable ? 'success' : 'secondary'}>
-                                        {p.isAvailable ? 'Đang Bán' : 'Ngừng Bán'}
-                                    </Badge>
-                                </td>
-                                <td>
-                                    <Button
-                                        variant="warning"
-                                        size="sm"
-                                        className="me-2"
-                                        onClick={() => handleEdit(p.id)}
-                                    >
-                                        <FaEdit />
-                                    </Button>
-                                    <Button
-                                        variant="danger"
-                                        size="sm"
-                                        onClick={() => handleDelete(p.id)}
-                                    >
-                                        <FaTrash />
-                                    </Button>
-                                </td>
-                            </tr>
-                        ))
+                        <FaCamera size={24} color="#ccc" />
                     )}
-                </tbody>
-            </Table>
+                </div>
+            ),
+            align: 'center',
+        },
+        {
+            title: 'Tên Sản Phẩm',
+            dataIndex: 'name',
+            key: 'name',
+            sorter: true,
+            render: (name) => <span style={{ fontWeight: 600 }}>{name}</span>,
+            width: 250,
+        },
+        {
+            title: 'Danh Mục',
+            dataIndex: 'categoryName',
+            key: 'categoryName',
+            render: (categoryName) => categoryName || '—',
+            width: 150,
+        },
+        {
+            title: 'Giá',
+            dataIndex: 'price',
+            key: 'price',
+            sorter: true,
+            render: (price) => (
+                <span className="fw-bold text-danger">
+                    {price ? price.toLocaleString('vi-VN') : 0}₫
+                </span>
+            ),
+            align: 'right',
+            width: 120,
+        },
+        {
+            title: 'Trạng Thái',
+            dataIndex: 'isAvailable',
+            key: 'isAvailable',
+            render: (isAvailable) => <ProductStatusTag isAvailable={isAvailable} />,
+            filters: statusFilters,
+            filterMultiple: false,
+            align: 'center',
+            width: 100,
+        },
+        {
+            title: 'Hành Động',
+            key: 'action',
+            width: 120,
+            render: (text, record) => (
+                <Space size="small">
+                    <AntButton
+                        type="primary"
+                        icon={<EditOutlined />}
+                        size="small"
+                        onClick={() => handleEdit(record.id)}
+                    />
+                    <AntButton
+                        danger
+                        icon={<DeleteOutlined />}
+                        size="small"
+                        onClick={() => handleDelete(record.id)}
+                    />
+                </Space>
+            ),
+            align: 'center',
+        },
+    ];
+
+    return (
+        <div className="p-4">
+            <h2 className="mb-4">Quản Lý Sản Phẩm</h2>
+
+            {/* Bộ Lọc, Tìm kiếm và Nút Thêm Sản Phẩm (Sử dụng Ant Design Space) */}
+            <Space direction="horizontal" size="middle" className="mb-4 w-100" wrap>
+                {/* Lọc theo Nhà hàng (Ant Design Select) */}
+                <Select
+                    style={{ width: 250 }}
+                    placeholder="Tất cả nhà hàng"
+                    value={selectedRestaurant}
+                    allowClear
+                    onChange={(value) => {
+                        setSelectedRestaurant(value || null);
+                        handleFilter();
+                    }}
+                >
+                    <Option value={null}>Tất cả nhà hàng</Option>
+                    {restaurants.map((r) => (
+                        <Option key={r.id} value={r.id}>{r.name}</Option>
+                    ))}
+                </Select>
+                {/* //Lọc theo Category */}
+                <Select
+                    style={{ width: 200 }}
+                    placeholder="Tất cả danh mục"
+                    value={selectedCategory}
+                    allowClear
+                    onChange={(value) => {
+                        setSelectedCategory(value || null);
+                        handleFilter();
+                    }}
+                >
+                    <Option value={null}>Tất cả danh mục</Option>
+                    {categories.map((c) => (
+                        <Option key={c.id} value={c.id}>{c.name}</Option>
+                    ))}
+                </Select>
+
+                {/* Tìm kiếm theo tên sản phẩm (Ant Design Input với addonBefore) */}
+                <Input
+                    placeholder="Tìm theo tên sản phẩm"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    onPressEnter={handleFilter}
+                    style={{ width: 350, height: 33 }}
+                />
+
+                {/* Nút Reset */}
+                <AntButton
+                    icon={<ReloadOutlined />}
+                    onClick={handleReset}
+                >
+                    Reset
+                </AntButton>
+
+                {/* Nút Thêm Sản Phẩm */}
+                <AntButton
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={handleAdd}
+                    style={{ marginLeft: 'auto' }} // Đẩy nút Thêm Sản phẩm sang phải
+                >
+                    Thêm Sản Phẩm
+                </AntButton>
+
+            </Space>
+
+            {/* Bảng Ant Design */}
+            <Table
+                columns={columns}
+                dataSource={products}
+                rowKey="id"
+                loading={loading}
+                pagination={{
+                    ...pagination,
+                    showSizeChanger: true,
+                    pageSizeOptions: ['5', '10', '20', '50'],
+                    showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} sản phẩm`,
+                    locale: { items_per_page: '/ trang' }
+                }}
+                onChange={handleTableChange}
+                // Điều chỉnh để Ant Design Table biết cách hiển thị icon sắp xếp
+                sortDirections={['ascend', 'descend', null]}
+            />
 
 
-            <Row className="mt-3">
-                <Col className="d-flex justify-content-center">
-                    <Pagination>
-                        <Pagination.First disabled={page === 0} onClick={() => setPage(0)} />
-                        <Pagination.Prev disabled={page === 0} onClick={() => setPage(page - 1)} />
+            {/* Modal Thêm Sản Phẩm (Ant Design Modal) */}
+            <Modal
+                title="Thêm Sản Phẩm Mới"
+                open={showAddModal}
+                onCancel={() => setShowAddModal(false)}
+                footer={null} // Tắt footer mặc định
+                width={1000}
+                centered
+            >
+                <AddProduct
+                    onProductAdded={handleProductActionSuccess}
+                    ownerId={ownerId}
+                    restaurants={restaurants}
+                />
+            </Modal>
 
-                        {[...Array(totalPages).keys()].map(p => {
-                            if (p >= page - 2 && p <= page + 2) {
-                                return (
-                                    <Pagination.Item key={p} active={p === page} onClick={() => setPage(p)}>
-                                        {p + 1}
-                                    </Pagination.Item>
-                                );
-                            }
-                            return null;
-                        })}
-
-                        <Pagination.Next disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} />
-                        <Pagination.Last disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)} />
-                    </Pagination>
-                </Col>
-            </Row>
-
-            <Modal show={showAddModal} onHide={() => setShowAddModal(false)} size="xl" centered>
-                <Modal.Header closeButton>
-                    <Modal.Title>Thêm Sản Phẩm Mới</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    <AddProduct
-                        onProductAdded={handleProductActionSuccess}
+            {/* Modal Chỉnh Sửa Sản Phẩm (Ant Design Modal) */}
+            <Modal
+                open={showUpdateModal}
+                onCancel={handleCloseUpdateModal}
+                footer={null}
+                width={1000}
+                centered
+            >
+                {productToUpdate ? (
+                    <UpdateProduct
+                        key={productToUpdate.id}
+                        onProductActionSuccess={(msg) => handleProductActionSuccess(msg, 'update')}
+                        productData={productToUpdate}
                         ownerId={ownerId}
                         restaurants={restaurants}
                     />
-                </Modal.Body>
+                ) : (
+                    <Spin className="d-block text-center p-5"><p>Đang tải dữ liệu sản phẩm...</p></Spin>
+                )}
             </Modal>
-
-            {/* Modal của update */}
-            <Modal show={showUpdateModal} onHide={handleCloseUpdateModal} size="xl" centered>
-                <Modal.Header closeButton>
-                    <Modal.Title>Chỉnh Sửa Sản Phẩm</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    {productToUpdate ? (
-                        <UpdateProduct
-                            key={productToUpdate.id}
-                            onProductActionSuccess={(msg) => handleProductActionSuccess(msg, 'update')}
-                            productData={productToUpdate}
-                            ownerId={ownerId}
-                            restaurants={restaurants}
-                        />
-                    ) : (
-                        <p className="text-center">Đang tải dữ liệu sản phẩm...</p>
-                    )}
-                </Modal.Body>
-            </Modal>
-        </Container>
+        </div>
     );
 };
 

@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useCallback, useContext } from "react";
 import axios from "axios";
 import { Card, Spinner, Alert, Form, Row, Col, Button, Image } from "react-bootstrap";
@@ -24,7 +25,6 @@ const isValidPhoneNumber = (phone) => {
     return /^\+?\d{10,11}$/.test(phone);
 };
 
-// --- ĐỊNH NGHĨA COMPONENT CON BÊN NGOÀI ĐỂ TRÁNH LỖI HOOKS ---
 const FormRow = ({
     label,
     children,
@@ -62,7 +62,7 @@ const FormRow = ({
                             onBlur={handleBlur}
                             required={required}
                             disabled={isProcessing}
-                            isInvalid={!!error} // Đánh dấu invalid nếu có lỗi
+                            isInvalid={!!error}
                         />
                         {error && (
                             <Form.Text className="text-danger">
@@ -83,7 +83,7 @@ const RestaurantEditForm = ({ restaurant, isProcessing, onSave }) => {
         address: restaurant.address || '',
         phone: restaurant.phone || '',
         description: restaurant.description || '',
-        coverImage: restaurant.coverImage || '',
+        image: restaurant.image || '',
     });
     const [newImageFile, setNewImageFile] = useState(null);
     const [errors, setErrors] = useState({});
@@ -96,10 +96,10 @@ const RestaurantEditForm = ({ restaurant, isProcessing, onSave }) => {
             address: restaurant.address || '',
             phone: restaurant.phone || '',
             description: restaurant.description || '',
-            coverImage: restaurant.coverImage || '',
+            image: restaurant.image || '',
         });
         setNewImageFile(null);
-        setErrors({}); // Reset lỗi khi đổi nhà hàng
+        setErrors({});
         setFormAlert(null);
     }, [restaurant]);
 
@@ -146,8 +146,6 @@ const RestaurantEditForm = ({ restaurant, isProcessing, onSave }) => {
 
     const handleSave = (e) => {
         e.preventDefault();
-
-        // Chạy validation cho toàn bộ form
         const newErrors = validateForm(formData);
         setErrors(newErrors);
 
@@ -158,13 +156,11 @@ const RestaurantEditForm = ({ restaurant, isProcessing, onSave }) => {
             });
             return;
         }
-
-        // Nếu hợp lệ, gọi hàm onSave từ component cha
         onSave(formData, newImageFile);
         setFormAlert(null);
     };
 
-    const imageUrl = newImageFile ? URL.createObjectURL(newImageFile) : formData.coverImage;
+    const imageUrl = newImageFile ? URL.createObjectURL(newImageFile) : formData.image;
 
     return (
         <Form onSubmit={handleSave}>
@@ -233,7 +229,7 @@ const RestaurantEditForm = ({ restaurant, isProcessing, onSave }) => {
                 </Col>
             </Form.Group>
 
-            {/* Ảnh Đại diện (Giữ nguyên cấu trúc tùy chỉnh) */}
+            {/* Ảnh Đại diện*/}
             <Form.Group as={Row} className="mb-4 pt-3 border-top" controlId="restaurantCoverImage">
                 <Form.Label column sm={3} className="fw-bold text-md-end">
                     <FaImage className="text-muted me-1" /> Ảnh Đại diện
@@ -368,7 +364,7 @@ export default function RestaurantStatusToggle() {
 
         const newStatus = checked ? SYSTEM_STATUS.ACTIVE : SYSTEM_STATUS.CLOSE;
         const statusText = newStatus === SYSTEM_STATUS.ACTIVE ? "ONLINE" : "OFFLINE";
-        const actionText = newStatus === SYSTEM_STATUS.ACTIVE ? "mở ONLINE" : "đóng (CLOSE)";
+        const actionText = newStatus === SYSTEM_STATUS.ACTIVE ? "mở nhận đơn cho" : "đóng nhận đơn cho";
 
         setIsProcessingToggle(true);
         setMessage(null);
@@ -384,7 +380,7 @@ export default function RestaurantStatusToggle() {
                 r.id === selectedRestaurant.id ? { ...r, status: newStatus } : r
             ));
 
-            setMessage(`Đã ${actionText} nhà hàng "${selectedRestaurant.name}" thành công. Trạng thái mới: ${statusText}`);
+            setMessage(`Đã ${actionText} nhà hàng "${selectedRestaurant.name}" thành công.`);
             setVariant('success');
 
         } catch (error) {
@@ -412,8 +408,6 @@ export default function RestaurantStatusToggle() {
         data.append('address', formData.address);
         data.append('phone', formData.phone);
         data.append('description', formData.description || '');
-
-        // THÊM CÁC TRƯỜNG BẮT BUỘC CỦA OWNER VÀ ACCOUNTID (backend yêu cầu)
         data.append('accountId', user.id);
         data.append('ownerFullName', selectedRestaurant.ownerName || 'Chủ quán');
         data.append('idCardNumber', selectedRestaurant.ownerIdCard || '000000000000');
@@ -421,8 +415,7 @@ export default function RestaurantStatusToggle() {
         if (newImageFile) {
             data.append('imageFile', newImageFile);
         } else {
-            // Gửi URL ảnh cũ nếu không có file mới, để backend giữ lại ảnh cũ
-            data.append('coverImageUrl', formData.coverImage || '');
+            data.append('coverImageUrl', formData.image || '');
         }
 
         try {
@@ -436,19 +429,33 @@ export default function RestaurantStatusToggle() {
             );
 
             const updatedRestaurant = response.data;
-
-            // Cập nhật state với dữ liệu mới từ response
             setAllRestaurants(prev => prev.map(r =>
                 r.id === selectedRestaurant.id ? updatedRestaurant : r
             ));
 
             // THÔNG BÁO: Đã cập nhật thành công và status đã chuyển về PENDING 
-            setMessage(`Đã cập nhật thông tin nhà hàng "${updatedRestaurant.name}" thành công! Nhà hàng đã được chuyển sang trạng thái PENDING để chờ duyệt lại.`);
+            setMessage(`Đã cập nhật thông tin nhà hàng "${updatedRestaurant.name}" thành công! Nhà hàng đang được chờ duyệt lại.`);
             setVariant('success');
 
         } catch (error) {
             console.error("Lỗi khi cập nhật thông tin:", error.response || error);
-            const errorMsg = error.response?.data?.message || `Lỗi khi cập nhật thông tin nhà hàng.`;
+            const status = error.response?.status;
+            let errorMsg = `Lỗi khi cập nhật thông tin nhà hàng.`;
+
+            if (status === 400) {
+                // Bắt lỗi 400 Bad Request (Ví dụ: Định dạng ảnh không hợp lệ)
+                errorMsg = error.response?.data?.message || "Định dạng ảnh không hợp lệ.";
+            } else if (status === 404) {
+                // Bắt lỗi 404 Not Found (Restaurant ID/Account ID không khớp, v.v.)
+                errorMsg = error.response?.data?.message || "Không tìm thấy nhà hàng để cập nhật.";
+            } else if (status === 413) {
+                // Xử lý lỗi 413 Payload Too Large (Kích thước file vượt quá giới hạn)
+                errorMsg = "Kích thước ảnh quá lớn. Vui lòng chọn ảnh nhỏ hơn.";
+            } else if (status === 500) {
+                // Bắt lỗi 500 (Ví dụ: Lỗi Cloudinary)
+                errorMsg = error.response?.data?.message || "Lỗi máy chủ nội bộ khi xử lý ảnh. Vui lòng thử lại sau.";
+            }
+
             setMessage(errorMsg);
             setVariant('danger');
             fetchRestaurantData();
@@ -530,8 +537,8 @@ export default function RestaurantStatusToggle() {
             {/* Alert nếu nhà hàng ở trạng thái cố định hoặc thông báo lỗi/thành công */}
             <Col xs={12}>
                 {isFixedStatus && (
-                    <Alert variant="danger" className="mb-0">
-                        Nhà hàng {selectedRestaurant.name} đang chờ duyệt lại. Bạn không thể tự chuyển đổi Online/Offline.
+                    <Alert variant="danger" className="mb-0" dismissible>
+                        Nhà hàng {selectedRestaurant.name} đang chờ duyệt lại. Bạn chưa thể mở nhận đơn.
                     </Alert>
                 )}
                 {message && (

@@ -65,9 +65,11 @@ const ShipperOrderDetail = () => {
             if (!mapInstanceRef.current) {
                 const iframe = document.createElement('iframe');
                 iframe.width = '100%';
-                iframe.height = '500px';
+                iframe.height = '100%';
                 iframe.frameBorder = '0';
                 iframe.scrolling = 'no';
+                iframe.style.border = 'none';
+                iframe.style.display = 'block';
                 iframe.src = mapUrl;
                 mapRef.current.appendChild(iframe);
                 mapInstanceRef.current = iframe;
@@ -349,10 +351,14 @@ const ShipperOrderDetail = () => {
                                                 height: '300px',
                                                 width: '100%',
                                                 borderRadius: '8px',
-                                                marginBottom: 16
+                                                marginBottom: 16,
+                                                position: 'relative',
+                                                overflow: 'hidden',
+                                                border: '1px solid #d9d9d9',
+                                                zIndex: 1
                                             }}
                                         />
-                                        <Descriptions column={1} bordered>
+                                        <Descriptions column={1} bordered style={{ marginTop: 16 }}>
                                             <Descriptions.Item label="Địa chỉ giao hàng">
                                                 {order.shippingAddress}
                                             </Descriptions.Item>
