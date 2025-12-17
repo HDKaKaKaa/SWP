@@ -332,7 +332,7 @@ export default function OwnerOrders() {
         <div className="p-4">
             <h2 className="mb-4">Quản lý đơn hàng</h2>
 
-            <Space direction="horizontal" size="middle" className="mb-4 w-100" wrap>
+            <Space direction="horizontal" size="middle" className="mb-4 w-130" wrap>
                 {/* Lọc theo Nhà hàng (Ant Design Select) */}
                 <Select
                     style={{ width: 200 }}
@@ -373,15 +373,16 @@ export default function OwnerOrders() {
                     allowClear
                 />
                 {/* Tìm kiếm theo mã đơn (Ant Design Input Search) */}
-                <Space.Compact style={{ width: 300, marginLeft: 20 }}>
+                <Space.Compact style={{ width: 350, marginLeft: 20 }}>
                     <Input
                         placeholder="Tìm theo mã đơn"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         onPressEnter={handleSearchSubmit}
-                        style={{ width: 300, height: 33, marginLeft: 20 }}
+                        style={{ width: 300, height: 34, marginLeft: 30 }}
                     />
                     <AntButton
+                    style={{marginLeft: 10 }}
                         type="primary"
                         icon={<SearchOutlined/>}
                         onClick={handleSearchSubmit}
