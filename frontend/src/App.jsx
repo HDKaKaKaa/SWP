@@ -41,6 +41,8 @@ import AdminIssuesPage from "./pages/AdminIssuesPage.jsx";
 import ShipperManagementPage from "./pages/ShipperManagementPage.jsx";
 import OwnerFeedbackPage from './components/OwnerFeedbackPage';
 import LiveMapPage from "./pages/LiveMapPage.jsx";
+import OwnerIssues from './components/OwnerIssues.jsx';
+import OwnerDashboard from './components/OwnerDashboard.jsx';
 
 
 const ClientLayoutWithFooter = () => (
@@ -126,16 +128,17 @@ function App() {
       {/* NHÓM 4: CỬA HÀNG (OWNER)                                 */}
       {/* ======================================================= */}
 
-      
-        <Route path="/owner" element={<OwnerLayout />}>
-          <Route index element={<OwnerRestaurantPage />} />
-          <Route path="dashboard" element={<OwnerRestaurantPage />} />
-          <Route path="products" element={<OwnerProducts />} />
-          <Route path="orders" element={<OwnerOrders />} />
-          <Route path="feedback" element={<OwnerFeedbackPage />} />
-          {/* <Route path="reports" element={<OwnerReports />} />       */}
-        </Route>
-     
+
+      <Route path="/owner" element={<OwnerLayout />}>
+        <Route index element={<OwnerDashboard />} />
+        <Route path="dashboard" element={<OwnerDashboard />} />
+        <Route path="products" element={<OwnerProducts />} />
+        <Route path="orders" element={<OwnerOrders />} />
+        <Route path="feedback" element={<OwnerFeedbackPage />} />
+        <Route path="issues" element={<OwnerIssues />} />
+        <Route path="restaurants" element={<OwnerRestaurantPage />} />
+      </Route>
+
     </Routes>
   );
 }

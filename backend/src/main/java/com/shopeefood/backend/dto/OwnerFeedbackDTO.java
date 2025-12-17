@@ -1,11 +1,13 @@
 package com.shopeefood.backend.dto;
 
+import java.time.LocalDateTime;
+
 import com.shopeefood.backend.entity.Feedback;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -21,7 +23,7 @@ public class OwnerFeedbackDTO {
     private Integer rating;      
     private String comment;
     private LocalDateTime createdAt;
-    
+    private String orderNumber;
     /**
      * Constructor ánh xạ từ Feedback Entity.
      */
@@ -33,7 +35,7 @@ public class OwnerFeedbackDTO {
         
         // --- 1. Thông tin Đơn hàng (Order) ---
         this.orderId = feedback.getOrder() != null ? feedback.getOrder().getId() : null;
-        
+        this.orderNumber = feedback.getOrder().getOrderNumber();
         // --- 2. Thông tin Nhà hàng (Restaurant) ---
         this.restaurantName = feedback.getRestaurant() != null ? feedback.getRestaurant().getName() : "N/A";
         
