@@ -83,7 +83,7 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
                         "WHERE o.restaurant.owner.id = :ownerId " +
                         "AND (:restaurantId IS NULL OR o.restaurant.id = :restaurantId) " +
                         "AND (o.status IN :statusList) " +
-                        "AND (:searchPattern IS NULL OR str(o.id) LIKE :searchPattern) " +
+                        "AND (:searchPattern IS NULL OR LOWER(o.orderNumber) LIKE :searchPattern) " +
                         "AND (CAST(:from AS timestamp) IS NULL OR o.createdAt >= :from) " +
                         "AND (CAST(:to AS timestamp) IS NULL OR o.createdAt <= :to) ")
 
