@@ -1,50 +1,30 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable no-unused-vars */
-import React, { useState, useEffect, useCallback, useContext } from "react";
+import React, { useState, useEffect, useCallback, useContext, useMemo } from "react";
 import axios from "axios";
 import { Card, Spinner, Alert, Form, Row, Col, Button, Image } from "react-bootstrap";
 import { FaStore, FaMapMarkerAlt, FaPhoneAlt, FaRegClock, FaImage, FaAlignLeft, FaExclamationCircle } from 'react-icons/fa';
 import { AuthContext } from "../context/AuthContext";
 import { Switch, Space } from 'antd';
 
-// --- CẤU HÌNH API ---
+// --- CONFIG & CONSTANTS ---
 const API_BASE_URL = "http://localhost:8080/api";
 const RESTAURANT_BY_ACCOUNT_URL = `${API_BASE_URL}/owner/byAccount`;
 const API_RESTAURANTS_URL = `${API_BASE_URL}/owner/restaurants`;
+const UPLOAD_URL = "http://localhost:8080/api/upload/image";
 
 const SYSTEM_STATUS = {
-    ACTIVE: 'ACTIVE',
-    CLOSE: 'CLOSE',
-    PENDING: 'PENDING',
-    REJECTED: 'REJECTED',
-    BLOCKED: 'BLOCKED'
+    ACTIVE: 'ACTIVE', CLOSE: 'CLOSE', PENDING: 'PENDING',
+    REJECTED: 'REJECTED', BLOCKED: 'BLOCKED'
 };
 
-// Hàm kiểm tra số điện thoại cơ bản
-const isValidPhoneNumber = (phone) => {
-    // Cho phép 8-15 ký tự số, có thể có dấu cộng ở đầu (+84...)
-    return /^\+?\d{10,11}$/.test(phone);
-};
+// --- HELPERS ---
+const isValidPhoneNumber = (phone) => /^\+?\d{10,11}$/.test(phone);
 
-const FormRow = ({
-    label,
-    children,
-    required = false,
-    icon = null,
-    controlId,
-    type = "text",
-    formData,
-    handleChange,
-    isProcessing,
-    error,
-    validateOnBlur = false
-}) => {
+// --- SUB-COMPONENT: FORM ROW ---
+const FormRow = ({ label, children, required, icon, controlId, type = "text", formData, handleChange, isProcessing, error, validateOnBlur }) => {
     const fieldName = controlId.replace('restaurant', '').toLowerCase();
-
-    const handleBlur = (e) => {
-        if (validateOnBlur) {
-            handleChange(e, true);
-        }
-    };
+    const handleBlur = (e) => validateOnBlur && handleChange(e, true);
 
     return (
         <Form.Group as={Row} className="mb-3 align-items-center" controlId={controlId}>
@@ -53,509 +33,251 @@ const FormRow = ({
             </Form.Label>
             <Col sm={9}>
                 {children || (
-                    <>
-                        <Form.Control
-                            type={type}
-                            name={fieldName}
-                            value={formData[fieldName] || ''}
-                            onChange={handleChange}
-                            onBlur={handleBlur}
-                            required={required}
-                            disabled={isProcessing}
-                            isInvalid={!!error}
-                        />
-                        {error && (
-                            <Form.Text className="text-danger">
-                                <FaExclamationCircle className="me-1" />{error}
-                            </Form.Text>
-                        )}
-                    </>
+                    <Form.Control
+                        type={type}
+                        name={fieldName}
+                        value={formData[fieldName] || ''}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        required={required}
+                        disabled={isProcessing}
+                        isInvalid={!!error}
+                    />
                 )}
+                {error && <Form.Text className="text-danger"><FaExclamationCircle /> {error}</Form.Text>}
             </Col>
         </Form.Group>
     );
 };
 
-// Component con cho phép chỉnh sửa thông tin nhà hàng
+// --- SUB-COMPONENT: EDIT FORM ---
 const RestaurantEditForm = ({ restaurant, isProcessing, onSave }) => {
-    const [formData, setFormData] = useState({
-        name: restaurant.name || '',
-        address: restaurant.address || '',
-        phone: restaurant.phone || '',
-        description: restaurant.description || '',
-        image: restaurant.image || '',
-    });
+    const [formData, setFormData] = useState({ ...restaurant });
+    const [newLicenseFiles, setNewLicenseFiles] = useState([]);
     const [newImageFile, setNewImageFile] = useState(null);
     const [errors, setErrors] = useState({});
     const [formAlert, setFormAlert] = useState(null);
 
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setFormData({
             name: restaurant.name || '',
             address: restaurant.address || '',
             phone: restaurant.phone || '',
             description: restaurant.description || '',
             image: restaurant.image || '',
+            licenseImages: restaurant.licenseImages || [],
         });
         setNewImageFile(null);
+        setNewLicenseFiles([]);
         setErrors({});
-        setFormAlert(null);
     }, [restaurant]);
 
-    // Hàm kiểm tra form và trả về object lỗi
     const validateForm = (data) => {
-        let newErrors = {};
-
-        // 1. Tên nhà hàng (Required, min length)
-        if (!data.name.trim() || data.name.trim().length < 5) {
-            newErrors.name = "Tên nhà hàng phải có ít nhất 5 ký tự.";
-        }
-
-        // 2. Địa chỉ (Required)
-        if (!data.address.trim()) {
-            newErrors.address = "Địa chỉ nhà hàng không được để trống.";
-        }
-
-        // 3. Số điện thoại (Optional, nhưng nếu có thì phải hợp lệ)
-        if (data.phone.trim() && !isValidPhoneNumber(data.phone.trim())) {
-            newErrors.phone = "Số điện thoại không hợp lệ (Chỉ chứa số, từ 10 đến 11 ký tự).";
-        }
-
-        return newErrors;
+        let errs = {};
+        if (!data.name?.trim() || data.name.trim().length < 5) errs.name = "Tên phải ít nhất 5 ký tự.";
+        if (!data.address?.trim()) errs.address = "Địa chỉ không được để trống.";
+        if (!isValidPhoneNumber(data.phone)) errs.phone = "Số điện thoại không hợp lệ (10-11 số).";
+        return errs;
     };
 
     const handleChange = (e, validate = false) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-        if (validate || (errors[name] && value.trim())) {
-            const updatedData = { ...formData, [name]: value };
-            const newErrors = validateForm(updatedData);
-            setErrors(prev => ({ ...prev, [name]: newErrors[name] || null }));
-        } else if (!value.trim()) {
-            setErrors(prev => ({ ...prev, [name]: null }));
-        }
-        setFormAlert(null);
-    };
-
-    const handleImageChange = (e) => {
-        if (e.target.files && e.target.files[0]) {
-            setNewImageFile(e.target.files[0]);
+        const updated = { ...formData, [name]: value };
+        setFormData(updated);
+        if (validate) {
+            const vErrors = validateForm(updated);
+            setErrors(prev => ({ ...prev, [name]: vErrors[name] }));
         }
     };
 
-    const handleSave = (e) => {
-        e.preventDefault();
-        const newErrors = validateForm(formData);
-        setErrors(newErrors);
-
-        if (Object.keys(newErrors).length > 0) {
-            setFormAlert({
-                variant: 'danger',
-                message: "Vui lòng kiểm tra lại các trường thông tin bị lỗi."
-            });
+    const handleFileChange = (e, type) => {
+        const files = Array.from(e.target.files);
+        const MAX_SIZE = 5 * 1024 * 1024;
+        if (files.some(f => f.size > MAX_SIZE)) {
+            setFormAlert({ variant: 'danger', message: "File không được vượt quá 5MB." });
             return;
         }
-        onSave(formData, newImageFile);
-        setFormAlert(null);
+        type === 'cover' ? setNewImageFile(files[0]) : setNewLicenseFiles(prev => [...prev, ...files]);
     };
 
-    const imageUrl = newImageFile ? URL.createObjectURL(newImageFile) : formData.image;
-
     return (
-        <Form onSubmit={handleSave}>
-            <h5 className="fw-bold text-primary mb-4 border-bottom pb-2">
-                <FaStore className="me-2" />Chỉnh sửa Thông tin Nhà hàng
-            </h5>
+        <Form onSubmit={(e) => {
+            e.preventDefault();
+            const vErrors = validateForm(formData);
+            if (Object.keys(vErrors).length > 0) { setErrors(vErrors); return; }
+            onSave(formData, newImageFile, newLicenseFiles);
+        }}>
+            <h5 className="fw-bold text-primary mb-4 border-bottom pb-2"><FaStore className="me-2" />Thông tin Nhà hàng</h5>
 
-            {/* Hiển thị Alert chung cho form nếu có lỗi validation tổng quát */}
-            {formAlert && (
-                <Alert variant={formAlert.variant} onClose={() => setFormAlert(null)} dismissible>
-                    {formAlert.message}
-                </Alert>
-            )}
+            {formAlert && <Alert variant={formAlert.variant} dismissible>{formAlert.message}</Alert>}
 
-            {/* Tên Nhà hàng */}
-            <FormRow
-                label="Tên Nhà hàng"
-                required
-                controlId="restaurantName"
-                formData={formData}
-                handleChange={handleChange}
-                isProcessing={isProcessing}
-                error={errors.name}
-                validateOnBlur={true}
-            />
+            <FormRow label="Tên Nhà hàng" required controlId="restaurantName" formData={formData} handleChange={handleChange} isProcessing={isProcessing} error={errors.name} validateOnBlur />
+            <FormRow label="Điện thoại" required controlId="restaurantPhone" icon={<FaPhoneAlt />} formData={formData} handleChange={handleChange} isProcessing={isProcessing} error={errors.phone} validateOnBlur />
+            <FormRow label="Địa chỉ" required controlId="restaurantAddress" icon={<FaMapMarkerAlt />} formData={formData} handleChange={handleChange} isProcessing={isProcessing} error={errors.address} validateOnBlur />
 
-            {/* Điện thoại */}
-            <FormRow
-                label="Điện thoại"
-                controlId="restaurantPhone"
-                icon={<FaPhoneAlt className="text-muted" />}
-                formData={formData}
-                handleChange={handleChange}
-                isProcessing={isProcessing}
-                error={errors.phone}
-                validateOnBlur={true}
-            />
-
-            {/* Địa chỉ */}
-            <FormRow
-                label="Địa chỉ"
-                required
-                controlId="restaurantAddress"
-                icon={<FaMapMarkerAlt className="text-muted" />}
-                formData={formData}
-                handleChange={handleChange}
-                isProcessing={isProcessing}
-                error={errors.address}
-                validateOnBlur={true}
-            />
-
-            {/* Mô tả (Giữ nguyên cấu trúc tùy chỉnh vì là textarea) */}
-            <Form.Group as={Row} className="mb-3" controlId="restaurantDescription">
-                <Form.Label column sm={3} className="fw-bold text-md-end">
-                    Mô tả <FaAlignLeft className="text-muted ms-1" />
-                </Form.Label>
+            <Form.Group as={Row} className="mb-3">
+                <Form.Label column sm={3} className="fw-bold text-md-end">Mô tả <FaAlignLeft /></Form.Label>
                 <Col sm={9}>
-                    <Form.Control
-                        as="textarea"
-                        rows={3}
-                        name="description"
-                        value={formData.description}
-                        onChange={handleChange}
-                        disabled={isProcessing}
-                    />
+                    <Form.Control as="textarea" rows={3} name="description" value={formData.description} onChange={handleChange} disabled={isProcessing} />
                 </Col>
             </Form.Group>
 
-            {/* Ảnh Đại diện*/}
-            <Form.Group as={Row} className="mb-4 pt-3 border-top" controlId="restaurantCoverImage">
-                <Form.Label column sm={3} className="fw-bold text-md-end">
-                    <FaImage className="text-muted me-1" /> Ảnh Đại diện
-                    <p className="text-muted mt-1 mb-0 fw-normal" style={{ fontSize: '0.75rem' }}>
-                        (1200x600px)
-                    </p>
-                </Form.Label>
+            {/* Ảnh đại diện */}
+            <Form.Group as={Row} className="mb-4 pt-3 border-top">
+                <Form.Label column sm={3} className="fw-bold text-md-end"><FaImage /> Ảnh đại diện</Form.Label>
+                <Col sm={5}><Form.Control type="file" onChange={(e) => handleFileChange(e, 'cover')} accept="image/*" disabled={isProcessing} /></Col>
+                <Col sm={4}>
+                    <Image src={newImageFile ? URL.createObjectURL(newImageFile) : formData.image} fluid rounded style={{ maxHeight: '80px' }} />
+                </Col>
+            </Form.Group>
+
+            {/* Giấy phép */}
+            <Form.Group as={Row} className="mb-4 pt-3 border-top">
+                <Form.Label column sm={3} className="fw-bold text-md-end">Giấy phép</Form.Label>
                 <Col sm={5}>
-                    <Form.Control
-                        type="file"
-                        onChange={handleImageChange}
-                        accept="image/*"
-                        disabled={isProcessing}
-                    />
-                </Col>
-                <Col sm={4} className="text-center">
-                    {imageUrl ? (
-                        <Image
-                            src={imageUrl}
-                            fluid
-                            rounded
-                            style={{ maxHeight: '100px', width: 'auto', objectFit: 'cover' }}
-                            alt="Ảnh đại diện nhà hàng"
-                        />
-                    ) : (
-                        <div className="border p-2 text-center text-muted rounded bg-light" style={{ fontSize: '0.8rem' }}>Chưa có ảnh</div>
-                    )}
+                    <Form.Control type="file" multiple onChange={(e) => handleFileChange(e, 'license')} accept="image/*" disabled={isProcessing} />
+                    <div className="d-flex flex-wrap mt-2 gap-2">
+                        {formData.licenseImages.map((url, i) => <Image key={i} src={url} thumbnail style={{ width: '60px' }} />)}
+                        {newLicenseFiles.map((f, i) => <Image key={i} src={URL.createObjectURL(f)} thumbnail style={{ width: '60px', border: '2px solid green' }} />)}
+                    </div>
                 </Col>
             </Form.Group>
 
-            {/* Vị trí hiển thị trạng thái hệ thống và nút lưu */}
-            <div className="d-flex justify-content-between align-items-center pt-3 border-top mt-4">
-                <div className="text-muted" style={{ fontSize: '0.9rem' }}>
-                    <FaRegClock className="me-1" /> Trạng thái hệ thống:
-                    <span className={`badge ms-2 fw-bold ${restaurant.status === SYSTEM_STATUS.ACTIVE ? 'bg-success' :
-                        restaurant.status === SYSTEM_STATUS.CLOSE ? 'bg-secondary' :
-                            restaurant.status === SYSTEM_STATUS.PENDING ? 'bg-warning' : 'bg-danger'}`}>
-                        {restaurant.status}
-                    </span>
-                </div>
+            <div className="d-flex justify-content-between align-items-center pt-3 border-top">
+                <div className="badge bg-info">{restaurant.status}</div>
                 <Button variant="primary" type="submit" disabled={isProcessing}>
-                    {isProcessing ? <Spinner animation="border" size="sm" className="me-2" /> : 'Lưu thông tin'}
+                    {isProcessing ? <Spinner size="sm" /> : 'Lưu thay đổi'}
                 </Button>
             </div>
         </Form>
     );
 };
 
+// --- MAIN COMPONENT ---
 export default function RestaurantStatusToggle() {
     const { user } = useContext(AuthContext);
-
     const [allRestaurants, setAllRestaurants] = useState([]);
-    const [selectedRestaurantId, setSelectedRestaurantId] = useState(null);
-
+    const [selectedId, setSelectedId] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [message, setMessage] = useState(null);
-    const [variant, setVariant] = useState(null);
-    const [isProcessingToggle, setIsProcessingToggle] = useState(false);
-    const [isProcessingSave, setIsProcessingSave] = useState(false);
-    const [currentOwnerId, setCurrentOwnerId] = useState(null);
+    const [globalMsg, setGlobalMsg] = useState({ text: null, variant: 'info' });
+    const [isProcessing, setIsProcessing] = useState(false);
 
-    const isProcessing = isProcessingToggle || isProcessingSave;
+    const selectedRestaurant = useMemo(() => allRestaurants.find(r => r.id === selectedId), [allRestaurants, selectedId]);
+    const isOnline = selectedRestaurant?.status === SYSTEM_STATUS.ACTIVE;
+    const isFixed = [SYSTEM_STATUS.PENDING, SYSTEM_STATUS.REJECTED, SYSTEM_STATUS.BLOCKED].includes(selectedRestaurant?.status);
 
-    const selectedRestaurant = allRestaurants.find(r => r.id === selectedRestaurantId);
-
-    const fetchRestaurantData = useCallback(async () => {
-        if (!user || !user.id) {
-            setLoading(false);
-            setMessage("Không tìm thấy thông tin tài khoản người dùng.");
-            setVariant('warning');
-            return;
-        }
-
+    // 1. Fetch Data
+    const fetchData = useCallback(async () => {
+        if (!user?.id) return;
         setLoading(true);
-        setMessage(null);
         try {
-            const ownerIdRes = await axios.get(`${RESTAURANT_BY_ACCOUNT_URL}/${user.id}`);
-            const fetchedOwnerId = ownerIdRes.data;
-            setCurrentOwnerId(fetchedOwnerId);
-
-            if (fetchedOwnerId) {
-                const res = await axios.get(API_RESTAURANTS_URL, {
-                    params: { accountId: user.id }
-                });
-
-                const restaurants = res.data;
-
-                if (restaurants && restaurants.length > 0) {
-                    setAllRestaurants(restaurants);
-                    setSelectedRestaurantId(prevId => prevId && restaurants.find(r => r.id === prevId) ? prevId : restaurants[0].id);
-                    setMessage(null);
-                } else {
-                    setAllRestaurants([]);
-                    setSelectedRestaurantId(null);
-                    setMessage("Bạn chưa có nhà hàng nào. Vui lòng thêm nhà hàng mới.");
-                    setVariant('info');
-                }
-            } else {
-                setAllRestaurants([]);
-                setSelectedRestaurantId(null);
-                setMessage("Không tìm thấy Owner ID cho tài khoản này.");
-                setVariant('danger');
-            }
-        } catch (error) {
-            console.error("Lỗi khi tải thông tin nhà hàng:", error.response || error);
-            setMessage("Lỗi khi tải thông tin nhà hàng.");
-            setVariant('danger');
-            setAllRestaurants([]);
-            setSelectedRestaurantId(null);
-        } finally {
-            setLoading(false);
-        }
+            const res = await axios.get(API_RESTAURANTS_URL, { params: { accountId: user.id } });
+            setAllRestaurants(res.data);
+            if (res.data.length > 0) setSelectedId(res.data[0].id);
+        } catch (err) {
+            setGlobalMsg({ text: "Lỗi tải dữ liệu", variant: 'danger' });
+        } finally { setLoading(false); }
     }, [user]);
 
-    const handleRestaurantChange = (event) => {
-        setSelectedRestaurantId(parseInt(event.target.value));
-        setMessage(null);
-    };
+    useEffect(() => { fetchData(); }, [fetchData]);
 
-    useEffect(() => {
-        fetchRestaurantData();
-    }, [fetchRestaurantData]);
-
+    // 2. Toggle Status Online/Offline
     const handleToggleStatus = async (checked) => {
-        if (!selectedRestaurant || isProcessing || !currentOwnerId) return;
-
-        if (![SYSTEM_STATUS.ACTIVE, SYSTEM_STATUS.CLOSE].includes(selectedRestaurant.status)) {
-            setMessage(`Nhà hàng đang ở trạng thái "${selectedRestaurant.status}". Không thể chuyển đổi Online/Offline.`);
-            setVariant('warning');
-            return;
-        }
-
         const newStatus = checked ? SYSTEM_STATUS.ACTIVE : SYSTEM_STATUS.CLOSE;
-        const statusText = newStatus === SYSTEM_STATUS.ACTIVE ? "ONLINE" : "OFFLINE";
-        const actionText = newStatus === SYSTEM_STATUS.ACTIVE ? "mở nhận đơn cho" : "đóng nhận đơn cho";
-
-        setIsProcessingToggle(true);
-        setMessage(null);
-
+        setIsProcessing(true);
         try {
-            await axios.put(
-                `${API_RESTAURANTS_URL}/${selectedRestaurant.id}/status`,
-                { status: newStatus },
-                { params: { accountId: user.id } }
-            );
-
-            setAllRestaurants(prev => prev.map(r =>
-                r.id === selectedRestaurant.id ? { ...r, status: newStatus } : r
-            ));
-
-            setMessage(`Đã ${actionText} nhà hàng "${selectedRestaurant.name}" thành công.`);
-            setVariant('success');
-
-        } catch (error) {
-            console.error(`Lỗi khi ${actionText} nhà hàng:`, error.response || error);
-            const errorMsg = error.response?.data?.message || `Thao tác ${actionText} nhà hàng thất bại.`;
-            setMessage(errorMsg);
-            setVariant('danger');
-            fetchRestaurantData();
-        } finally {
-            setIsProcessingToggle(false);
-        }
+            await axios.put(`${API_RESTAURANTS_URL}/${selectedId}/status`, { status: newStatus }, { params: { accountId: user.id } });
+            setAllRestaurants(prev => prev.map(r => r.id === selectedId ? { ...r, status: newStatus } : r));
+            setGlobalMsg({ text: "Cập nhật trạng thái thành công", variant: 'success' });
+        } catch (err) {
+            setGlobalMsg({ text: "Lỗi cập nhật trạng thái", variant: 'danger' });
+        } finally { setIsProcessing(false); }
     };
 
-    const handleSaveRestaurantDetails = async (formData, newImageFile) => {
-        if (isProcessing || !selectedRestaurant || !user || !user.id) return;
-
-        setIsProcessingSave(true);
-        setMessage(null);
-
-        // Chuẩn bị FormData để gửi dữ liệu multipart
-        const data = new FormData();
-
-        // Thêm các trường thông tin Nhà hàng
-        data.append('restaurantName', formData.name);
-        data.append('address', formData.address);
-        data.append('phone', formData.phone);
-        data.append('description', formData.description || '');
-        data.append('accountId', user.id);
-        data.append('ownerFullName', selectedRestaurant.ownerName || 'Chủ quán');
-        data.append('idCardNumber', selectedRestaurant.ownerIdCard || '000000000000');
-
-        if (newImageFile) {
-            data.append('imageFile', newImageFile);
-        } else {
-            data.append('coverImageUrl', formData.image || '');
-        }
-
+    // 3. Save Details (Process Upload + JSON Update)
+    const handleSaveDetails = async (formData, newCover, newLicenses) => {
+        setIsProcessing(true);
         try {
-            const response = await axios.put(
-                `${API_RESTAURANTS_URL}/${selectedRestaurant.id}`,
-                data,
-                {
-                    headers: {
-                    },
-                }
-            );
-
-            const updatedRestaurant = response.data;
-            setAllRestaurants(prev => prev.map(r =>
-                r.id === selectedRestaurant.id ? updatedRestaurant : r
-            ));
-
-            // THÔNG BÁO: Đã cập nhật thành công và status đã chuyển về PENDING 
-            setMessage(`Đã cập nhật thông tin nhà hàng "${updatedRestaurant.name}" thành công! Nhà hàng đang được chờ duyệt lại.`);
-            setVariant('success');
-
-        } catch (error) {
-            console.error("Lỗi khi cập nhật thông tin:", error.response || error);
-            const status = error.response?.status;
-            let errorMsg = `Lỗi khi cập nhật thông tin nhà hàng.`;
-
-            if (status === 400) {
-                // Bắt lỗi 400 Bad Request (Ví dụ: Định dạng ảnh không hợp lệ)
-                errorMsg = error.response?.data?.message || "Định dạng ảnh không hợp lệ.";
-            } else if (status === 404) {
-                // Bắt lỗi 404 Not Found (Restaurant ID/Account ID không khớp, v.v.)
-                errorMsg = error.response?.data?.message || "Không tìm thấy nhà hàng để cập nhật.";
-            } else if (status === 413) {
-                // Xử lý lỗi 413 Payload Too Large (Kích thước file vượt quá giới hạn)
-                errorMsg = "Kích thước ảnh quá lớn. Vui lòng chọn ảnh nhỏ hơn.";
-            } else if (status === 500) {
-                // Bắt lỗi 500 (Ví dụ: Lỗi Cloudinary)
-                errorMsg = error.response?.data?.message || "Lỗi máy chủ nội bộ khi xử lý ảnh. Vui lòng thử lại sau.";
+            // Upload Cover
+            let coverUrl = formData.image;
+            if (newCover) {
+                const data = new FormData(); data.append('file', newCover);
+                const res = await axios.post(UPLOAD_URL, data);
+                coverUrl = res.data;
             }
 
-            setMessage(errorMsg);
-            setVariant('danger');
-            fetchRestaurantData();
-        } finally {
-            setIsProcessingSave(false);
-        }
+            // Upload Licenses
+            let licenseUrls = [...formData.licenseImages];
+            if (newLicenses.length > 0) {
+                const uploads = newLicenses.map(file => {
+                    const data = new FormData(); data.append('file', file);
+                    return axios.post(UPLOAD_URL, data);
+                });
+                const responses = await Promise.all(uploads);
+                licenseUrls = [...licenseUrls, ...responses.map(r => r.data)];
+            }
+
+            // Final Update
+            const finalData = {
+                restaurantName: formData.name,
+                address: formData.address,
+                phone: formData.phone,
+                description: formData.description,
+                accountId: user.id,
+                coverImageUrl: coverUrl,
+                licenseImages: licenseUrls,
+                ownerFullName: selectedRestaurant.ownerFullName,
+                idCardNumber: selectedRestaurant.idCardNumber,
+                latitude: selectedRestaurant.latitude || 0,
+                longitude: selectedRestaurant.longitude || 0
+            };
+
+            const response = await axios.put(`${API_RESTAURANTS_URL}/${selectedId}`, finalData);
+            setAllRestaurants(prev => prev.map(r => r.id === selectedId ? response.data : r));
+            setGlobalMsg({ text: "Đã lưu thông tin nhà hàng", variant: 'success' });
+        } catch (err) {
+            setGlobalMsg({ text: "Lỗi khi lưu thông tin", variant: 'danger' });
+        } finally { setIsProcessing(false); }
     };
-    const isOnline = selectedRestaurant && selectedRestaurant.status === SYSTEM_STATUS.ACTIVE;
-    const isFixedStatus = [SYSTEM_STATUS.PENDING, SYSTEM_STATUS.REJECTED, SYSTEM_STATUS.BLOCKED].includes(selectedRestaurant?.status);
 
-    if (loading) {
-        return (
-            <Card className="p-4 shadow-sm">
-                <div className="d-flex align-items-center">
-                    <Spinner animation="border" size="sm" className="me-2" />
-                    <span>Đang tải thông tin hoạt động của nhà hàng...</span>
-                </div>
-            </Card>
-        );
-    }
-
-    if (allRestaurants.length === 0) {
-        return <Alert variant={variant || 'info'}>{message || "Không tìm thấy thông tin nhà hàng."}</Alert>;
-    }
-
-    if (!selectedRestaurant) {
-        return <Alert variant="danger">Lỗi: Không tìm thấy dữ liệu cho Nhà hàng đã chọn.</Alert>;
-    }
+    if (loading) return <Spinner animation="grow" />;
 
     return (
         <Row className="g-4">
-            {/* Thanh tiêu đề: Dropdown và Switch */}
             <Col xs={12}>
-                <Card className="p-3 shadow-sm">
-                    <Row className="align-items-center">
-                        <Col md={6}>
-                            <div className="d-flex align-items-center">
-                                <label className="text-muted mb-0 me-3 fw-bold" htmlFor="restaurant-select">
-                                    Chọn Nhà hàng:
-                                </label>
-                                <Form.Select
-                                    id="restaurant-select"
-                                    value={selectedRestaurantId || ''}
-                                    onChange={handleRestaurantChange}
-                                    disabled={isProcessing}
-                                >
-                                    {allRestaurants.map(r => (
-                                        <option key={r.id} value={r.id}>
-                                            {r.name}
-                                        </option>
-                                    ))}
-                                </Form.Select>
-                            </div>
-                        </Col>
-
-                        <Col md={6} className="text-end">
-                            <Space align="center" size="middle">
-                                <span className="fw-bold text-dark me-2">
-                                    <FaRegClock className="me-1" /> ONLINE/OFFLINE:
-                                </span>
-                                {isProcessingToggle ? (
-                                    <Spinner animation="border" size="sm" className="me-3" />
-                                ) : (
-                                    <Switch
-                                        checked={isOnline}
-                                        onChange={handleToggleStatus}
-                                        checkedChildren="ONLINE"
-                                        unCheckedChildren="OFFLINE"
-                                        size="default"
-                                        disabled={isFixedStatus}
-                                    />
-                                )}
-                            </Space>
-                        </Col>
-                    </Row>
+                <Card className="p-3 shadow-sm d-flex flex-row justify-content-between align-items-center">
+                    <Form.Select className="w-50" value={selectedId} onChange={e => setSelectedId(parseInt(e.target.value))}>
+                        {allRestaurants.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    </Form.Select>
+                    <Space><Switch
+                        checked={isOnline}
+                        onChange={handleToggleStatus}
+                        disabled={isFixed || isProcessing}
+                        checkedChildren="Mở cửa"
+                        unCheckedChildren="Đóng cửa"
+                        size="large"
+                        style={{
+                            backgroundColor: isOnline ? '#47a717ff' : '#ff4d4f', // Màu xanh khi bật, đỏ khi tắt
+                            transform: 'scale(1.5)', // Phóng to toàn bộ nút lên 1.5 lần
+                            marginRight: '50px',      // Bù khoảng trống sau khi scale
+                            width: '100px'
+                        }}
+                    />
+                    </Space>
                 </Card>
             </Col>
 
-            {/* Alert nếu nhà hàng ở trạng thái cố định hoặc thông báo lỗi/thành công */}
-            <Col xs={12}>
-                {isFixedStatus && (
-                    <Alert variant="danger" className="mb-0" dismissible>
-                        Nhà hàng {selectedRestaurant.name} đang chờ duyệt lại. Bạn chưa thể mở nhận đơn.
-                    </Alert>
-                )}
-                {message && (
-                    <Alert variant={variant} onClose={() => setMessage(null)} dismissible className="mb-0">
-                        {message}
-                    </Alert>
-                )}
-            </Col>
+            {globalMsg.text && <Col xs={12}><Alert variant={globalMsg.variant} dismissible>{globalMsg.text}</Alert></Col>}
 
-            {/* Cột Thông tin chi tiết Nhà hàng (Form Chỉnh sửa - Full width) */}
             <Col xs={12}>
-                <Card className="p-4 shadow-sm h-100">
-                    <RestaurantEditForm
-                        restaurant={selectedRestaurant}
-                        isProcessing={isProcessing}
-                        onSave={handleSaveRestaurantDetails}
-                    />
+                <Card className="p-4 shadow-sm">
+                    {selectedRestaurant && (
+                        <RestaurantEditForm
+                            restaurant={selectedRestaurant}
+                            isProcessing={isProcessing}
+                            onSave={handleSaveDetails}
+                        />
+                    )}
                 </Card>
             </Col>
         </Row>

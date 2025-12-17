@@ -1,11 +1,15 @@
 package com.shopeefood.backend.dto;
 
+import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
 import com.shopeefood.backend.entity.Restaurant;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.time.format.DateTimeFormatter;
 
 @Data
 @NoArgsConstructor
@@ -16,8 +20,8 @@ public class RestaurantDTO {
     private String description;
     private String address;
     private String phone;
-    private String image; // Front-end dùng biến này để hiển thị ảnh
-    private String licenseImage;
+    private String image;
+    private List<String> licenseImages;
     private String status;
     private String ownerName; // Hiển thị tên chủ quán
     private String ownerIdCard;
@@ -33,19 +37,19 @@ public class RestaurantDTO {
             this.address = restaurant.getAddress();
             this.phone = restaurant.getPhone();
             this.image = restaurant.getCoverImage();
-            this.licenseImage = restaurant.getLicenseImage();
             this.latitude = restaurant.getLatitude();
             this.longitude = restaurant.getLongitude();
 
-            // Lấy tên enum
             if (restaurant.getStatus() != null) {
                 this.status = restaurant.getStatus().name();
             }
+            if (restaurant.getLicenseImage() != null && !restaurant.getLicenseImage().isEmpty()) {
+                this.licenseImages = Arrays.asList(restaurant.getLicenseImage().split(","));
+            } else {
+                this.licenseImages = Collections.emptyList();
+            }
 
-            // Lấy tên chủ quán (tránh lỗi null)
             if (restaurant.getOwner() != null) {
-                // Giả sử Owner có field fullName hoặc username
-                // Bạn thay getUsername() bằng field thực tế bên Owner
                 this.ownerName = restaurant.getOwner().getFullName();
                 this.ownerIdCard = restaurant.getOwner().getIdCardNumber();
             }

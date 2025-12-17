@@ -270,20 +270,20 @@ const OwnerProducts = () => {
             dataIndex: 'image',
             key: 'image',
             width: 80,
+             align: 'center',
             render: (image, record) => (
                 <div className="text-center">
                     {image ? (
                         <img
                             src={image}
                             alt={record.name}
-                            style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '4px' }}
+                            style={{ width: '100px', height: '80px', objectFit: 'cover', borderRadius: '4px' }}
                         />
                     ) : (
                         <FaCamera size={24} color="#ccc" />
                     )}
                 </div>
             ),
-            align: 'center',
         },
         {
             title: 'Tên Sản Phẩm',
@@ -291,6 +291,7 @@ const OwnerProducts = () => {
             key: 'name',
             sorter: true,
             render: (name) => <span style={{ fontWeight: 600 }}>{name}</span>,
+             align: 'center',
             width: 250,
         },
         {
@@ -298,7 +299,8 @@ const OwnerProducts = () => {
             dataIndex: 'categoryName',
             key: 'categoryName',
             render: (categoryName) => categoryName || '—',
-            width: 150,
+            width: 100,
+             align: 'center',
         },
         {
             title: 'Giá',
@@ -310,7 +312,7 @@ const OwnerProducts = () => {
                     {price ? price.toLocaleString('vi-VN') : 0}₫
                 </span>
             ),
-            align: 'right',
+            align: 'center',
             width: 120,
         },
         {
@@ -352,8 +354,7 @@ const OwnerProducts = () => {
             <h2 className="mb-4">Quản Lý Sản Phẩm</h2>
 
             {/* Bộ Lọc, Tìm kiếm và Nút Thêm Sản Phẩm (Sử dụng Ant Design Space) */}
-            <Space direction="horizontal" size="middle" className="mb-4 w-100" wrap>
-                {/* Lọc theo Nhà hàng (Ant Design Select) */}
+            <Space  size="middle" style={{marginLeft: 20 }} className="mb-4 w-140" wrap>
                 <Select
                     style={{ width: 250 }}
                     placeholder="Tất cả nhà hàng"
@@ -436,7 +437,6 @@ const OwnerProducts = () => {
 
             {/* Modal Thêm Sản Phẩm (Ant Design Modal) */}
             <Modal
-                title="Thêm Sản Phẩm Mới"
                 open={showAddModal}
                 onCancel={() => setShowAddModal(false)}
                 footer={null} // Tắt footer mặc định

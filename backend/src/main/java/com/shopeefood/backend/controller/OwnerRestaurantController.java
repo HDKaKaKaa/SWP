@@ -3,13 +3,13 @@ package com.shopeefood.backend.controller;
 import com.shopeefood.backend.dto.RestaurantDTO;
 import com.shopeefood.backend.service.OwnerRestaurantService;
 
-import org.springframework.beans.factory.annotation.Autowired; 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
-import java.util.Map; 
+import java.util.Map;
 import com.shopeefood.backend.dto.RestaurantRegistrationRequest;
-import org.springframework.web.multipart.MultipartFile; 
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/owner/restaurants")
@@ -18,6 +18,7 @@ public class OwnerRestaurantController {
 
     @Autowired
     private OwnerRestaurantService ownerRestaurantService;
+
     /**
      * API 1: Lấy danh sách tất cả nhà hàng của Owner.
      * GET /api/owner/restaurants?accountId={id}
@@ -34,7 +35,7 @@ public class OwnerRestaurantController {
      * PUT /api/owner/restaurants/{restaurantId}/status?accountId={id}
      */
     @PutMapping("/{restaurantId}/status")
-    public ResponseEntity<?> updateStatus( 
+    public ResponseEntity<?> updateStatus(
             @PathVariable Integer restaurantId,
             @RequestParam Integer accountId,
             @RequestBody Map<String, String> statusUpdate) { // Sử dụng Map<String, String>
@@ -46,35 +47,35 @@ public class OwnerRestaurantController {
             RestaurantDTO updatedRestaurant = ownerRestaurantService.updateRestaurantStatus(
                     restaurantId,
                     accountId,
-                    newStatusString); 
+                    newStatusString);
             return ResponseEntity.ok(updatedRestaurant);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-    
+
     // ----------------------------------------------------------------------------------
     // API 3: THÊM ENDPOINT ĐỂ CẬP NHẬT THÔNG TIN VÀ CHUYỂN TRẠNG THÁI SANG PENDING
     // ----------------------------------------------------------------------------------
 
     /**
-     * API 3: Cập nhật thông tin chi tiết nhà hàng (Kích hoạt lại quá trình duyệt PENDING).
+     * API 3: Cập nhật thông tin chi tiết nhà hàng (Kích hoạt lại quá trình duyệt
+     * PENDING).
      * PUT /api/owner/restaurants/{restaurantId}
      */
     @PutMapping("/{restaurantId}")
     public ResponseEntity<?> updateRestaurantDetails(
             @PathVariable Integer restaurantId,
-            @ModelAttribute RestaurantRegistrationRequest request, // Nhận dữ liệu form
-            @RequestParam(value = "imageFile", required = false) MultipartFile imageFile) {
-        
+            @RequestBody RestaurantRegistrationRequest request) { 
+
         try {
             RestaurantDTO updatedRestaurant = ownerRestaurantService.updateRestaurantDetails(
-                restaurantId, 
-                request, 
-                imageFile);
+                    restaurantId,
+                    request);
             return ResponseEntity.ok(updatedRestaurant);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body("Lỗi cập nhật: " + e.getMessage());
         }
     }
 }

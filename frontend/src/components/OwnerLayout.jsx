@@ -11,10 +11,10 @@ const { Header, Content, Sider } = Layout;
 const OwnerLayout = () => {
     const { user, logout } = useContext(AuthContext);
     const [collapsed, setCollapsed] = useState(false);
-    
+
     // 1. STATE VÀ HOVER HANDLERS (Để xử lý hiệu ứng Hover)
     const [isHovered, setIsHovered] = useState(false);
-    
+
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -22,9 +22,9 @@ const OwnerLayout = () => {
         logout();
         navigate('/login');
     };
-    
+
     const { token: { colorBgContainer } } = theme.useToken();
-    
+
     // MENU DROP DOWN CHO SIDER HEADER
     const ownerMenuItems = [
         {
@@ -55,7 +55,7 @@ const OwnerLayout = () => {
             onClick: handleLogout,
         },
     ];
-    
+
     // MENU CHÍNH CHO SIDER
     const items = [
         { key: '/owner/dashboard', icon: <PieChartOutlined />, label: 'Tổng quan' },
@@ -65,7 +65,7 @@ const OwnerLayout = () => {
         { key: '/owner/feedback', icon: <CommentOutlined />, label: 'Đánh giá' },
         { key: '/owner/issues', icon: <IssuesCloseOutlined />, label: 'Sự cố' },
     ];
-    
+
     const menuProps = {
         items: ownerMenuItems,
     };
@@ -77,12 +77,11 @@ const OwnerLayout = () => {
                 collapsible
                 collapsed={collapsed}
                 onCollapse={setCollapsed}
-                style={{}}
             >
                 <Dropdown
                     menu={menuProps}
                     trigger={['click']}
-                    placement={collapsed ? "rightTop" : "rightBottom"} 
+                    placement={collapsed ? "rightTop" : "rightBottom"}
                 >
                     <div
                         className="sider-header"
@@ -90,28 +89,28 @@ const OwnerLayout = () => {
                             height: 48,
                             background: isHovered ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.2)',
                             color: 'white',
-                            display: 'flex', 
+                            display: 'flex',
                             alignItems: 'center',
                             justifyContent: collapsed ? 'center' : 'flex-start',
-                            padding: collapsed ? '0' : '0 16px', 
+                            padding: collapsed ? '0' : '0 16px',
                             cursor: 'pointer',
                             fontWeight: 'bold',
                             transition: 'background 0.3s',
                         }}
-                        onMouseEnter={() => setIsHovered(true)} 
+                        onMouseEnter={() => setIsHovered(true)}
                         onMouseLeave={() => setIsHovered(false)}
                     >
-                        <Space 
+                        <Space
                             size={collapsed ? 0 : 8}
                             style={{
                                 width: '100%',
                                 justifyContent: collapsed ? 'center' : 'space-between',
                             }}
-                        > 
+                        >
                             <Space size={8}>
-                                <UserOutlined style={{ 
-                                    fontSize: '16px', 
-                                    opacity: collapsed ? 1 : 0.85 
+                                <UserOutlined style={{
+                                    fontSize: '16px',
+                                    opacity: collapsed ? 1 : 0.85
                                 }} />
                                 {!collapsed && user && (
                                     <span style={{ fontWeight: 600, fontSize: '14px' }}>
@@ -120,7 +119,7 @@ const OwnerLayout = () => {
                                 )}
                             </Space>
                             {!collapsed && (
-                                <DownOutlined style={{ fontSize: '10px', opacity: 0.8 }} /> 
+                                <DownOutlined style={{ fontSize: '10px', opacity: 0.8 }} />
                             )}
                         </Space>
                     </div>
