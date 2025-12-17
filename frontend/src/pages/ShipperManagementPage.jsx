@@ -35,14 +35,17 @@ const ShipperManagementPage = () => {
     const [historyList, setHistoryList] = useState([]);
     const [historyLoading, setHistoryLoading] = useState(false);
     const [selectedShipper, setSelectedShipper] = useState(null);
+
+    // Khởi tạo là mảng rỗng [] để tránh lỗi null
     const [historyDateRange, setHistoryDateRange] = useState([]);
+    const [dateRange, setDateRange] = useState([]);
 
     useEffect(() => {
         fetchShippers();
     }, []);
 
     // 1. FETCH DANH SÁCH SHIPPER (Kèm Filter)
-    const fetchShippers = async (searchKey = keyword, status = statusFilter) => {
+    const fetchShippers = async (searchKey = keyword, status = statusFilter, dates = dateRange) => {
         setLoading(true);
         try {
             const params = {};
@@ -50,9 +53,16 @@ const ShipperManagementPage = () => {
             if (status === 'ACTIVE') params.status = true;
             if (status === 'BLOCKED') params.status = false;
 
+            // Kiểm tra null an toàn trước khi đọc length
+            if (dates && dates.length === 2) {
+                params.startDate = dates[0].format('YYYY-MM-DD');
+                params.endDate = dates[1].format('YYYY-MM-DD');
+            }
+
             const response = await axios.get(API_URL, { params });
             setShippers(response.data);
         } catch (error) {
+            console.error(error);
             message.error('Không thể tải danh sách shipper');
         } finally {
             setLoading(false);
@@ -80,40 +90,51 @@ const ShipperManagementPage = () => {
     // --- HANDLERS ---
     const handleSearch = (val) => {
         setKeyword(val);
-        fetchShippers(val, statusFilter);
+        fetchShippers(val, statusFilter, dateRange);
     };
 
     const handleStatusChange = (val) => {
         setStatusFilter(val);
-        fetchShippers(keyword, val);
+        fetchShippers(keyword, val, dateRange);
+    };
+
+    // --- FIX LỖI CRASH TẠI ĐÂY ---
+    const handleDateChange = (dates) => {
+        // Nếu user xóa ngày (dates = null), ta gán về mảng rỗng []
+        const safeDates = dates || [];
+        setDateRange(safeDates);
+        fetchShippers(keyword, statusFilter, safeDates);
     };
 
     const handleToggleStatus = async (id, currentStatus) => {
         try {
             await axios.put(`${API_URL}/${id}/toggle-status`);
             message.success(currentStatus ? 'Đã khóa tài khoản Shipper!' : 'Đã mở khóa tài khoản!');
-            fetchShippers(keyword, statusFilter); // Load lại dữ liệu giữ nguyên filter
+            fetchShippers(keyword, statusFilter, dateRange);
         } catch (error) {
-            message.error('Có lỗi xảy ra!');
+            message.error('Shipper hiện tại đang có đơn hàng. Không thể khóa tài khoản!');
         }
     };
 
     const handleOpenHistory = (record) => {
         setSelectedShipper(record);
         setIsHistoryModalOpen(true);
-        setHistoryDateRange([]); // Reset date về All
-        fetchHistory(record.shipperId, []); // Fetch all history
-    };
-
-    const handleHistoryDateChange = (dates) => {
-        setHistoryDateRange(dates);
-        if (selectedShipper) {
-            fetchHistory(selectedShipper.shipperId, dates);
-        }
+        // Reset date về All hoặc lấy theo filter hiện tại tùy logic bạn muốn
+        // Ở đây mình lấy theo dateRange hiện tại để đồng bộ
+        fetchHistory(record.shipperId, dateRange);
     };
 
     const formatCurrency = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
     const formatDate = (dateStr) => dateStr ? dayjs(dateStr).format('DD/MM/YYYY HH:mm') : '-';
+
+    // Helper format thời gian giao hàng
+    const formatDuration = (minutes) => {
+        if (!minutes || minutes === 0) return '0p';
+        const hrs = Math.floor(minutes / 60);
+        const mins = Math.round(minutes % 60);
+        if (hrs > 0) return `${hrs}h ${mins}p`;
+        return `${mins}p`;
+    };
 
     // --- COLUMNS BẢNG CHÍNH ---
     const mainColumns = [
@@ -147,6 +168,18 @@ const ShipperManagementPage = () => {
             align: 'right',
             sorter: (a, b) => a.totalIncome - b.totalIncome,
             render: (val) => <Text strong style={{ color: '#52c41a' }}>{formatCurrency(val || 0)}</Text>
+        },
+        {
+            title: 'Thời Gian Giao',
+            dataIndex: 'totalDeliveryMinutes',
+            key: 'time',
+            align: 'center',
+            sorter: (a, b) => a.totalDeliveryMinutes - b.totalDeliveryMinutes,
+            render: (val) => (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.2 }}>
+                    <span style={{ fontWeight: 600, color: '#fa8c16' }}>{formatDuration(val)}</span>
+                </div>
+            )
         },
         {
             title: 'Đánh giá TB',
@@ -204,7 +237,7 @@ const ShipperManagementPage = () => {
         }
     ];
 
-    // --- COLUMNS BẢNG LỊCH SỬ (MODAL) ---
+    // --- COLUMNS BẢNG LỊCH SỬ ---
     const historyColumns = [
         {
             title: 'Đơn hàng & Sản phẩm',
@@ -216,7 +249,6 @@ const ShipperManagementPage = () => {
                         Mã đơn: <b>#{record.orderId}</b> - <span style={{color: '#cf1322', fontWeight: 'bold'}}>{formatCurrency(record.totalAmount)}</span>
                     </div>
 
-                    {/* LIST SẢN PHẨM */}
                     <div style={{maxHeight: '120px', overflowY: 'auto'}}>
                         {record.items && record.items.map((item, idx) => (
                             <div key={idx} style={{fontSize: 12, display: 'flex', justifyContent: 'space-between', marginBottom: 4}}>
@@ -249,7 +281,7 @@ const ShipperManagementPage = () => {
             )
         },
         {
-            title: 'Đánh giá Shipper',
+            title: 'Đánh giá',
             key: 'feedback',
             width: 180,
             render: (_, record) => record.shipperRating ? (
@@ -258,13 +290,7 @@ const ShipperManagementPage = () => {
                         <Rate disabled defaultValue={record.shipperRating} style={{fontSize: 12}} />
                         <span style={{fontWeight: 'bold', color: '#52c41a'}}>{record.shipperRating}★</span>
                     </div>
-                    {record.shipperComment ? (
-                        <div style={{fontSize: 11, fontStyle: 'italic', color: '#555', marginTop: 4}}>
-                            "{record.shipperComment}"
-                        </div>
-                    ) : (
-                        <div style={{fontSize: 11, color: '#999', marginTop: 4}}>(Không có lời nhắn)</div>
-                    )}
+                    {record.shipperComment && <div style={{fontSize: 11, fontStyle: 'italic', color: '#555', marginTop: 4}}>"{record.shipperComment}"</div>}
                 </div>
             ) : <Tag>Chưa có đánh giá</Tag>
         },
@@ -274,13 +300,13 @@ const ShipperManagementPage = () => {
             width: 150,
             render: (_, record) => (
                 <div style={{fontSize: 11, color: '#666'}}>
-                    <div>Bắt đầu: {formatDate(record.shippedAt)}</div>
+                    <div>Giao: {formatDate(record.shippedAt)}</div>
                     <div>Xong: <span style={{color: '#333', fontWeight: 500}}>{formatDate(record.completedAt)}</span></div>
                 </div>
             )
         },
         {
-            title: 'Tiền ship',
+            title: 'Thu nhập',
             dataIndex: 'shippingFee',
             align: 'right',
             width: 100,
@@ -290,12 +316,13 @@ const ShipperManagementPage = () => {
 
     return (
         <div style={{ padding: 20 }}>
+            {/* Fix Warning: bodyStyle -> styles.body */}
             <Card
                 title={<Title level={4} style={{ margin: 0 }}>🛵 Quản lý & Giám sát Tài xế</Title>}
-                bodyStyle={{ padding: '24px' }}
+                styles={{ body: { padding: 24 } }}
             >
                 {/* --- FILTER MAIN PAGE --- */}
-                <div style={{ marginBottom: 20, display: 'flex', gap: 16 }}>
+                <div style={{ marginBottom: 20, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                     <Search
                         placeholder="Tìm tên, SĐT shipper..."
                         onSearch={handleSearch}
@@ -308,7 +335,16 @@ const ShipperManagementPage = () => {
                         <Option value="ACTIVE">Đang hoạt động</Option>
                         <Option value="BLOCKED">Đã khóa</Option>
                     </Select>
-                    <Button icon={<ReloadOutlined />} onClick={() => fetchShippers(keyword, statusFilter)}>Làm mới</Button>
+
+                    {/* RangePicker đã được xử lý an toàn */}
+                    <RangePicker
+                        value={dateRange && dateRange.length ? dateRange : null}
+                        onChange={handleDateChange}
+                        format="DD/MM/YYYY"
+                        placeholder={['Từ ngày', 'Đến ngày']}
+                    />
+
+                    <Button icon={<ReloadOutlined />} onClick={() => fetchShippers(keyword, statusFilter, dateRange)}>Làm mới</Button>
                 </div>
 
                 <Table
@@ -326,6 +362,13 @@ const ShipperManagementPage = () => {
                     <div style={{display: 'flex', alignItems: 'center', gap: 8}}>
                         <HistoryOutlined style={{color: '#1677ff'}} />
                         <span>Lịch sử giao hàng: <b style={{color: '#1677ff'}}>{selectedShipper?.fullName}</b></span>
+
+                        {/* FIX LỖI CRASH: Kiểm tra an toàn dateRange?.length */}
+                        {dateRange && dateRange.length === 2 && (
+                            <Tag color="orange" style={{fontWeight: 'normal', fontSize: 12, marginLeft: 10}}>
+                                Lọc theo: {dateRange[0].format('DD/MM/YYYY')} - {dateRange[1].format('DD/MM/YYYY')}
+                            </Tag>
+                        )}
                     </div>
                 }
                 open={isHistoryModalOpen}
@@ -333,15 +376,6 @@ const ShipperManagementPage = () => {
                 width={1100}
                 footer={[<Button key="close" onClick={() => setIsHistoryModalOpen(false)}>Đóng</Button>]}
             >
-                <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10 }}>
-                    <span>Lọc theo ngày:</span>
-                    <RangePicker
-                        value={historyDateRange}
-                        onChange={handleHistoryDateChange}
-                        format="DD/MM/YYYY"
-                    />
-                </div>
-
                 <Table
                     rowKey="orderId"
                     columns={historyColumns}
@@ -352,7 +386,7 @@ const ShipperManagementPage = () => {
                     scroll={{ x: 900 }}
                     summary={(pageData) => {
                         let totalShip = 0;
-                        pageData.forEach(({ shippingFee }) => { totalShip += shippingFee; });
+                        pageData.forEach(({ shippingFee }) => { totalShip += (shippingFee || 0); });
                         return (
                             <Table.Summary.Row>
                                 <Table.Summary.Cell index={0} colSpan={4} align="right"><b>Tổng tiền công trang này:</b></Table.Summary.Cell>
