@@ -37,13 +37,13 @@ import MyRegistrations from './pages/MyRegistrations';
 import RestaurantEdit from './pages/RestaurantEdit';
 import CustomerIssueCreate from './pages/CustomerIssueCreate';
 import CustomerIssueHistory from './pages/CustomerIssueHistory';
-import AdminIssuesPage from "./pages/AdminIssuesPage.jsx";
-import ShipperManagementPage from "./pages/ShipperManagementPage.jsx";
+import AdminIssuesPage from './pages/AdminIssuesPage.jsx';
+import ShipperManagementPage from './pages/ShipperManagementPage.jsx';
 import OwnerFeedbackPage from './components/OwnerFeedbackPage';
-import LiveMapPage from "./pages/LiveMapPage.jsx";
+import LiveMapPage from './pages/LiveMapPage.jsx';
 import OwnerIssues from './components/OwnerIssues.jsx';
 import OwnerDashboard from './components/OwnerDashboard.jsx';
-
+import CustomerStatsPage from './pages/CustomerStatsPage';
 
 const ClientLayoutWithFooter = () => (
   <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -112,7 +112,11 @@ function App() {
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/order-success" element={<OrderSuccessPage />} />
         <Route path="/orders" element={<OrderDetailPage />} />
-        <Route path="/restaurant-registration" element={<RestaurantRegistration />} />
+        <Route path="/my-spending" element={<CustomerStatsPage />} />
+        <Route
+          path="/restaurant-registration"
+          element={<RestaurantRegistration />}
+        />
         <Route path="/my-registrations" element={<MyRegistrations />} />
         <Route path="/restaurant/edit/:id" element={<RestaurantEdit />} />
         <Route path="/support/new" element={<CustomerIssueCreate />} />
@@ -128,7 +132,6 @@ function App() {
       {/* NHÓM 4: CỬA HÀNG (OWNER)                                 */}
       {/* ======================================================= */}
 
-
       <Route path="/owner" element={<OwnerLayout />}>
         <Route index element={<OwnerDashboard />} />
         <Route path="dashboard" element={<OwnerDashboard />} />
@@ -138,7 +141,6 @@ function App() {
         <Route path="issues" element={<OwnerIssues />} />
         <Route path="restaurants" element={<OwnerRestaurantPage />} />
       </Route>
-
     </Routes>
   );
 }
