@@ -20,11 +20,13 @@ import {
   FilterOutlined,
   ReloadOutlined,
   EnvironmentOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
 import { getCustomerOrders, createFeedback } from '../services/orderService';
 import dayjs from 'dayjs';
 import OrderTrackingModal from '../components/OrderTrackingModal';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const { TextArea } = Input;
@@ -33,6 +35,7 @@ const { Option } = Select;
 
 const OrderDetailPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -426,13 +429,24 @@ const OrderDetailPage = () => {
         title="Danh sách đơn hàng của tôi"
         bordered={false}
         extra={
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={fetchOrders}
-            title="Làm mới"
-          >
-            Làm mới
-          </Button>
+          <Space>
+            <Button
+              type="primary"
+              icon={<BarChartOutlined />}
+              onClick={() => navigate('/my-spending')}
+              style={{ backgroundColor: '#ff6b35', borderColor: '#ff6b35' }}
+            >
+              Thống kê chi tiêu
+            </Button>
+
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={fetchOrders}
+              title="Làm mới"
+            >
+              Làm mới
+            </Button>
+          </Space>
         }
       >
         {/* Filter và Search Section */}

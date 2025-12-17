@@ -1,0 +1,77 @@
+/* Container chính */
+.stats-container {
+  padding: 24px;
+  background-color: #f9f9f9;
+  min-height: 100vh;
+  font-family: 'Montserrat', sans-serif;
+}
+
+/* Nút quay lại nằm riêng 1 dòng ở đầu */
+.back-button-wrapper {
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+.btn-back {
+  color: #ff6b35 !important;
+  border-color: #ff6b35 !important;
+  border-radius: 8px !important;
+  font-weight: 500 !important;
+}
+
+.btn-back:hover {
+  background-color: #fff2e8 !important;
+}
+
+/* Header chứa tiêu đề và DatePicker */
+.stats-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.stats-title {
+  font-size: 2rem;
+  font-weight: 800;
+  margin: 0;
+  color: #333;
+}
+
+/* Thống kê dạng Card màu */
+.stat-card {
+  border-radius: 15px !important;
+  border: none !important;
+  transition: transform 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+}
+
+.stat-card.orange { background: linear-gradient(135deg, #ff9c6e 0%, #ff6b35 100%); }
+.stat-card.green { background: linear-gradient(135deg, #95de64 0%, #4CAF50 100%); }
+.stat-card.blue { background: linear-gradient(135deg, #69c0ff 0%, #2196F3 100%); }
+
+.stat-card .ant-statistic-title, 
+.stat-card .ant-statistic-content,
+.stat-card .ant-statistic-content-suffix,
+.stat-card .ant-statistic-content-prefix {
+  color: #ffffff !important;
+}
+
+/* Layout biểu đồ */
+.chart-card {
+  border-radius: 15px !important;
+  height: 450px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+@media (max-width: 768px) {
+  .stats-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+}
