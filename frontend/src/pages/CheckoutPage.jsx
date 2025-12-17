@@ -222,7 +222,7 @@ const CheckoutPage = () => {
     //     }
     // };
 
-    // ===== Nút Giả Lập Thanh toán thành công =====
+    // ===== Nút Giả Lập Thanh toán (chuyển sang màn giả lập giống thật) =====
     const handleSimulatePaySuccess = async () => {
         if (!user) {
             navigate("/login");
@@ -237,34 +237,17 @@ const CheckoutPage = () => {
             return;
         }
 
-        try {
-            setProcessing(true);
-            setError(null);
-
-            await simulatePaymentSuccess(orderId);
-
-            // === TẠO orderCode ĐÚNG FORMAT BACKEND ===
-            const today = new Date();
-            const yyyyMMdd = today.toISOString().slice(0, 10).replace(/-/g, "");
-
-            const paddedId = orderId.toString().padStart(4, "0");
-
-            const fakeOrderCode = `FO${yyyyMMdd}${paddedId}`;
-
-            message.success("Thanh toán giả lập thành công!");
-
-            // Điều hướng sang OrderSuccessPage với orderCode đúng chuẩn
-            navigate(`/order-success?code=00&orderCode=${fakeOrderCode}`);
-        } catch (e) {
-            console.error(e);
-            setError("Không giả lập được thanh toán. Kiểm tra lại backend.");
-        } finally {
-            setProcessing(false);
-        }
+        // CHUYỂN SANG MÀN MOCK PAYMENT (không gọi simulate ở đây nữa)
+        navigate("/mock-payment", {
+            state: {
+                orderId,
+                amount: Number(total) || 0,
+                restaurantName: cart.restaurantName || "Quán ăn",
+            },
+        });
     };
 
-
-            // ========== Render các trạng thái ==========
+    // ========== Render các trạng thái ==========
 
     if (!user) {
         return (
