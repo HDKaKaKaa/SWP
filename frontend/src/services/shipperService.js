@@ -79,6 +79,21 @@ export const uploadAvatar = async (shipperId, file) => {
     return response.data;
 };
 
+// Upload ảnh giấy phép lái xe
+export const uploadLicenseImage = async (shipperId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await axios.post(
+        `${API_BASE_URL}/profile/license-image`,
+        formData,
+        { 
+            params: { shipperId },
+            headers: { 'Content-Type': 'multipart/form-data' }
+        }
+    );
+    return response.data;
+};
+
 // Đổi mật khẩu
 export const changePassword = async (accountId, oldPassword, newPassword, confirmPassword) => {
     const response = await axios.put(
@@ -125,5 +140,34 @@ export const getOrderDetail = async (orderId, shipperId) => {
     );
     return response.data;
 };
+
+// Lấy vị trí shipper và customer cho bản đồ
+export const getMapLocations = async (shipperId) => {
+    const response = await axios.get(`${API_BASE_URL}/map/locations`, {
+        params: { shipperId }
+    });
+    return response.data;
+};
+
+// Shipper đánh giá đơn hàng
+export const submitShipperFeedback = async (orderId, shipperId, rating, comment) => {
+    const response = await axios.post(
+        `${API_BASE_URL}/orders/${orderId}/feedback`,
+        { rating, comment },
+        { params: { shipperId } }
+    );
+    return response.data;
+};
+
+// Lấy đánh giá của shipper cho đơn hàng
+export const getShipperFeedback = async (orderId, shipperId) => {
+    const response = await axios.get(
+        `${API_BASE_URL}/orders/${orderId}/feedback`,
+        { params: { shipperId } }
+    );
+    return response.data;
+};
+
+
 
 

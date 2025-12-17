@@ -1,0 +1,75 @@
+@startuml Swimlane Diagram - Order Process
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontSize 11
+skinparam rectangle {
+    BorderColor #000000
+    FontColor #000000
+    BackgroundColor #E8F4F8
+}
+
+skinparam diamond {
+    BorderColor #000000
+    FontColor #000000
+    BackgroundColor #FFF4E6
+}
+
+skinparam startEnd {
+    BorderColor #000000
+    FontColor #000000
+    BackgroundColor #E8F5E9
+}
+
+skinparam arrow {
+    Color #000000
+    Thickness 1
+}
+
+title Swimlane Diagram - Quy trình Đặt hàng và Giao hàng
+
+|#LightBlue|Customer|
+start
+:Chọn nhà hàng & món ăn;
+:Thêm vào giỏ hàng;
+:Chọn địa chỉ giao hàng;
+:Thanh toán;
+:Tạo đơn hàng\n(PENDING);
+
+|#LightYellow|Owner|
+:Nhận thông báo đơn mới;
+:Xem chi tiết đơn hàng;
+if (Xác nhận đơn hàng?) then (Có)
+  :Chuẩn bị món ăn\n(PREPARING);
+else (Không)
+  :Từ chối đơn hàng\n(CANCELLED);
+  stop
+endif
+
+|#LightGreen|Shipper|
+:Xem danh sách đơn có sẵn;
+if (Nhận đơn hàng?) then (Có)
+  :Đến nhà hàng;
+  :Bắt đầu giao hàng\n(SHIPPING);
+  :Giao đến khách hàng;
+  :Hoàn thành\n(COMPLETED);
+else (Không)
+  :Không nhận đơn;
+  :Quay lại xem đơn có sẵn;
+endif
+
+|#LightCoral|Admin|
+:Nhận thông báo đơn hoàn thành;
+:Đánh giá nhà hàng & shipper\n(nếu cần);
+
+|Customer|
+:Nhận thông báo đơn hoàn thành;
+:Xem đơn hàng đã hoàn thành;
+if (Đã đánh giá chưa?) then (Chưa)
+  :Đánh giá nhà hàng & shipper;
+else (Rồi)
+endif
+stop
+
+@enduml
+
+

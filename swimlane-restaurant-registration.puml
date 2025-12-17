@@ -1,0 +1,59 @@
+@startuml Swimlane Diagram - Restaurant Registration
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontSize 11
+skinparam rectangle {
+    BorderColor #000000
+    FontColor #000000
+    BackgroundColor #E8F4F8
+}
+
+skinparam diamond {
+    BorderColor #000000
+    FontColor #000000
+    BackgroundColor #FFF4E6
+}
+
+skinparam startEnd {
+    BorderColor #000000
+    FontColor #000000
+    BackgroundColor #E8F5E9
+}
+
+skinparam arrow {
+    Color #000000
+    Thickness 1
+}
+
+title Swimlane Diagram - Quy trình Đăng ký Nhà hàng
+
+|#LightYellow|Owner|
+start
+:Đăng ký tài khoản;
+:Điền thông tin nhà hàng;
+:Upload hình ảnh\n(cover, license);
+:Chọn vị trí trên bản đồ;
+:Gửi đơn đăng ký\n(PENDING);
+
+|#LightCoral|Admin|
+:Nhận đơn đăng ký mới;
+:Xem chi tiết đơn đăng ký;
+:Kiểm tra thông tin & hình ảnh;
+if (Quyết định duyệt?) then (Duyệt)
+  :Duyệt đơn đăng ký\n(ACTIVE);
+else (Từ chối)
+  :Từ chối đơn đăng ký\n(REJECTED);
+  note right: Gửi lý do từ chối
+endif
+
+|#LightGray|System|
+:Cập nhật status trong database;
+
+|Owner|
+:Nhận thông báo kết quả;
+:Xem trạng thái đăng ký;
+stop
+
+@enduml
+
+

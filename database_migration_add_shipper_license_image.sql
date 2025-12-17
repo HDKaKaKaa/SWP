@@ -1,0 +1,4 @@
+ALTER TABLE shippers
+ADD COLUMN IF NOT EXISTS license_image VARCHAR(500) NULL;
+
+
