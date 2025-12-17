@@ -18,7 +18,7 @@ public class Issue {
     @Column(nullable = false, unique = true)
     private String code;
 
-    @Column(name = "order_id", nullable = false)
+    @Column(name = "order_id")
     private Integer orderId;
 
     @Column(name = "created_by_id", nullable = false)

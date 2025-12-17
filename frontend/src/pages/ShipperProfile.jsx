@@ -7,6 +7,7 @@ import {
     updateShipperProfile,
     updateShipperStatus,
     uploadAvatar,
+    uploadLicenseImage,
     changePassword
 } from '../services/shipperService';
 
@@ -20,6 +21,7 @@ const ShipperProfile = () => {
     const [profile, setProfile] = useState(null);
     const [passwordForm] = Form.useForm();
     const [uploading, setUploading] = useState(false);
+    const [uploadingLicense, setUploadingLicense] = useState(false);
     const [changingPassword, setChangingPassword] = useState(false);
     const [passwordModalVisible, setPasswordModalVisible] = useState(false);
 
@@ -93,6 +95,20 @@ const ShipperProfile = () => {
         return false; // Prevent auto upload
     };
 
+    const handleUploadLicenseImage = async (file) => {
+        try {
+            setUploadingLicense(true);
+            const result = await uploadLicenseImage(shipperId, file);
+            message.success('Upload ảnh giấy phép lái xe thành công!');
+            await fetchProfile(); // Reload để hiển thị ảnh mới
+        } catch (error) {
+            message.error(error.response?.data || 'Không thể upload ảnh giấy phép lái xe!');
+        } finally {
+            setUploadingLicense(false);
+        }
+        return false; // Prevent auto upload
+    };
+
     const handleChangePassword = async (values) => {
         try {
             setChangingPassword(true);
@@ -153,6 +169,50 @@ const ShipperProfile = () => {
                                         disabled={uploading}
                                     >
                                         {uploading ? 'Đang upload...' : 'Thay đổi ảnh đại diện'}
+                                    </Button>
+                                </Upload>
+                            </div>
+                        </div>
+
+                        <Divider />
+
+                        {/* Phần hiển thị và upload ảnh giấy phép lái xe */}
+                        <div style={{ marginBottom: 24 }}>
+                            <div style={{ marginBottom: 12 }}>
+                                <strong>Giấy phép lái xe:</strong>
+                            </div>
+                            {profile?.licenseImage ? (
+                                <div style={{ textAlign: 'center', marginBottom: 12 }}>
+                                    <img
+                                        src={profile.licenseImage}
+                                        alt="Giấy phép lái xe"
+                                        style={{
+                                            maxWidth: '100%',
+                                            maxHeight: '300px',
+                                            border: '1px solid #d9d9d9',
+                                            borderRadius: '8px',
+                                            padding: '8px',
+                                            backgroundColor: '#fafafa'
+                                        }}
+                                    />
+                                </div>
+                            ) : (
+                                <div style={{ textAlign: 'center', marginBottom: 12, padding: '20px', border: '1px dashed #d9d9d9', borderRadius: '8px', backgroundColor: '#fafafa' }}>
+                                    <p style={{ color: '#999', margin: 0 }}>Chưa có ảnh giấy phép lái xe</p>
+                                </div>
+                            )}
+                            <div style={{ textAlign: 'center' }}>
+                                <Upload
+                                    beforeUpload={handleUploadLicenseImage}
+                                    showUploadList={false}
+                                    accept="image/*"
+                                >
+                                    <Button
+                                        icon={<UploadOutlined />}
+                                        loading={uploadingLicense}
+                                        disabled={uploadingLicense}
+                                    >
+                                        {uploadingLicense ? 'Đang upload...' : profile?.licenseImage ? 'Thay đổi ảnh' : 'Upload ảnh giấy phép lái xe'}
                                     </Button>
                                 </Upload>
                             </div>

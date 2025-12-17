@@ -14,6 +14,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +48,9 @@ public class ShipperController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private FeedbackRepository feedbackRepository;
 
     /**
      * Lấy danh sách đơn hàng có sẵn cho shipper
@@ -92,6 +96,14 @@ public class ShipperController {
                 .collect(Collectors.toList());
         Map<Integer, Customer> customerMap = customerRepository.findAllById(customerIds).stream()
                 .collect(Collectors.toMap(Customer::getAccountId, c -> c));
+
+        // Load tất cả Feedback một lần để tránh N+1 problem
+        List<Integer> orderIds = orders.stream()
+                .map(Order::getId)
+                .collect(Collectors.toList());
+        List<Feedback> feedbacks = feedbackRepository.findByOrderIdIn(orderIds);
+        Map<Integer, Feedback> feedbackMap = feedbacks.stream()
+                .collect(Collectors.toMap(f -> f.getOrder().getId(), f -> f));
 
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
 
@@ -166,6 +178,19 @@ public class ShipperController {
                 map.put("customerName", "N/A");
                 map.put("customerUsername", "N/A");
             }
+
+            // Thông tin đánh giá từ shipper (nếu có)
+            Feedback feedback = feedbackMap.get(order.getId());
+            if (feedback != null) {
+                map.put("shipperFeedbackRating", feedback.getShipperToCustomerRating());
+                map.put("shipperFeedbackComment", feedback.getShipperToCustomerComment());
+                map.put("hasShipperFeedback", feedback.getShipperToCustomerRating() != null);
+            } else {
+                map.put("shipperFeedbackRating", null);
+                map.put("shipperFeedbackComment", null);
+                map.put("hasShipperFeedback", false);
+            }
+
             return map;
         }).collect(Collectors.toList()));
     }
@@ -306,6 +331,7 @@ public class ShipperController {
         result.put("currentLong", shipper.getCurrentLong());
         result.put("status", shipper.getStatus());
         result.put("avatar", shipper.getAvatar());
+        result.put("licenseImage", shipper.getLicenseImage());
         if (shipper.getAccount() != null) {
             result.put("email", shipper.getAccount().getEmail());
             result.put("phone", shipper.getAccount().getPhone());
@@ -404,6 +430,41 @@ public class ShipperController {
             Map<String, Object> result = new HashMap<>();
             result.put("message", "Upload ảnh thành công!");
             result.put("avatar", imageUrl);
+            return ResponseEntity.ok(result);
+        } catch (IOException e) {
+            return ResponseEntity.internalServerError().body("Lỗi khi upload ảnh: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Upload ảnh giấy phép lái xe cho shipper
+     * POST: http://localhost:8080/api/shipper/profile/license-image
+     */
+    @PostMapping("/profile/license-image")
+    @Transactional
+    public ResponseEntity<?> uploadLicenseImage(
+            @RequestParam Integer shipperId,
+            @RequestParam("file") MultipartFile file) {
+        try {
+            if (file.isEmpty()) {
+                return ResponseEntity.badRequest().body("Vui lòng chọn ảnh!");
+            }
+
+            Shipper shipper = shipperRepository.findById(shipperId).orElse(null);
+            if (shipper == null) {
+                return ResponseEntity.badRequest().body("Shipper không tồn tại");
+            }
+
+            // Upload ảnh lên Cloudinary
+            String imageUrl = cloudinaryService.uploadImage(file);
+
+            // Lưu URL ảnh vào database
+            shipper.setLicenseImage(imageUrl);
+            shipperRepository.save(shipper);
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("message", "Upload ảnh giấy phép lái xe thành công!");
+            result.put("licenseImage", imageUrl);
             return ResponseEntity.ok(result);
         } catch (IOException e) {
             return ResponseEntity.internalServerError().body("Lỗi khi upload ảnh: " + e.getMessage());
@@ -757,6 +818,158 @@ public class ShipperController {
         } catch (Exception e) {
             e.printStackTrace(); // In lỗi ra console server để dễ debug
             return ResponseEntity.internalServerError().body("Lỗi Server: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Lấy vị trí shipper và customer cho bản đồ giao hàng
+     * GET: http://localhost:8080/api/shipper/map/locations?shipperId=1
+     */
+    @GetMapping("/map/locations")
+    public ResponseEntity<List<Map<String, Object>>> getMapLocations(@RequestParam Integer shipperId) {
+        List<Map<String, Object>> locations = new ArrayList<>();
+        
+        // 1. Lấy vị trí shipper hiện tại
+        Shipper shipper = shipperRepository.findById(shipperId).orElse(null);
+        if (shipper != null && shipper.getCurrentLat() != null && shipper.getCurrentLong() != null) {
+            Map<String, Object> shipperLocation = new HashMap<>();
+            shipperLocation.put("id", shipper.getAccountId());
+            shipperLocation.put("name", shipper.getFullName() != null ? shipper.getFullName() : "Shipper");
+            shipperLocation.put("type", "SHIPPER");
+            shipperLocation.put("latitude", shipper.getCurrentLat());
+            shipperLocation.put("longitude", shipper.getCurrentLong());
+            shipperLocation.put("status", shipper.getStatus() != null ? shipper.getStatus() : "OFFLINE");
+            shipperLocation.put("info", (shipper.getVehicleType() != null ? shipper.getVehicleType() : "Xe máy") 
+                    + " - " + (shipper.getLicensePlate() != null ? shipper.getLicensePlate() : "N/A"));
+            shipperLocation.put("image", shipper.getAvatar());
+            shipperLocation.put("phone", shipper.getAccount() != null ? shipper.getAccount().getPhone() : "");
+            locations.add(shipperLocation);
+        }
+        
+        // 2. Lấy vị trí customer từ các đơn hàng đang giao (SHIPPING)
+        List<Order> shippingOrders = orderRepository.findOrdersByShipperId(shipperId);
+        for (Order order : shippingOrders) {
+            if ("SHIPPING".equals(order.getStatus()) && order.getShippingLat() != null && order.getShippingLong() != null) {
+                // Lấy thông tin customer
+                Customer customer = null;
+                if (order.getCustomer() != null) {
+                    customer = customerRepository.findById(order.getCustomer().getId()).orElse(null);
+                }
+                
+                Map<String, Object> customerLocation = new HashMap<>();
+                customerLocation.put("id", order.getId()); // Dùng order ID làm key
+                customerLocation.put("name", customer != null && customer.getFullName() != null 
+                        ? customer.getFullName() 
+                        : (order.getCustomer() != null ? order.getCustomer().getUsername() : "Khách hàng"));
+                customerLocation.put("type", "CUSTOMER");
+                customerLocation.put("latitude", order.getShippingLat());
+                customerLocation.put("longitude", order.getShippingLong());
+                customerLocation.put("status", "SHIPPING");
+                customerLocation.put("info", order.getShippingAddress() != null ? order.getShippingAddress() : "");
+                customerLocation.put("image", null); // Customer entity không có avatar field
+                customerLocation.put("phone", order.getCustomer() != null ? order.getCustomer().getPhone() : "");
+                customerLocation.put("orderId", order.getId());
+                customerLocation.put("restaurantName", order.getRestaurant() != null ? order.getRestaurant().getName() : "N/A");
+                locations.add(customerLocation);
+            }
+        }
+        
+        return ResponseEntity.ok(locations);
+    }
+
+    /**
+     * Shipper đánh giá đơn hàng (đánh giá customer/trải nghiệm giao hàng)
+     * POST: http://localhost:8080/api/shipper/orders/{orderId}/feedback
+     */
+    @PostMapping("/orders/{orderId}/feedback")
+    @Transactional
+    public ResponseEntity<?> submitShipperFeedback(
+            @PathVariable Integer orderId,
+            @RequestParam Integer shipperId,
+            @RequestBody Map<String, Object> request) {
+        try {
+            // Kiểm tra đơn hàng
+            Order order = orderRepository.findById(orderId).orElse(null);
+            if (order == null) {
+                return ResponseEntity.badRequest().body("Đơn hàng không tồn tại");
+            }
+
+            // Kiểm tra shipper có quyền với đơn này không
+            if (order.getShipper() == null || !order.getShipper().getAccountId().equals(shipperId)) {
+                return ResponseEntity.badRequest().body("Bạn không có quyền đánh giá đơn hàng này");
+            }
+
+            // Chỉ cho phép đánh giá đơn đã hoàn thành
+            if (!"COMPLETED".equals(order.getStatus())) {
+                return ResponseEntity.badRequest().body("Chỉ có thể đánh giá đơn hàng đã hoàn thành");
+            }
+
+            // Kiểm tra đã có feedback chưa - nếu có thì cập nhật, nếu chưa thì tạo mới
+            java.util.Optional<Feedback> existingFeedbackOpt = feedbackRepository.findByOrderId(orderId);
+            Feedback feedback;
+
+            if (existingFeedbackOpt.isPresent()) {
+                // Cập nhật feedback hiện có
+                feedback = existingFeedbackOpt.get();
+            } else {
+                // Tạo feedback mới
+                feedback = new Feedback();
+                feedback.setCustomer(customerRepository.findById(order.getCustomer().getId()).orElse(null));
+                feedback.setRestaurant(order.getRestaurant());
+                feedback.setOrder(order);
+            }
+
+            // Cập nhật đánh giá từ shipper
+            if (request.containsKey("rating")) {
+                feedback.setShipperToCustomerRating((Integer) request.get("rating"));
+            }
+            if (request.containsKey("comment")) {
+                feedback.setShipperToCustomerComment((String) request.get("comment"));
+            }
+
+            feedbackRepository.save(feedback);
+
+            return ResponseEntity.ok("Đánh giá đơn hàng thành công!");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Lỗi khi đánh giá: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Lấy đánh giá của shipper cho đơn hàng
+     * GET: http://localhost:8080/api/shipper/orders/{orderId}/feedback
+     */
+    @GetMapping("/orders/{orderId}/feedback")
+    public ResponseEntity<?> getShipperFeedback(
+            @PathVariable Integer orderId,
+            @RequestParam Integer shipperId) {
+        try {
+            Order order = orderRepository.findById(orderId).orElse(null);
+            if (order == null) {
+                return ResponseEntity.badRequest().body("Đơn hàng không tồn tại");
+            }
+
+            // Kiểm tra shipper có quyền với đơn này không
+            if (order.getShipper() == null || !order.getShipper().getAccountId().equals(shipperId)) {
+                return ResponseEntity.badRequest().body("Bạn không có quyền xem đánh giá đơn hàng này");
+            }
+
+            java.util.Optional<Feedback> feedbackOpt = feedbackRepository.findByOrderId(orderId);
+            if (feedbackOpt.isEmpty()) {
+                Map<String, Object> result = new HashMap<>();
+                result.put("hasFeedback", false);
+                return ResponseEntity.ok(result);
+            }
+
+            Feedback feedback = feedbackOpt.get();
+            Map<String, Object> result = new HashMap<>();
+            result.put("hasFeedback", true);
+            result.put("rating", feedback.getShipperToCustomerRating());
+            result.put("comment", feedback.getShipperToCustomerComment());
+
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Lỗi khi lấy đánh giá: " + e.getMessage());
         }
     }
 }

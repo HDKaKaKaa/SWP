@@ -7,7 +7,7 @@ const API_BASE_URL = 'http://localhost:8080/api/issues';
  * ======================= */
 export const createIssue = async (payload) => {
     // payload phải có accountId
-    const res = await axios.post(API_BASE_URL, payload);
+    const res = await axios.post(`${API_BASE_URL}/with-attachments`, payload);
     return res.data;
 };
 
@@ -76,3 +76,9 @@ export const adminCreditDecision = async (issueId, payload) => {
     const res = await axios.post(`${API_BASE_URL}/${issueId}/admin-credit`, payload);
     return res.data;
 };
+
+export const replyAction = async (issueId, payload) => {
+    const res = await axios.post(`${API_BASE_URL}/${issueId}/reply-action`, payload);
+    return res.data;
+};
+

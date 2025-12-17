@@ -334,4 +334,17 @@ public class OrderController {
         
         return ResponseEntity.ok("Đánh giá thành công!");
     }
+
+    @PutMapping("/{orderId}/note")
+    @Transactional
+    public ResponseEntity<?> updateOrderNote(
+            @PathVariable Integer orderId,
+            @RequestBody Map<String, String> body
+    ) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        order.setNote(body.get("note"));
+        return ResponseEntity.ok().build();
+    }
 }

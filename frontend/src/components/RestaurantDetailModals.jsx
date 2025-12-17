@@ -119,83 +119,122 @@ export const OptionModal = ({
     </Modal>
 );
 
-/** Modal: Chọn combo cần TRỪ khi 1 món có >= 2 options khác nhau */
+/** Modal: Quản lý combo (tăng / giảm / chỉnh số lượng / thêm option mới) */
 export const DecreaseComboModal = ({
                                        open,
                                        product,
                                        cartItemsByProduct,
                                        formatPrice,
                                        addingProductId,
-                                       onDecreaseOne,   // (cartItem) => void
+
+                                       onIncreaseOne,        // (cartItem) => void
+                                       onDecreaseOne,        // (cartItem) => void
+                                       onUpdateQuantity,     // (cartItem, quantity) => void
+                                       onAddNewOption,       // () => void
                                        onClose,
                                    }) => (
     <Modal
         open={open}
         title={
             product
-                ? `Giảm số lượng "${product.name}"`
-                : 'Chọn combo cần trừ'
+                ? `Quản lý "${product.name}"`
+                : 'Quản lý combo'
         }
         onCancel={onClose}
         footer={null}
     >
-        {product ? (
-            (() => {
-                const productItems = cartItemsByProduct[product.id] || [];
-                if (!productItems.length) {
-                    return <p>Không tìm thấy combo nào cho món này.</p>;
-                }
-                return (
-                    <div className="option-modal-body">
-                        {productItems.map((item) => {
-                            const optionText =
-                                item.options && item.options.length
-                                    ? item.options
-                                        .map((o) =>
-                                            o.attributeName
-                                                ? `${o.attributeName}: ${o.value}`
-                                                : o.value
-                                        )
-                                        .join(', ')
-                                    : 'Không có tuỳ chọn';
+        {product ? (() => {
+            const productItems = cartItemsByProduct[product.id] || [];
+            if (!productItems.length) {
+                return <p>Không tìm thấy combo nào cho món này.</p>;
+            }
 
-                            return (
-                                <div
-                                    key={item.itemId}
-                                    className="option-group"
-                                    style={{ marginBottom: 8 }}
-                                >
-                                    <div className="option-group-header">
-                                        <span className="option-group-title">
-                                            {optionText}
-                                        </span>
-                                        <span className="option-group-type">
-                                            x{item.quantity} – {formatPrice(item.unitPrice)}
-                                            /phần
-                                        </span>
-                                    </div>
-                                    <div className="option-items">
-                                        <button
-                                            type="button"
-                                            className="option-item"
-                                            onClick={() => onDecreaseOne(item)}
-                                            disabled={addingProductId === item.productId}
-                                        >
-                                            <span className="option-item-label">
-                                                Bỏ lựa chọn
-                                            </span>
-                                            <span className="option-item-price">
-                                                −{formatPrice(item.unitPrice)}
-                                            </span>
-                                        </button>
-                                    </div>
+            return (
+                <div className="option-modal-body">
+                    {productItems.map((item) => {
+                        const optionText =
+                            item.options && item.options.length
+                                ? item.options
+                                    .map((o) =>
+                                        o.attributeName
+                                            ? `${o.attributeName}: ${o.value}`
+                                            : o.value
+                                    )
+                                    .join(', ')
+                                : 'Không có tuỳ chọn';
+
+                        return (
+                            <div
+                                key={item.itemId}
+                                className="option-group"
+                                style={{ marginBottom: 12 }}
+                            >
+                                <div className="option-group-header">
+                                    <span className="option-group-title">
+                                        {optionText}
+                                    </span>
+                                    <span className="option-group-type">
+                                        {formatPrice(item.unitPrice)} / phần
+                                    </span>
                                 </div>
-                            );
-                        })}
-                    </div>
-                );
-            })()
-        ) : (
+
+                                <div
+                                    className="option-items"
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 8,
+                                    }}
+                                >
+                                    <button
+                                        type="button"
+                                        className="menu-qty-btn"
+                                        onClick={() => onDecreaseOne(item)}
+                                        disabled={addingProductId === item.productId}
+                                    >
+                                        −
+                                    </button>
+
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        value={item.quantity}
+                                        onChange={(e) => {
+                                            const val = Number(e.target.value);
+                                            if (!val || val < 1) return;
+                                            onUpdateQuantity(item, val);
+                                        }}
+                                        className="combo-qty-input"
+                                    />
+
+                                    <button
+                                        type="button"
+                                        className="menu-qty-btn"
+                                        onClick={() => onIncreaseOne(item)}
+                                        disabled={addingProductId === item.productId}
+                                    >
+                                        +
+                                    </button>
+
+                                    <span style={{ marginLeft: 'auto', fontSize: '13', fontWeight: '500', color: '#8c8c8c' }}>
+                                        x{item.quantity}
+                                    </span>
+                                </div>
+                            </div>
+                        );
+                    })}
+
+                    <button
+                        type="button"
+                        className="btn-add-primary"
+                        style={{ width: '100%', marginTop: 12 }}
+                        onClick={onAddNewOption}
+                    >
+                        + Thêm lựa chọn mới
+                    </button>
+                </div>
+            );
+        })() : (
             <p>Đang tải dữ liệu...</p>
         )}
     </Modal>
