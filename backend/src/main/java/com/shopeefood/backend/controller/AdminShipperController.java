@@ -20,10 +20,12 @@ public class AdminShipperController {
     @GetMapping
     public ResponseEntity<List<ShipperPerformanceDTO>> getAllShippers(
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) Boolean status
+            @RequestParam(required = false) Boolean status,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate
     ) {
         // Truyền đủ 2 tham số xuống Service
-        return ResponseEntity.ok(adminShipperService.getShipperList(keyword, status));
+        return ResponseEntity.ok(adminShipperService.getShipperList(keyword, status, startDate, endDate));
     }
 
     @PutMapping("/{id}/toggle-status")
