@@ -38,9 +38,10 @@ public class CartController {
     @DeleteMapping("/items/{productId}")
     public ResponseEntity<?> removeItem(
             @RequestParam Integer accountId,
+            @RequestParam(required = false) Integer restaurantId,
             @PathVariable Integer productId
     ) {
-        return ResponseEntity.ok(cartService.removeItem(accountId, productId));
+        return ResponseEntity.ok(cartService.removeItem(accountId, restaurantId, productId));
     }
 
     // Xoá toàn bộ giỏ

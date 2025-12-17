@@ -35,7 +35,7 @@ const TARGET_OPTIONS = [
 
 const CATEGORY_BY_TARGET = {
     SYSTEM: [
-        { value: 'APP_BUG', label: 'Lỗi ứng dụng' },
+        { value: 'APP_BUG', label: 'Lỗi website' },
         { value: 'PAYMENT_PROBLEM', label: 'Vấn đề thanh toán' },
         { value: 'ACCOUNT_PROBLEM', label: 'Vấn đề tài khoản' },
         { value: 'PROMOTION_PROBLEM', label: 'Vấn đề khuyến mãi' },
@@ -85,7 +85,7 @@ const mapCategoryToDb = (uiCategory, targetType) => {
         return 'DELIVERY';
 
     // SYSTEM
-    if (targetType === 'SYSTEM') return 'OTHER';
+    if (targetType === 'SYSTEM') return 'SYSTEM';
 
     return 'OTHER';
 };
@@ -299,7 +299,10 @@ const CustomerIssueCreate = () => {
                 targetId: (needsOrder && values.targetType !== 'OTHER') ? (values.targetId || null) : null,
                 targetNote: null,
 
-                category: values.targetType === 'OTHER' ? 'OTHER' : dbCategory,
+                category:
+                    values.targetType === 'SYSTEM'
+                        ? 'SYSTEM'
+                        : (values.targetType === 'OTHER' ? 'OTHER' : dbCategory),
                 otherCategory:
                     (dbCategory === 'OTHER' && values.category === 'OTHER' && values.targetType !== 'OTHER')
                         ? (values.otherCategory || '').trim()
@@ -309,22 +312,24 @@ const CustomerIssueCreate = () => {
                 description: values.description?.trim(),
             };
 
-            const created = await createIssue(payload);
+            const created = await createIssue({
+                ...payload,
+                attachments: attachmentUrls.map((url) => ({
+                    attachmentUrl: url,
+                    content: 'Bằng chứng',
+                })),
+            });
 
-            if (attachmentUrls.length > 0) {
-                for (const url of attachmentUrls) {
-                    await addIssueAttachment(created.id, {
-                        accountId: user.id,
-                        attachmentUrl: url,
-                        content: 'Bằng chứng',
-                    });
-                }
-            }
 
             message.success('Đã gửi yêu cầu hỗ trợ/khiếu nại.');
             navigate('/support');
         } catch (error) {
-            const msg = error?.response?.data || 'Gửi yêu cầu thất bại.';
+            const data = error?.response?.data;
+            const msg =
+                (typeof data === 'string' && data) ||
+                data?.message ||
+                data?.error ||
+                'Gửi yêu cầu thất bại.';
             message.error(msg);
         } finally {
             setSubmitting(false);

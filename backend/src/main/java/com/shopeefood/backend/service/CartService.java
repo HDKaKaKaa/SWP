@@ -220,15 +220,22 @@ public class CartService {
     @Transactional
     public CartResponse updateItem(UpdateCartItemRequest request) {
 
-        Order order = orderRepository
-                .findFirstByCustomerIdAndStatus(request.getAccountId(), CART_STATUS)
+        Integer accountId = request.getAccountId();
+        Integer restaurantId = request.getRestaurantId();
+
+        Order order = (restaurantId != null)
+                ? orderRepository
+                .findFirstByCustomerIdAndRestaurantIdAndStatus(accountId, restaurantId, CART_STATUS)
+                .orElseThrow(() -> new RuntimeException("Cart not found"))
+                : orderRepository
+                .findFirstByCustomerIdAndStatus(accountId, CART_STATUS)
                 .orElseThrow(() -> new RuntimeException("Cart not found"));
 
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new RuntimeException("Product not found"));
 
         if (request.getQuantity() == null || request.getQuantity() <= 0) {
-            return removeItem(request.getAccountId(), request.getProductId());
+            return removeItem(accountId, restaurantId, request.getProductId()); // đổi sang hàm mới
         }
 
         List<OrderItem> items = orderItemRepository.findAllByOrderAndProduct(order, product);
@@ -237,7 +244,6 @@ public class CartService {
             throw new RuntimeException("Cart item not found");
         }
         if (items.size() > 1) {
-            // Có nhiều combo options cho cùng 1 product -> phải dùng itemId
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "MULTIPLE_ITEMS_FOR_PRODUCT_USE_ITEM_ID"
@@ -295,6 +301,51 @@ public class CartService {
 
         recalcTotals(order);
 
+        return mapToCartResponse(loadOrder(order.getId()));
+    }
+
+    @Transactional
+    public CartResponse removeItem(Integer accountId, Integer restaurantId, Integer productId) {
+
+        Order order = (restaurantId != null)
+                ? orderRepository
+                .findFirstByCustomerIdAndRestaurantIdAndStatus(accountId, restaurantId, CART_STATUS)
+                .orElseThrow(() -> new RuntimeException("Cart not found"))
+                : orderRepository
+                .findFirstByCustomerIdAndStatus(accountId, CART_STATUS)
+                .orElseThrow(() -> new RuntimeException("Cart not found"));
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        List<OrderItem> items = orderItemRepository.findAllByOrderAndProduct(order, product);
+
+        if (items.isEmpty()) {
+            throw new RuntimeException("Cart item not found");
+        }
+        if (items.size() > 1) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "MULTIPLE_ITEMS_FOR_PRODUCT_USE_ITEM_ID"
+            );
+        }
+
+        OrderItem item = items.get(0);
+        orderItemRepository.delete(item);
+
+        List<OrderItem> remain = orderItemRepository.findByOrder(order);
+
+        if (remain.isEmpty()) {
+            orderRepository.delete(order);
+            CartResponse res = new CartResponse();
+            res.setItems(List.of());
+            res.setSubtotal(BigDecimal.ZERO);
+            res.setShippingFee(DEFAULT_SHIPPING_FEE);
+            res.setTotal(DEFAULT_SHIPPING_FEE);
+            return res;
+        }
+
+        recalcTotals(order);
         return mapToCartResponse(loadOrder(order.getId()));
     }
 

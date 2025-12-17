@@ -564,6 +564,41 @@
     font-weight: 600;
 }
 
+/* ===== Combo modal: input số lượng ở giữa +/- ===== */
+.combo-qty-input {
+    width: 52px;
+    height: 32px;
+    text-align: center;
+
+    background: #fff !important;
+    color: #111 !important;
+
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+
+    font-weight: 600;
+    font-size: 14px;
+
+    outline: none;
+    box-shadow: none;
+}
+
+/* bỏ nút mũi tên của input number */
+.combo-qty-input::-webkit-outer-spin-button,
+.combo-qty-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.combo-qty-input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+/* nếu bị css global làm input tối màu trong modal thì ép lại */
+.option-modal-body .combo-qty-input {
+    background: #fff !important;
+    color: #111 !important;
+}
+
 
 /* ================== Responsive ================== */
 

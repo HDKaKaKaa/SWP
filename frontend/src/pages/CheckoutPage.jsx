@@ -3,10 +3,10 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { getCart } from "../services/cartService";
 import { getCustomerProfile } from "../services/customerService";
-import { simulatePaymentSuccess } from "../services/paymentService";
+import { createVnpayPaymentUrl } from "../services/paymentService";
+import { updateOrderNote } from "../services/orderService.js";
 import { MdRestaurant } from "react-icons/md";
 import { FaCreditCard, FaUserCheck } from "react-icons/fa";
-import { message } from "antd";
 import "../css/CheckoutPage.css";
 
 const CheckoutPage = () => {
@@ -15,10 +15,11 @@ const CheckoutPage = () => {
     const location = useLocation();
 
     // Nhận từ CartPage
-    const { cartId: initialCartId, restaurantId: initialRestaurantId } = location.state || {};
+    const { cartId: initialCartId, restaurantId: initialRestaurantId, note: initialNote } = location.state || {};
 
     const [cartId] = useState(initialCartId || null);
     const [restaurantId] = useState(initialRestaurantId || null);
+    const [note] = useState(initialNote || '');
 
     const [cart, setCart] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -222,8 +223,33 @@ const CheckoutPage = () => {
     //     }
     // };
 
-    // ===== Nút Giả Lập Thanh toán thành công =====
-    const handleSimulatePaySuccess = async () => {
+    // // ===== Nút Giả Lập Thanh toán (chuyển sang màn giả lập giống thật) =====
+    // const handleSimulatePaySuccess = async () => {
+    //     if (!user) {
+    //         navigate("/login");
+    //         return;
+    //     }
+    //     if (!cart || !cart.items || cart.items.length === 0) return;
+    //
+    //     const orderId = cart.orderId || cart.order?.id || cart.id || cartId;
+    //
+    //     if (!orderId) {
+    //         setError("Không tìm thấy mã đơn hàng (orderId) để giả lập thanh toán.");
+    //         return;
+    //     }
+    //
+    //     // CHUYỂN SANG MÀN MOCK PAYMENT (không gọi simulate ở đây nữa)
+    //     navigate("/mock-payment", {
+    //         state: {
+    //             orderId,
+    //             amount: Number(total) || 0,
+    //             restaurantName: cart.restaurantName || "Quán ăn",
+    //         },
+    //     });
+    // };
+
+    // ===== Nút Thanh toán VNPay Sandbox =====
+    const handlePayWithVnpaySandbox = async () => {
         if (!user) {
             navigate("/login");
             return;
@@ -231,9 +257,8 @@ const CheckoutPage = () => {
         if (!cart || !cart.items || cart.items.length === 0) return;
 
         const orderId = cart.orderId || cart.order?.id || cart.id || cartId;
-
         if (!orderId) {
-            setError("Không tìm thấy mã đơn hàng (orderId) để giả lập thanh toán.");
+            setError("Không tìm thấy mã đơn hàng (orderId) để thanh toán VNPay.");
             return;
         }
 
@@ -241,30 +266,23 @@ const CheckoutPage = () => {
             setProcessing(true);
             setError(null);
 
-            await simulatePaymentSuccess(orderId);
+            await updateOrderNote(orderId, note)
 
-            // === TẠO orderCode ĐÚNG FORMAT BACKEND ===
-            const today = new Date();
-            const yyyyMMdd = today.toISOString().slice(0, 10).replace(/-/g, "");
-
-            const paddedId = orderId.toString().padStart(4, "0");
-
-            const fakeOrderCode = `FO${yyyyMMdd}${paddedId}`;
-
-            message.success("Thanh toán giả lập thành công!");
-
-            // Điều hướng sang OrderSuccessPage với orderCode đúng chuẩn
-            navigate(`/order-success?code=00&orderCode=${fakeOrderCode}`);
+            const data = await createVnpayPaymentUrl(orderId);
+            if (data && data.paymentUrl) {
+                window.location.href = data.paymentUrl;
+            } else {
+                setError("Không nhận được paymentUrl từ VNPay.");
+            }
         } catch (e) {
             console.error(e);
-            setError("Không giả lập được thanh toán. Kiểm tra lại backend.");
+            setError("Không khởi tạo được thanh toán VNPay.");
         } finally {
             setProcessing(false);
         }
     };
 
-
-            // ========== Render các trạng thái ==========
+    // ========== Render các trạng thái ==========
 
     if (!user) {
         return (
@@ -422,11 +440,11 @@ const CheckoutPage = () => {
                                         <div>
                                             <div className="checkout-payment-title">
                                                 <FaCreditCard className="checkout-payment-icon" />
-                                                <span>Thanh toán qua PayOS</span>
+                                                <span>Thanh toán qua VNPay</span>
                                             </div>
                                             <div className="checkout-payment-desc">
                                                 Dự án demo chỉ hỗ trợ thanh toán online
-                                                qua PayOS.
+                                                qua VNPay.
                                             </div>
                                         </div>
                                     </div>
@@ -524,13 +542,24 @@ const CheckoutPage = () => {
                             {/*</button>*/}
 
                             {/* Nút DEV: giả lập thanh toán thành công */}
+                            {/*<button*/}
+                            {/*    type="button"*/}
+                            {/*    className="checkout-pay-btn checkout-pay-btn-simulate"*/}
+                            {/*    onClick={handleSimulatePaySuccess}*/}
+                            {/*    disabled={processing}*/}
+                            {/*>*/}
+                            {/*    Giả lập thanh toán thành công (dev)*/}
+                            {/*</button>*/}
+
+                            {/* VNPay Sandbox */}
                             <button
                                 type="button"
-                                className="checkout-pay-btn checkout-pay-btn-simulate"
-                                onClick={handleSimulatePaySuccess}
+                                className="checkout-pay-btn"
+                                onClick={handlePayWithVnpaySandbox}
                                 disabled={processing}
+                                style={{ marginTop: 10 }}
                             >
-                                Giả lập thanh toán thành công (dev)
+                                {processing ? "Đang chuyển sang VNPay..." : `Thanh toán VNPay (sandbox) - ${formatPrice(total)}`}
                             </button>
 
                             {error && (
