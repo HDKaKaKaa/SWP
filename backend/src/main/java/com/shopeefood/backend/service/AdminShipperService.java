@@ -35,12 +35,13 @@ public class AdminShipperService {
     private OrderRepository orderRepository; // <--- INJECT THÊM ORDER REPO
 
     // 1. Lấy danh sách thống kê (CẬP NHẬT: Nhận tham số Filter)
-    public List<ShipperPerformanceDTO> getShipperList(String keyword, Boolean status) {
-        // Xử lý keyword null hoặc rỗng
+    public List<ShipperPerformanceDTO> getShipperList(String keyword, Boolean status, LocalDate startDate, LocalDate endDate) {
         String searchKey = (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim().toLowerCase() : null;
 
-        // Gọi xuống Repository có tham số (Đảm bảo ShipperRepository đã có hàm này như các bước trước)
-        return shipperRepository.getShipperPerformance(searchKey, status);
+        LocalDateTime start = (startDate != null) ? startDate.atStartOfDay() : null;
+        LocalDateTime end = (endDate != null) ? endDate.atTime(LocalTime.MAX) : null;
+
+        return shipperRepository.getShipperPerformance(searchKey, status, start, end);
     }
 
     // 2. Khóa / Mở khóa tài khoản Shipper (CẬP NHẬT: Thêm logic chặn khóa)

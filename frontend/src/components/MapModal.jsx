@@ -466,8 +466,8 @@ const MapModal = ({
                         style={{ height: '100%', width: '100%' }}
                     >
                         <TileLayer
-                            attribution="&copy; OpenStreetMap contributors"
-                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            attribution='&copy; Google Maps'
+                            url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=vi&gl=VN"
                         />
                         <ZoomControl position="bottomright" />
                         <MapBoundsListener onBoundsChange={setMapBounds} />

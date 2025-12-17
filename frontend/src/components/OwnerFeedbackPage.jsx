@@ -296,7 +296,7 @@ const OwnerFeedbackPage = () => {
             sortDirections: ['descend', 'ascend'],
             align: 'center',
             render: (rating) => (
-                <Rate disabled defaultValue={rating} count={5} character={<StarFilled />} style={{ fontSize: 11 }} />
+                <Rate disabled defaultValue={rating} count={5} character={<StarFilled />} style={{ fontSize: 1 }} />
             ),
         },
         {
