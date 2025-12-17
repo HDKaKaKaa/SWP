@@ -17,11 +17,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import com.shopeefood.backend.service.EmailService;
+import com.shopeefood.backend.service.AuthService;
 
 @RestController
 @RequestMapping("/api/auth")
 @CrossOrigin(origins = "http://localhost:5173")
 public class AuthController {
+
+    @Autowired
+    private AuthService authService;
 
     @Autowired
     private EmailService emailService;
@@ -81,36 +85,12 @@ public class AuthController {
     // 2. Đăng ký
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
-        if (accountRepository.findByUsername(request.getUsername()).isPresent()) {
-            return ResponseEntity.badRequest().body("Username đã tồn tại");
-        }
-
-        if (accountRepository.existsByEmail(request.getEmail())) {
-            return ResponseEntity.badRequest().body("Email này đã được sử dụng bởi tài khoản khác!");
-        }
-
-        if (request.getPhone() != null && accountRepository.existsByPhone(request.getPhone())) {
-            return ResponseEntity.badRequest().body("Số điện thoại này đã được đăng ký!");
-        }
-
         try {
-            Account newAcc = new Account();
-            newAcc.setUsername(request.getUsername());
-            newAcc.setPassword(passwordEncoder.encode(request.getPassword()));
-            newAcc.setEmail(request.getEmail());
-            newAcc.setPhone(request.getPhone());
-            newAcc.setRole("CUSTOMER");
-
-            Account savedAccount = accountRepository.save(newAcc);
-
-            Customer newCustomer = new Customer();
-            newCustomer.setAccountId(savedAccount.getId());
-            newCustomer.setFullName(request.getFullName());
-
-            customerRepository.save(newCustomer);
-
+            authService.registerCustomer(request);
             return ResponseEntity.ok("Đăng ký thành công! Hãy đăng nhập ngay.");
-
+        } catch (RuntimeException e) {
+            // Các lỗi như "Username đã tồn tại" sẽ rơi vào đây
+            return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().body("Lỗi hệ thống: " + e.getMessage());
