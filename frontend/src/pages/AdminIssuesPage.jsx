@@ -28,8 +28,8 @@ import { useAuth } from '../context/AuthContext';
 import {
     listIssues,
     getIssueDetail,
-    addIssueMessage,
     adminCreditDecision,
+    replyAction,
 } from '../services/issueService';
 
 import '../css/AdminIssuesPage.css';
@@ -37,22 +37,24 @@ import '../css/AdminIssuesPage.css';
 const { Title, Text } = Typography;
 
 const STATUS_META = {
+    OPEN: { color: 'default', label: 'Mới tạo' },
     NEED_ADMIN_ACTION: { color: 'orange', label: 'Cần Admin xử lý' },
-    WAITING_OWNER: { color: 'blue', label: 'Chờ Chủ quán' },
+    NEED_OWNER_ACTION: { color: 'blue', label: 'Cần Chủ quán xử lý' },
+    NEED_SHIPPER_RESPONSE: { color: 'blue', label: 'Chờ Shipper phản hồi' },
     RESOLVED: { color: 'green', label: 'Đã giải quyết' },
     REJECTED: { color: 'red', label: 'Từ chối' },
     CLOSED: { color: 'default', label: 'Đã đóng' },
-    OPEN: { color: 'default', label: 'Mới tạo' },
     IN_PROGRESS: { color: 'blue', label: 'Đang xử lý' },
 };
 
 const CATEGORY_LABEL = {
+    FOOD: 'Chất lượng món',
+    ITEM: 'Vấn đề món / thiếu / sai',
+    RESTAURANT: 'Vấn đề quán ăn',
     DELIVERY: 'Vấn đề giao hàng',
     SHIPPER_BEHAVIOR: 'Thái độ shipper',
-    FOOD_QUALITY: 'Chất lượng món',
-    MISSING_ITEM: 'Thiếu món',
-    WRONG_ITEM: 'Sai món',
-    PAYMENT: 'Thanh toán',
+    SAFETY: 'An toàn',
+    MIXED: 'Nhiều vấn đề',
     SYSTEM: 'Hệ thống',
     OTHER: 'Khác',
 };
@@ -91,7 +93,7 @@ const toStatusTag = (status) => {
 
 const toCategoryText = (cat, otherCategory) => {
     const base = CATEGORY_LABEL[cat] || cat || '—';
-    if (cat === 'OTHER' && otherCategory) return `${base} • ${otherCategory}`;
+    if ((cat || '').toUpperCase() === 'OTHER' && otherCategory) return `${base} • ${otherCategory}`;
     return base;
 };
 
@@ -109,10 +111,12 @@ const AdminIssuesPage = () => {
     // detail modal
     const [open, setOpen] = useState(false);
     const [detailLoading, setDetailLoading] = useState(false);
-    const [detail, setDetail] = useState(null); // { issue, events }
+    const [detail, setDetail] = useState(null); // { issue, events, orderSummary? }
+
     const issue = detail?.issue || null;
     const events = detail?.events || [];
     const orderSummary = detail?.orderSummary || null;
+
     const orderTotal = orderSummary?.totalAmount != null ? Number(orderSummary.totalAmount) : null;
     const orderShip = orderSummary?.shippingFee != null ? Number(orderSummary.shippingFee) : null;
 
@@ -123,8 +127,6 @@ const AdminIssuesPage = () => {
     // admin credit
     const [creditForm] = Form.useForm();
     const [crediting, setCrediting] = useState(false);
-
-    const [submitting, setSubmitting] = useState(false);
 
     const fetchIssues = async () => {
         if (!user?.id) return;
@@ -169,18 +171,30 @@ const AdminIssuesPage = () => {
         });
     }, [issues, q, status, targetType]);
 
+    // chỉ allow credit với case giao hàng/shipper (tuỳ business bạn muốn)
     const isAdminCreditAllowed = (it) => {
         if (!it) return false;
-        if (it.targetType === 'SHIPPER') return true;
-        if (it.category === 'DELIVERY' || it.category === 'SHIPPER_BEHAVIOR') return true;
-        if (it.targetType === 'ORDER') return true;
+        const cat = String(it.category || '').toUpperCase();
+        const tt = String(it.targetType || '').toUpperCase();
+        return tt === 'SHIPPER' || cat === 'DELIVERY' || cat === 'SHIPPER_BEHAVIOR' || cat === 'SAFETY';
+    };
+
+    // allow reply cho: SYSTEM/OTHER + delivery/shipper
+    const isAdminReplyAllowed = (it) => {
+        if (!it) return false;
+        const cat = String(it.category || '').toUpperCase();
+        const tt = String(it.targetType || '').toUpperCase();
+
+        if (tt === 'SYSTEM' || tt === 'OTHER') return true;
+        if (tt === 'SHIPPER') return true;
+        if (cat === 'DELIVERY' || cat === 'SHIPPER_BEHAVIOR' || cat === 'SAFETY') return true;
+
         return false;
     };
 
     const attachments = useMemo(() => {
-        // Backend lưu attachment trong issue_events (eventType = ATTACHMENT)
         return (events || [])
-            .filter((e) => (e.eventType || '').toUpperCase() === 'ATTACHMENT' && e.attachmentUrl)
+            .filter((e) => (String(e.eventType || '').toUpperCase() === 'ATTACHMENT') && e.attachmentUrl)
             .map((e) => ({
                 id: e.id,
                 url: e.attachmentUrl,
@@ -188,6 +202,18 @@ const AdminIssuesPage = () => {
                 createdAt: e.createdAt,
             }));
     }, [events]);
+
+    const shouldShowOrderSummary = useMemo(() => {
+        if (!issue) return false;
+        const tt = String(issue.targetType || '').toUpperCase();
+        // SYSTEM/OTHER thì ẩn
+        if (tt === 'SYSTEM' || tt === 'OTHER') return false;
+        // không có orderId thì ẩn
+        if (!issue.orderId) return false;
+        // có thể backend không trả orderSummary => vẫn ẩn cho chắc
+        if (!orderSummary) return false;
+        return true;
+    }, [issue, orderSummary]);
 
     const openDetail = async (row) => {
         if (!user?.id) return;
@@ -202,8 +228,6 @@ const AdminIssuesPage = () => {
             setDetail(data);
 
             const i = data?.issue;
-
-            // NOTE: adminCreditStatus mặc định "NONE" (truthy) => đừng dùng !!i.adminCreditStatus để disable
             const presetDecision =
                 i?.adminCreditStatus && i.adminCreditStatus !== 'NONE'
                     ? i.adminCreditStatus
@@ -235,88 +259,7 @@ const AdminIssuesPage = () => {
         setDetail(data);
     };
 
-    const handleSubmitAll = async () => {
-        if (!user?.id || !issue?.id) return;
-
-        const content = (replyText || '').trim();
-        if (!content) {
-            message.warning('Vui lòng nhập nội dung phản hồi.');
-            return;
-        }
-
-        try {
-            const values = await creditForm.validateFields();
-
-            if (values.decision === 'APPROVED') {
-                if (values.amount == null || Number(values.amount) < 0) {
-                    message.error('Số tiền hoàn phải >= 0.');
-                    return;
-                }
-                if (orderTotal != null && Number(values.amount) > orderTotal) {
-                    message.error(`Số tiền hoàn không được vượt quá tổng thanh toán (${fmtMoney(orderTotal)}).`);
-                    return;
-                }
-            }
-
-            const hadDecision = issue?.adminCreditStatus && issue.adminCreditStatus !== 'NONE';
-
-            Modal.confirm({
-                title: 'Gửi xử lý issue',
-                okText: 'Gửi',
-                cancelText: 'Huỷ',
-                content: (
-                    <div className="admin-credit-confirm">
-                        <div><b>Mã:</b> {issue.code}</div>
-                        <div><b>Quyết định:</b> {values.decision === 'APPROVED' ? 'Duyệt hoàn/Credit' : 'Từ chối hoàn'}</div>
-                        <div><b>Số tiền:</b> {values.decision === 'APPROVED' ? fmtMoney(values.amount) : '—'}</div>
-                        <div><b>Phản hồi:</b> {content}</div>
-                        {hadDecision && (
-                            <div style={{ marginTop: 8 }}>
-                                <Text type="secondary">
-                                    Issue này đã có quyết định trước đó ({issue.adminCreditStatus}). Thao tác này sẽ ghi đè và tạo log event mới.
-                                </Text>
-                            </div>
-                        )}
-                    </div>
-                ),
-                onOk: async () => {
-                    try {
-                        setSubmitting(true);
-
-                        // 1) update credit/refund decision
-                        await adminCreditDecision(issue.id, {
-                            accountId: user.id,
-                            decision: values.decision,
-                            amount: values.decision === 'APPROVED' ? values.amount : null,
-                            note: (values.note || '').trim() || null,
-                        });
-
-                        // 2) send admin message
-                        await addIssueMessage(issue.id, {
-                            accountId: user.id,
-                            content,
-                        });
-
-                        message.success('Đã gửi xử lý.');
-                        setReplyText('');
-                        creditForm.setFieldsValue({ note: '' });
-
-                        await refreshDetail();
-                        await fetchIssues();
-                    } catch (err) {
-                        console.error(err);
-                        const msg = err?.response?.data || 'Gửi xử lý thất bại.';
-                        message.error(msg);
-                    } finally {
-                        setSubmitting(false);
-                    }
-                },
-            });
-        } catch {
-            // validateFields already show errors
-        }
-    };
-
+    // Reply xong: tự chuyển trạng thái RESOLVED (đúng yêu cầu bạn nói)
     const handleReply = async () => {
         if (!user?.id || !issue?.id) return;
         const content = (replyText || '').trim();
@@ -327,14 +270,27 @@ const AdminIssuesPage = () => {
 
         try {
             setReplying(true);
-            await addIssueMessage(issue.id, { accountId: user.id, content });
-            message.success('Đã gửi phản hồi.');
+
+            await replyAction(issue.id, {
+                accountId: user.id,
+                message: content,
+                newStatus: 'RESOLVED',
+                statusReason: 'Admin đã phản hồi (giả lập xử lý xong)',
+            });
+
+            message.success('Đã gửi phản hồi và cập nhật trạng thái.');
             setReplyText('');
+
             await refreshDetail();
             await fetchIssues();
         } catch (err) {
             console.error(err);
-            const msg = err?.response?.data || 'Gửi phản hồi thất bại.';
+            const data = err?.response?.data;
+            const msg =
+                (typeof data === 'string' && data) ||
+                data?.message ||
+                data?.error ||
+                'Gửi phản hồi thất bại.';
             message.error(msg);
         } finally {
             setReplying(false);
@@ -385,7 +341,7 @@ const AdminIssuesPage = () => {
 
                         await adminCreditDecision(issue.id, {
                             accountId: user.id,
-                            decision: values.decision, // APPROVED / REJECTED
+                            decision: values.decision,
                             amount: values.decision === 'APPROVED' ? values.amount : null,
                             note: (values.note || '').trim() || null,
                         });
@@ -395,7 +351,12 @@ const AdminIssuesPage = () => {
                         await fetchIssues();
                     } catch (err) {
                         console.error(err);
-                        const msg = err?.response?.data || 'Thao tác admin credit thất bại.';
+                        const data = err?.response?.data;
+                        const msg =
+                            (typeof data === 'string' && data) ||
+                            data?.message ||
+                            data?.error ||
+                            'Thao tác admin credit thất bại.';
                         message.error(msg);
                     } finally {
                         setCrediting(false);
@@ -433,7 +394,7 @@ const AdminIssuesPage = () => {
             title: 'Danh mục',
             dataIndex: 'category',
             key: 'category',
-            width: 170,
+            width: 190,
             render: (_, row) => <Text>{toCategoryText(row.category, row.otherCategory)}</Text>,
         },
         {
@@ -476,7 +437,7 @@ const AdminIssuesPage = () => {
                     <div>
                         <Title level={3} className="admin-issues-title">Quản lý Khiếu nại (Admin)</Title>
                         <Text type="secondary">
-                            Admin tiếp nhận, phản hồi và xử lý credit/refund (giả lập DB) cho case shipper/delivery.
+                            Admin tiếp nhận, phản hồi và xử lý credit/refund (giả lập DB).
                         </Text>
                     </div>
 
@@ -503,13 +464,14 @@ const AdminIssuesPage = () => {
                         className="admin-issues-filter"
                         options={[
                             { value: 'ALL', label: 'Tất cả trạng thái' },
+                            { value: 'OPEN', label: 'Mới tạo' },
                             { value: 'NEED_ADMIN_ACTION', label: 'Cần Admin xử lý' },
-                            { value: 'WAITING_OWNER', label: 'Chờ Chủ quán' },
+                            { value: 'NEED_OWNER_ACTION', label: 'Cần Chủ quán xử lý' },
+                            { value: 'NEED_SHIPPER_RESPONSE', label: 'Chờ Shipper phản hồi' },
+                            { value: 'IN_PROGRESS', label: 'Đang xử lý' },
                             { value: 'RESOLVED', label: 'Đã giải quyết' },
                             { value: 'REJECTED', label: 'Từ chối' },
                             { value: 'CLOSED', label: 'Đã đóng' },
-                            { value: 'OPEN', label: 'Mới tạo' },
-                            { value: 'IN_PROGRESS', label: 'Đang xử lý' },
                         ]}
                     />
 
@@ -580,31 +542,35 @@ const AdminIssuesPage = () => {
                                 </Descriptions.Item>
                             </Descriptions>
 
-                            {/* ORDER SUMMARY */}
-                            <Divider />
-                            <Text strong>Thông tin đơn hàng</Text>
+                            {/* ORDER SUMMARY: chỉ hiện khi có orderSummary + không phải SYSTEM/OTHER */}
+                            {shouldShowOrderSummary && (
+                                <>
+                                    <Divider />
+                                    <Text strong>Thông tin đơn hàng</Text>
 
-                            <Descriptions bordered size="small" column={2} style={{ marginTop: 8 }}>
-                                <Descriptions.Item label="Mã đơn">
-                                    {orderSummary?.orderNumber || (issue.orderId ? `#${issue.orderId}` : '—')}
-                                </Descriptions.Item>
-                                <Descriptions.Item label="Trạng thái đơn">
-                                    {orderSummary?.status || '—'}
-                                </Descriptions.Item>
+                                    <Descriptions bordered size="small" column={2} style={{ marginTop: 8 }}>
+                                        <Descriptions.Item label="Mã đơn">
+                                            {orderSummary?.orderNumber || (issue.orderId ? `#${issue.orderId}` : '—')}
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="Trạng thái đơn">
+                                            {orderSummary?.status || '—'}
+                                        </Descriptions.Item>
 
-                                <Descriptions.Item label="Tổng món (subtotal)">
-                                    {orderSummary?.subtotal != null ? fmtMoney(orderSummary.subtotal) : '—'}
-                                </Descriptions.Item>
-                                <Descriptions.Item label="Phí ship">
-                                    {orderSummary?.shippingFee != null ? fmtMoney(orderSummary.shippingFee) : '—'}
-                                </Descriptions.Item>
+                                        <Descriptions.Item label="Tổng món (subtotal)">
+                                            {orderSummary?.subtotal != null ? fmtMoney(orderSummary.subtotal) : '—'}
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="Phí ship">
+                                            {orderSummary?.shippingFee != null ? fmtMoney(orderSummary.shippingFee) : '—'}
+                                        </Descriptions.Item>
 
-                                <Descriptions.Item label="Tổng thanh toán" span={2}>
-                                    <Text strong>{orderTotal != null ? fmtMoney(orderTotal) : '—'}</Text>
-                                </Descriptions.Item>
-                            </Descriptions>
+                                        <Descriptions.Item label="Tổng thanh toán" span={2}>
+                                            <Text strong>{orderTotal != null ? fmtMoney(orderTotal) : '—'}</Text>
+                                        </Descriptions.Item>
+                                    </Descriptions>
+                                </>
+                            )}
 
-                            {/* ẢNH BẰNG CHỨNG: LẤY TỪ EVENTS (ATTACHMENT) */}
+                            {/* ẢNH: lấy từ events */}
                             {attachments.length > 0 && (
                                 <>
                                     <Divider />
@@ -624,7 +590,7 @@ const AdminIssuesPage = () => {
                                 </>
                             )}
 
-                            {/* ADMIN CREDIT ACTION */}
+                            {/* ADMIN CREDIT */}
                             {isAdminCreditAllowed(issue) && (
                                 <>
                                     <Divider />
@@ -661,7 +627,6 @@ const AdminIssuesPage = () => {
                                                 />
                                             </Form.Item>
 
-                                            {/* QUICK AMOUNT BUTTONS */}
                                             <div style={{ marginBottom: 10 }}>
                                                 <Space wrap>
                                                     <Button
@@ -673,7 +638,6 @@ const AdminIssuesPage = () => {
                                                     >
                                                         10%
                                                     </Button>
-
                                                     <Button
                                                         size="small"
                                                         onClick={() => {
@@ -683,7 +647,6 @@ const AdminIssuesPage = () => {
                                                     >
                                                         20%
                                                     </Button>
-
                                                     <Button
                                                         size="small"
                                                         onClick={() => {
@@ -693,7 +656,6 @@ const AdminIssuesPage = () => {
                                                     >
                                                         30%
                                                     </Button>
-
                                                     <Button
                                                         size="small"
                                                         onClick={() => {
@@ -703,7 +665,6 @@ const AdminIssuesPage = () => {
                                                     >
                                                         50%
                                                     </Button>
-
                                                     <Button
                                                         size="small"
                                                         onClick={() => {
@@ -713,7 +674,6 @@ const AdminIssuesPage = () => {
                                                     >
                                                         100%
                                                     </Button>
-
                                                     <Button
                                                         size="small"
                                                         onClick={() => {
@@ -724,14 +684,12 @@ const AdminIssuesPage = () => {
                                                         Hoàn phí ship
                                                     </Button>
                                                 </Space>
-
                                                 <div style={{ marginTop: 6 }}>
                                                     <Text type="secondary">
                                                         Gợi ý: hoàn theo % dựa trên <b>tổng thanh toán</b> hoặc hoàn <b>phí ship</b>.
                                                     </Text>
                                                 </div>
                                             </div>
-
 
                                             <Form.Item noStyle shouldUpdate={(prev, next) => prev.decision !== next.decision}>
                                                 {({ getFieldValue }) => {
@@ -761,43 +719,57 @@ const AdminIssuesPage = () => {
                                             <Form.Item label="Ghi chú (optional)" name="note">
                                                 <Input.TextArea
                                                     rows={3}
-                                                    placeholder="Ví dụ: Hoàn phí giao hàng do shipper làm đổ nước"
                                                     maxLength={500}
                                                     showCount
                                                     disabled={crediting || detailLoading}
                                                 />
                                             </Form.Item>
                                         </Form>
+
+                                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                            <Button
+                                                icon={<DollarOutlined />}
+                                                loading={crediting}
+                                                disabled={detailLoading || replying}
+                                                onClick={handleAdminCredit}
+                                            >
+                                                Refund/Credit
+                                            </Button>
+                                        </div>
                                     </div>
                                 </>
                             )}
 
                             {/* ADMIN REPLY */}
-                            <Divider />
-                            <div className="admin-issue-reply">
-                                <Text strong>Phản hồi của Admin</Text>
-                                <Input.TextArea
-                                    rows={4}
-                                    value={replyText}
-                                    onChange={(e) => setReplyText(e.target.value)}
-                                    placeholder="Nhập phản hồi cho người dùng..."
-                                    maxLength={800}
-                                    showCount
-                                    disabled={detailLoading}
-                                />
-                                <Divider />
-                                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                    <Button
-                                        type="primary"
-                                        icon={<SendOutlined />}
-                                        loading={submitting}
-                                        disabled={detailLoading || crediting || replying}
-                                        onClick={handleSubmitAll}
-                                    >
-                                        Gửi phản hồi
-                                    </Button>
-                                </div>
-                            </div>
+                            {isAdminReplyAllowed(issue) && (
+                                <>
+                                    <Divider />
+                                    <div className="admin-issue-reply">
+                                        <Text strong>Phản hồi của Admin</Text>
+                                        <Input.TextArea
+                                            rows={4}
+                                            value={replyText}
+                                            onChange={(e) => setReplyText(e.target.value)}
+                                            placeholder="Nhập phản hồi cho người dùng..."
+                                            maxLength={800}
+                                            showCount
+                                            disabled={detailLoading}
+                                        />
+                                        <Divider />
+                                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                                            <Button
+                                                type="primary"
+                                                icon={<SendOutlined />}
+                                                loading={replying}
+                                                disabled={detailLoading || crediting || !isAdminReplyAllowed(issue)}
+                                                onClick={handleReply}
+                                            >
+                                                Gửi phản hồi
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
 
                             {/* Timeline */}
                             {events?.length > 0 && (

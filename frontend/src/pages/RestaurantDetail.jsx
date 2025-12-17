@@ -5,9 +5,7 @@ import { getRestaurantById, getProductsByRestaurant } from '../services/restaura
 import {
     getCart,
     addCartItem,
-    updateCartItemByProduct,
     updateCartItemByItemId,
-    deleteCartItemByProduct,
     clearCartForRestaurant,
 } from '../services/cartService';
 import {
@@ -73,19 +71,60 @@ const RestaurantDetail = () => {
     const MAX_PER_PRODUCT = 100;
     const LARGE_ORDER_THRESHOLD = 10;
     const largeOrderWarnedRef = useRef({}); // productId -> true
+    const prevQtyMapRef = useRef({}); // productId -> qty trước đó
+    const [messageApi, contextHolder] = message.useMessage();
 
     const maybeWarnLargeOrder = (productId, nextQty) => {
-        if (nextQty <= LARGE_ORDER_THRESHOLD) return;
+        const pid = String(productId);
+        const q = Number(nextQty ?? 0);
 
-        if (largeOrderWarnedRef.current[productId]) return;
+        // Nếu giảm xuống <= 10 thì reset để lần sau vượt lại vẫn warn
+        if (q <= LARGE_ORDER_THRESHOLD) {
+            delete largeOrderWarnedRef.current[pid];
+            return;
+        }
 
-        largeOrderWarnedRef.current[productId] = true;
+        // Đã warn rồi thì thôi
+        if (largeOrderWarnedRef.current[pid]) return;
 
-        message.open({
+        largeOrderWarnedRef.current[pid] = true;
+
+        messageApi.open({
             type: 'warning',
             duration: 6,
             content: 'Bạn đang đặt số lượng lớn. Chủ quán sẽ gọi điện xác nhận đơn trước khi chuẩn bị.',
         });
+    };
+
+    const warnIfCrossLargeOrder = (nextQtyMap) => {
+        const prev = prevQtyMapRef.current || {};
+        const warned = largeOrderWarnedRef.current;
+
+        // reset warn flag nếu qty <= threshold hoặc product biến mất
+        Object.keys(warned).forEach((pid) => {
+            const q = Number(nextQtyMap[pid] ?? 0);
+            if (q <= LARGE_ORDER_THRESHOLD) {
+                delete warned[pid];
+            }
+        });
+
+        // warn khi "vừa vượt ngưỡng" (prev <= 10 && next > 10)
+        Object.entries(nextQtyMap).forEach(([pid, qRaw]) => {
+            const nextQ = Number(qRaw ?? 0);
+            const prevQ = Number(prev[pid] ?? 0);
+
+            if (prevQ <= LARGE_ORDER_THRESHOLD && nextQ > LARGE_ORDER_THRESHOLD && !warned[pid]) {
+                warned[pid] = true;
+                messageApi.open({
+                    type: 'warning',
+                    duration: 6,
+                    content: 'Bạn đang đặt số lượng lớn. Chủ quán sẽ gọi điện xác nhận đơn trước khi chuẩn bị.',
+                });
+            }
+        });
+
+        // cập nhật prev
+        prevQtyMapRef.current = nextQtyMap;
     };
 
     const formatPrice = (v) => {
@@ -164,7 +203,7 @@ const RestaurantDetail = () => {
             if (!item || !item.productId) return;
 
             const pid = item.productId;
-            const q = item.quantity || 0;
+            const q = Number(item.quantity) || 0;
 
             qtyMap[pid] = (qtyMap[pid] || 0) + q;
 
@@ -173,11 +212,8 @@ const RestaurantDetail = () => {
             }
             byProduct[pid].push(item);
         });
-        Object.keys(qtyMap).forEach((pid) => {
-            if (qtyMap[pid] <= LARGE_ORDER_THRESHOLD) {
-                delete largeOrderWarnedRef.current[pid];
-            }
-        });
+
+        warnIfCrossLargeOrder(qtyMap);
 
         // ===== GIỮ THỨ TỰ COMBO CŨ =====
         setCartItemsByProduct((prev) => {
@@ -540,14 +576,12 @@ const RestaurantDetail = () => {
         }
     };
 
-    // ====== TRỪ THEO PRODUCT (TRƯỜNG HỢP CHỈ CÓ 1 COMBO) ======
+    // ====== TĂNG/GIẢM CHO MÓN KHÔNG OPTIONS (DÙNG itemId) ======
     const handleChangeQuantity = async (product, delta) => {
         if (!user) {
             navigate('/login');
             return;
         }
-
-        // Nếu có đăng nhập nhưng role không được phép order
         if (!canOrder) {
             message.warning('Tài khoản này không được phép đặt món.');
             return;
@@ -562,26 +596,39 @@ const RestaurantDetail = () => {
             message.warning(`Bạn chỉ có thể đặt tối đa ${MAX_PER_PRODUCT} phần cho một món.`);
             return;
         }
+
         maybeWarnLargeOrder(product.id, newQty);
 
         try {
             setAddingProductId(product.id);
-            let data;
 
-            if (newQty === 0) {
-                data = await deleteCartItemByProduct({
-                    accountId: user.id,
-                    productId: product.id,
-                    restaurantId: Number(id),
-                });
-            } else {
-                data = await updateCartItemByProduct({
-                    accountId: user.id,
-                    productId: product.id,
-                    quantity: newQty,
-                    restaurantId: Number(id),
-                });
+            // Lấy cartItem duy nhất của product này trong giỏ
+            const productItems = cartItemsByProduct[product.id] || [];
+            const onlyItem = productItems.length === 1 ? productItems[0] : null;
+
+            // Nếu vì lý do nào đó chưa có item (state chưa sync kịp) -> fallback gọi lại addCartItem
+            if (!onlyItem) {
+                // Nếu newQty >= 1 mà FE chưa có item -> cứ add 1 lần
+                if (newQty > 0) {
+                    const data = await addCartItem({
+                        accountId: user.id,
+                        restaurantId: Number(id),
+                        productId: product.id,
+                        quantity: 1,
+                        detailIds: [],
+                    });
+                    syncQuantitiesFromResponse(data);
+                }
+                return;
             }
+
+            // Update theo itemId. Backend của bạn đã hỗ trợ newQuantity=0 => delete item.
+            const data = await updateCartItemByItemId({
+                accountId: user.id,
+                itemId: onlyItem.itemId,
+                quantity: newQty, // 0 => backend tự xoá
+                restaurantId: Number(id), // gửi kèm cũng được, backend không cần nhưng không sao
+            });
 
             syncQuantitiesFromResponse(data);
         } catch (err) {
@@ -772,6 +819,7 @@ const RestaurantDetail = () => {
 
     return (
         <>
+            {contextHolder}
             <div className="detail-container">
                 <div className="detail-wrapper">
                     {/* Cột trái: thông tin quán + menu */}

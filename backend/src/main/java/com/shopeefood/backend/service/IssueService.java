@@ -62,11 +62,11 @@ public class IssueService {
                 throw new IllegalArgumentException("otherCategory is required when category=OTHER");
             }
         }
-        if ("OTHER".equalsIgnoreCase(req.getTargetType())) {
-            if (req.getTargetNote() == null || req.getTargetNote().trim().isEmpty()) {
-                throw new IllegalArgumentException("targetNote is required when targetType=OTHER");
-            }
-        }
+//        if ("OTHER".equalsIgnoreCase(req.getTargetType())) {
+//            if (req.getTargetNote() == null || req.getTargetNote().trim().isEmpty()) {
+//                throw new IllegalArgumentException("targetNote is required when targetType=OTHER");
+//            }
+//        }
     }
 
     private static Integer ownerAccountId(Restaurant restaurant) {
@@ -160,41 +160,68 @@ public class IssueService {
         throw new SecurityException("No access to this issue");
     }
 
+    private void ensureAccessNoOrder(Account account, Issue issue) {
+        String role = normalizeRole(account.getRole());
+        Integer actorId = account.getId();
+
+        if ("ADMIN".equals(role)) return;
+
+        // creator can always access
+        if (actorId.equals(issue.getCreatedById())) return;
+
+        throw new SecurityException("No access to this issue");
+    }
+
     // ----------------------------
     // Public APIs
     // ----------------------------
 
     @Transactional
     public Issue createIssue(IssueCreateRequest req) {
-        if (req.getOrderId() == null) throw new IllegalArgumentException("orderId is required");
-        if (req.getTitle() == null || req.getTitle().trim().isEmpty()) throw new IllegalArgumentException("title is required");
+        if (req.getTitle() == null || req.getTitle().trim().isEmpty()) {
+            throw new IllegalArgumentException("title is required");
+        }
         validateOtherFields(req);
 
         Account account = getAccount(req.getAccountId());
-        Order order = orderRepository.findById(req.getOrderId())
-                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + req.getOrderId()));
-
-        // ✅ NEW: chỉ cho tạo issue khi đơn COMPLETED
-        String st = (order.getStatus() == null) ? "" : order.getStatus().trim();
-        if (!"COMPLETED".equalsIgnoreCase(st)) {
-            throw new IllegalArgumentException("Only COMPLETED orders can create issues");
-        }
-
-        // (khuyến nghị) nếu khiếu nại shipper thì order phải có shipper_id
-        if (req.getTargetType() != null && "SHIPPER".equalsIgnoreCase(req.getTargetType().trim())) {
-            if (order.getShipper() == null) {
-                throw new IllegalArgumentException("Cannot complain SHIPPER: order has no shipper assigned");
-            }
-        }
-
-        ensureCreatePermission(account, order);
 
         String category = req.getCategory().trim().toUpperCase(Locale.ROOT);
         String targetType = req.getTargetType().trim().toUpperCase(Locale.ROOT);
 
+        boolean orderOptional = "SYSTEM".equals(targetType) || "OTHER".equals(targetType);
+
+        Order order = null;
+        if (req.getOrderId() != null) {
+            order = orderRepository.findById(req.getOrderId())
+                    .orElseThrow(() -> new IllegalArgumentException("Order not found: " + req.getOrderId()));
+
+            // chỉ cho tạo issue khi đơn COMPLETED
+            String st = (order.getStatus() == null) ? "" : order.getStatus().trim();
+            if (!"COMPLETED".equalsIgnoreCase(st)) {
+                throw new IllegalArgumentException("Only COMPLETED orders can create issues");
+            }
+
+            // complain shipper cần shipper
+            if ("SHIPPER".equals(targetType) && order.getShipper() == null) {
+                throw new IllegalArgumentException("Cannot complain SHIPPER: order has no shipper assigned");
+            }
+
+            ensureCreatePermission(account, order);
+        } else {
+            if (!orderOptional) {
+                throw new IllegalArgumentException("orderId is required");
+            }
+            // không có order: chỉ cho CUSTOMER/ADMIN tạo (tránh shipper/owner spam system)
+            String role = normalizeRole(account.getRole());
+            if (!"CUSTOMER".equals(role) && !"ADMIN".equals(role)) {
+                throw new SecurityException("Only CUSTOMER/ADMIN can create SYSTEM/OTHER issue without order");
+            }
+        }
+
         Issue issue = new Issue();
         issue.setCode("TMP-" + System.nanoTime());
-        issue.setOrderId(order.getId());
+        issue.setOrderId(order != null ? order.getId() : null);
+
         issue.setCreatedById(account.getId());
         issue.setCreatedByRole(normalizeRole(account.getRole()));
 
@@ -207,26 +234,25 @@ public class IssueService {
         issue.setTitle(req.getTitle());
         issue.setDescription(req.getDescription());
 
-        // default statuses
         issue.setStatus("OPEN");
         issue.setOwnerRefundStatus("NONE");
         issue.setAdminCreditStatus("NONE");
 
         // routing
-        Integer ownerId = ownerAccountId(order.getRestaurant());
-        if (isOwnerCategory(category)) {
-            issue.setAssignedOwnerId(ownerId);
-            issue.setStatus("NEED_OWNER_ACTION");
-            issue.setOwnerRefundStatus("PENDING");
-        } else if ("MIXED".equals(category)) {
-            issue.setAssignedOwnerId(ownerId);
-            issue.setStatus("NEED_OWNER_ACTION");
-            issue.setOwnerRefundStatus("PENDING");
-        } else if (isDeliveryCategory(category) || "SHIPPER".equals(targetType)) {
+        if (order == null) {
+            // SYSTEM/OTHER không order => admin xử lý
             issue.setStatus("NEED_ADMIN_ACTION");
         } else {
-            // OTHER or unknown -> admin action
-            issue.setStatus("NEED_ADMIN_ACTION");
+            Integer ownerId = ownerAccountId(order.getRestaurant());
+            if (isOwnerCategory(category) || "MIXED".equals(category)) {
+                issue.setAssignedOwnerId(ownerId);
+                issue.setStatus("NEED_OWNER_ACTION");
+                issue.setOwnerRefundStatus("PENDING");
+            } else if (isDeliveryCategory(category) || "SHIPPER".equals(targetType)) {
+                issue.setStatus("NEED_ADMIN_ACTION");
+            } else {
+                issue.setStatus("NEED_ADMIN_ACTION");
+            }
         }
 
         Issue saved = issueRepository.saveAndFlush(issue);
@@ -241,28 +267,76 @@ public class IssueService {
         return saved;
     }
 
+    @Transactional
+    public Issue createIssueWithAttachments(CreateIssueWithAttachmentsRequest req) {
+        // Reuse logic createIssue hiện có bằng cách map lại:
+        IssueCreateRequest createReq = new IssueCreateRequest();
+        createReq.setAccountId(req.getAccountId());
+        createReq.setOrderId(req.getOrderId());
+        createReq.setTargetType(req.getTargetType());
+        createReq.setTargetId(req.getTargetId());
+        createReq.setTargetNote(req.getTargetNote());
+        createReq.setCategory(req.getCategory());
+        createReq.setOtherCategory(req.getOtherCategory());
+        createReq.setTitle(req.getTitle());
+        createReq.setDescription(req.getDescription());
+
+        Issue created = createIssue(createReq); // createIssue đã ghi NOTE + MESSAGE event
+
+        // add ATTACHMENT events ngay trong transaction này
+        if (req.getAttachments() != null) {
+            for (IssueAttachmentRequest a : req.getAttachments()) {
+                if (a == null) continue;
+                if (a.getAttachmentUrl() == null || a.getAttachmentUrl().trim().isEmpty()) continue;
+
+                IssueAttachmentRequest x = new IssueAttachmentRequest();
+                x.setAccountId(req.getAccountId()); // ép dùng accountId root
+                x.setAttachmentUrl(a.getAttachmentUrl());
+                x.setContent(a.getContent());
+
+                // gọi addAttachment đã fix orderId null
+                addAttachment(created.getId(), x);
+            }
+        }
+
+        // Nếu bất kỳ bước nào fail (issue_events fail) => throw => rollback => issue không tạo
+        return created;
+    }
+
     @Transactional(readOnly = true)
     public Map<String, Object> getIssueDetail(Integer issueId, Integer accountId) {
         Account account = getAccount(accountId);
         Issue issue = issueRepository.findById(issueId)
                 .orElseThrow(() -> new IllegalArgumentException("Issue not found: " + issueId));
-        Order order = orderRepository.findById(issue.getOrderId())
-                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + issue.getOrderId()));
 
-        ensureAccess(account, issue, order);
+        Order order = null;
+        if (issue.getOrderId() != null) {
+            order = orderRepository.findById(issue.getOrderId())
+                    .orElseThrow(() -> new IllegalArgumentException("Order not found: " + issue.getOrderId()));
+            ensureAccess(account, issue, order);
+        } else {
+            // không có order => chỉ ADMIN hoặc người tạo xem
+            String role = normalizeRole(account.getRole());
+            if (!"ADMIN".equals(role) && !account.getId().equals(issue.getCreatedById())) {
+                throw new SecurityException("No access to this issue");
+            }
+        }
 
         List<IssueEvent> events = issueEventRepository.findByIssueIdOrderByCreatedAtAsc(issueId);
 
-        Map<String, Object> orderSummary = new HashMap<>();
-        orderSummary.put("id", order.getId());
-        orderSummary.put("orderNumber", order.getOrderNumber());
-        orderSummary.put("status", order.getStatus());
-        orderSummary.put("paymentMethod", order.getPaymentMethod());
-        orderSummary.put("subtotal", order.getSubtotal());
-        orderSummary.put("shippingFee", order.getShippingFee());
-        orderSummary.put("totalAmount", order.getTotalAmount());
-        orderSummary.put("createdAt", order.getCreatedAt());
-        orderSummary.put("completedAt", order.getCompletedAt());
+        Map<String, Object> orderSummary = null;
+        if (order != null) {
+            orderSummary = new HashMap<>();
+            orderSummary.put("id", order.getId());
+            orderSummary.put("orderNumber", order.getOrderNumber());
+            orderSummary.put("status", order.getStatus());
+            orderSummary.put("paymentMethod", order.getPaymentMethod());
+            orderSummary.put("subtotal", order.getSubtotal());
+            orderSummary.put("shippingFee", order.getShippingFee());
+            orderSummary.put("totalAmount", order.getTotalAmount());
+            orderSummary.put("createdAt", order.getCreatedAt());
+            orderSummary.put("completedAt", order.getCompletedAt());
+        }
 
         Map<String, Object> res = new HashMap<>();
         res.put("issue", issue);
@@ -302,10 +376,16 @@ public class IssueService {
         Account account = getAccount(req.getAccountId());
         Issue issue = issueRepository.findById(issueId)
                 .orElseThrow(() -> new IllegalArgumentException("Issue not found: " + issueId));
-        Order order = orderRepository.findById(issue.getOrderId())
-                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + issue.getOrderId()));
 
-        ensureAccess(account, issue, order);
+        if (issue.getOrderId() != null) {
+            Order order = orderRepository.findById(issue.getOrderId())
+                    .orElseThrow(() -> new IllegalArgumentException("Order not found: " + issue.getOrderId()));
+            ensureAccess(account, issue, order);
+        } else {
+            // SYSTEM/OTHER không có order
+            ensureAccessNoOrder(account, issue);
+        }
+
         issueEventRepository.save(event(issueId, account, "MESSAGE", req.getContent(), null, null, null, null));
     }
 
@@ -318,11 +398,23 @@ public class IssueService {
         Account actor = getAccount(req.getAccountId());
         Issue issue = issueRepository.findById(issueId)
                 .orElseThrow(() -> new IllegalArgumentException("Issue not found: " + issueId));
-        Order order = orderRepository.findById(issue.getOrderId())
-                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + issue.getOrderId()));
 
-        ensureAccess(actor, issue, order);
-        issueEventRepository.save(event(issueId, actor, "ATTACHMENT", req.getContent(), null, null, null, req.getAttachmentUrl()));
+        if (issue.getOrderId() != null) {
+            Order order = orderRepository.findById(issue.getOrderId())
+                    .orElseThrow(() -> new IllegalArgumentException("Order not found: " + issue.getOrderId()));
+            ensureAccess(actor, issue, order);
+        } else {
+            // SYSTEM/OTHER không có order
+            ensureAccessNoOrder(actor, issue);
+        }
+
+        issueEventRepository.save(
+                event(issueId, actor, "ATTACHMENT",
+                        req.getContent(),
+                        null, null,
+                        null,
+                        req.getAttachmentUrl())
+        );
     }
 
     @Transactional
@@ -336,9 +428,14 @@ public class IssueService {
 
         Issue issue = issueRepository.findById(issueId)
                 .orElseThrow(() -> new IllegalArgumentException("Issue not found: " + issueId));
-        Order order = orderRepository.findById(issue.getOrderId())
-                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + issue.getOrderId()));
-        ensureAccess(account, issue, order);
+
+        if (issue.getOrderId() != null) {
+            Order order = orderRepository.findById(issue.getOrderId())
+                    .orElseThrow(() -> new IllegalArgumentException("Order not found: " + issue.getOrderId()));
+            ensureAccess(account, issue, order);
+        } else {
+            ensureAccessNoOrder(account, issue);
+        }
 
         if (!"OWNER".equals(role) && !"ADMIN".equals(role)) {
             throw new SecurityException("Only OWNER/ADMIN can change status");
@@ -436,4 +533,139 @@ public class IssueService {
         issueEventRepository.save(event(issueId, account, "ADMIN_CREDIT", req.getNote(), old, decision, amount, null));
         return saved;
     }
+
+    @Transactional
+    public Issue replyAction(Integer issueId, IssueReplyActionRequest req) {
+        if (req == null) throw new IllegalArgumentException("request body is required");
+
+        Account account = getAccount(req.getAccountId());
+        String role = normalizeRole(account.getRole());
+
+        Issue issue = issueRepository.findById(issueId)
+                .orElseThrow(() -> new IllegalArgumentException("Issue not found: " + issueId));
+
+        // Load order nếu có (SYSTEM/OTHER có thể null)
+        Order order = null;
+        if (issue.getOrderId() != null) {
+            order = orderRepository.findById(issue.getOrderId())
+                    .orElseThrow(() -> new IllegalArgumentException("Order not found: " + issue.getOrderId()));
+            ensureAccess(account, issue, order);
+        } else {
+            ensureAccessNoOrder(account, issue);
+        }
+
+        boolean hasMessage = req.getMessage() != null && !req.getMessage().trim().isEmpty();
+        boolean hasStatus = req.getNewStatus() != null && !req.getNewStatus().trim().isEmpty();
+        boolean hasOwnerRefund = req.getOwnerRefundStatus() != null && !req.getOwnerRefundStatus().trim().isEmpty();
+        boolean hasAdminCredit = req.getAdminCreditStatus() != null && !req.getAdminCreditStatus().trim().isEmpty();
+
+        if (!hasMessage && !hasStatus && !hasOwnerRefund && !hasAdminCredit) {
+            throw new IllegalArgumentException("Nothing to update");
+        }
+
+        // Tránh mâu thuẫn: adminCredit tự set status rồi, không cho gửi kèm newStatus
+        if (hasAdminCredit && hasStatus) {
+            throw new IllegalArgumentException("newStatus is not allowed when adminCreditStatus is provided");
+        }
+
+        List<IssueEvent> events = new ArrayList<>();
+
+        // 1) MESSAGE (chưa save gì vào DB cho tới khi validate xong)
+        if (hasMessage) {
+            String content = req.getMessage().trim();
+            events.add(event(issueId, account, "MESSAGE", content, null, null, null, null));
+        }
+
+        // 2) STATUS_CHANGE (optional)
+        if (hasStatus) {
+            if (!"OWNER".equals(role) && !"ADMIN".equals(role)) {
+                throw new SecurityException("Only OWNER/ADMIN can change status");
+            }
+
+            String newStatus = req.getNewStatus().trim().toUpperCase(Locale.ROOT);
+            String oldStatus = issue.getStatus();
+
+            issue.setStatus(newStatus);
+
+            if ("RESOLVED".equals(newStatus) || "CLOSED".equals(newStatus)) {
+                issue.setResolvedAt(LocalDateTime.now());
+                issue.setResolvedReason(req.getStatusReason());
+            }
+
+            events.add(event(issueId, account, "STATUS_CHANGE",
+                    req.getStatusReason(), oldStatus, newStatus, null, null));
+        }
+
+        // 3) OWNER_REFUND (optional)
+        if (hasOwnerRefund) {
+            if (!"OWNER".equals(role)) throw new SecurityException("Only OWNER can approve/refuse owner refund");
+            if (order == null) throw new IllegalArgumentException("Order is required for owner refund");
+
+            Integer ownerId = ownerAccountId(order.getRestaurant());
+            if (ownerId == null || !account.getId().equals(ownerId)) {
+                throw new SecurityException("Not your restaurant order");
+            }
+
+            String decision = req.getOwnerRefundStatus().trim().toUpperCase(Locale.ROOT);
+            if (!Set.of("APPROVED", "REJECTED").contains(decision)) {
+                throw new IllegalArgumentException("ownerRefundStatus must be APPROVED or REJECTED");
+            }
+
+            BigDecimal amount = null;
+            if ("APPROVED".equals(decision)) {
+                if (req.getOwnerRefundAmount() == null || req.getOwnerRefundAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                    throw new IllegalArgumentException("ownerRefundAmount is required when APPROVED");
+                }
+                amount = req.getOwnerRefundAmount();
+                issue.setOwnerRefundAmount(amount);
+            } else {
+                issue.setOwnerRefundAmount(null);
+            }
+
+            String old = issue.getOwnerRefundStatus();
+            issue.setOwnerRefundStatus(decision);
+
+            events.add(event(issueId, account, "OWNER_REFUND", null, old, decision, amount, null));
+        }
+
+        // 4) ADMIN_CREDIT (optional)
+        if (hasAdminCredit) {
+            if (!"ADMIN".equals(role)) throw new SecurityException("Only ADMIN can approve/refuse admin credit");
+
+            String decision = req.getAdminCreditStatus().trim().toUpperCase(Locale.ROOT);
+            if (!Set.of("APPROVED", "REJECTED").contains(decision)) {
+                throw new IllegalArgumentException("adminCreditStatus must be APPROVED or REJECTED");
+            }
+
+            BigDecimal amount = null;
+            if ("APPROVED".equals(decision)) {
+                if (req.getAdminCreditAmount() == null || req.getAdminCreditAmount().compareTo(BigDecimal.ZERO) < 0) {
+                    throw new IllegalArgumentException("adminCreditAmount must be >= 0 when APPROVED");
+                }
+                amount = req.getAdminCreditAmount();
+                issue.setAdminCreditAmount(amount);
+
+                issue.setStatus("RESOLVED");
+            } else {
+                // REJECTED
+                issue.setStatus("REJECTED");
+            }
+
+            issue.setResolvedAt(LocalDateTime.now());
+            // nếu muốn ghi reason thì dùng statusReason (dto hiện chưa có field note riêng cho adminCredit)
+            issue.setResolvedReason(req.getStatusReason());
+
+            String old = issue.getAdminCreditStatus();
+            issue.setAdminCreditStatus(decision);
+
+            events.add(event(issueId, account, "ADMIN_CREDIT", null, old, decision, amount, null));
+        }
+
+        // WRITE DB ở cuối: nếu bất kỳ lỗi nào ở trên xảy ra → throw RuntimeException → rollback hết
+        Issue saved = issueRepository.save(issue);
+        issueEventRepository.saveAll(events);
+
+        return saved;
+    }
+
 }
