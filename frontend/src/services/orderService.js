@@ -31,3 +31,11 @@ export const createFeedback = async (orderId, rating, comment, shipperRating, sh
     }
 };
 
+export const updateOrderNote = async (orderId, note) => {
+    await axios.put(
+        `${API_BASE_URL}/${orderId}/note`,
+        { note },
+        { withCredentials: true}
+    );
+};
+
