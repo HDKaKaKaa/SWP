@@ -37,6 +37,7 @@ const statusTag = (st) => {
 
 const targetTag = (t) => {
     const s = (t || '').toUpperCase();
+    if (s === 'SYSTEM') return <Tag color="red">Hệ thống</Tag>
     if (s === 'SHIPPER') return <Tag color="blue">Shipper</Tag>;
     if (s === 'RESTAURANT') return <Tag color="geekblue">Quán</Tag>;
     if (s === 'ORDER') return <Tag color="purple">Đơn hàng</Tag>;
@@ -271,26 +272,26 @@ const CustomerIssuesHistory = () => {
                             )}
 
                             <Divider orientation="left">Lịch sử xử lý</Divider>
-                            {/*<Timeline*/}
-                            {/*    className="issue-timeline"*/}
-                            {/*    items={(detailEvents || []).map((ev) => ({*/}
-                            {/*        children: (*/}
-                            {/*            <div className="issue-timeline-item">*/}
-                            {/*                <div className="issue-timeline-top">*/}
-                            {/*                    <Text strong>{(ev.eventType || '').toUpperCase()}</Text>*/}
-                            {/*                    <Text type="secondary">{fmtDate(ev.createdAt)}</Text>*/}
-                            {/*                </div>*/}
-                            {/*                <Text>{ev.content || ''}</Text>*/}
-                            {/*                {(ev.oldValue || ev.newValue) && (*/}
-                            {/*                    <div className="issue-timeline-change">*/}
-                            {/*                        <Tag>old: {ev.oldValue || '—'}</Tag>*/}
-                            {/*                        <Tag>new: {ev.newValue || '—'}</Tag>*/}
-                            {/*                    </div>*/}
-                            {/*                )}*/}
-                            {/*            </div>*/}
-                            {/*        ),*/}
-                            {/*    }))}*/}
-                            {/*/>*/}
+                            <Timeline
+                                className="issue-timeline"
+                                items={(detailEvents || []).map((ev) => ({
+                                    children: (
+                                        <div className="issue-timeline-item">
+                                            <div className="issue-timeline-top">
+                                                <Text strong>{(ev.eventType || '').toUpperCase()}</Text>
+                                                <Text type="secondary">{fmtDate(ev.createdAt)}</Text>
+                                            </div>
+                                            <Text>{ev.content || ''}</Text>
+                                            {(ev.oldValue || ev.newValue) && (
+                                                <div className="issue-timeline-change">
+                                                    <Tag>old: {ev.oldValue || '—'}</Tag>
+                                                    <Tag>new: {ev.newValue || '—'}</Tag>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ),
+                                }))}
+                            />
                         </>
                     )}
                 </div>

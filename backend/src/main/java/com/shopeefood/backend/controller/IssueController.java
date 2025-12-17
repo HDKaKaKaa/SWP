@@ -24,6 +24,12 @@ public class IssueController {
         return ResponseEntity.ok(issueService.createIssue(req));
     }
 
+    @PostMapping("/with-attachments")
+    public ResponseEntity<?> createWithAttachments(@RequestBody CreateIssueWithAttachmentsRequest req) {
+        Issue created = issueService.createIssueWithAttachments(req);
+        return ResponseEntity.ok(created);
+    }
+
     /**
      * GET /api/issues/{id}?actorId=1
      * returns: { issue: ..., events: [...] }
@@ -73,5 +79,14 @@ public class IssueController {
     public ResponseEntity<Issue> adminCredit(@PathVariable Integer id, @RequestBody IssueDecisionRequest req) {
         return ResponseEntity.ok(issueService.adminCredit(id, req));
     }
+
+    @PostMapping("/{issueId}/reply-action")
+    public ResponseEntity<?> replyAction(
+            @PathVariable Integer issueId,
+            @RequestBody IssueReplyActionRequest req
+    ) {
+        return ResponseEntity.ok(issueService.replyAction(issueId, req));
+    }
+
 }
 

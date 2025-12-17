@@ -45,7 +45,7 @@ public class SecurityConfig {
                 "http://localhost:5174",
                 "http://localhost:3000"));
         // Cho phép các method
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         // Cho phép các header (Content-Type, Authorization...)
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "x-auth-token"));
         configuration.setAllowCredentials(true);

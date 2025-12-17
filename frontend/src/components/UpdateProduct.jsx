@@ -17,7 +17,7 @@ import {
     Divider,
 } from 'antd';
 import axios from 'axios';
-
+const MAX_FILE_SIZE = 2 * 1024 * 1024;
 const { Option } = Select;
 const { TextArea } = Input;
 const { Title, Text } = Typography;
@@ -44,7 +44,7 @@ const AttributeEditor = React.memo(({ attribute, details, onAddDetail, onDetailC
                         style={{ padding: '8px 0', borderBottom: index < details.length - 1 ? '1px solid #f0f0f0' : 'none' }}
                     >
                         <Row gutter={[24, 8]} style={{ width: '120%' }}>
-                            <Col xs={24} sm={12} md={12}> 
+                            <Col xs={24} sm={12} md={12}>
                                 <Input
                                     value={detail.value}
                                     onChange={(e) => onDetailChange(attribute.id, index, 'value', e.target.value)}
@@ -61,7 +61,7 @@ const AttributeEditor = React.memo(({ attribute, details, onAddDetail, onDetailC
                                     step={1000}
                                     value={detail.priceAdjustment}
                                     onChange={(value) => onDetailChange(attribute.id, index, 'priceAdjustment', value || 0)}
-                                    
+
                                 />
                             </Col>
                             <Col xs={24} sm={4} md={4}>
@@ -157,6 +157,7 @@ export default function UpdateProduct({ onProductActionSuccess, restaurants = []
         setProductData(initialProductState);
         // Cập nhật Ảnh cũ khi productData thay đổi 
         setImagePreview(productData?.image || null);
+        setError(null);
     }, [initialProductState, productData?.image]);
 
 
@@ -229,6 +230,12 @@ export default function UpdateProduct({ onProductActionSuccess, restaurants = []
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         if (file) {
+            if (file.size > MAX_FILE_SIZE) {
+                setError("Kích thước ảnh quá lớn (vượt quá 2MB). Vui lòng chọn ảnh nhẹ hơn.");
+                setProductImage(null);
+                e.target.value = null; 
+                return;
+            }
             setProductImage(file);
             setImagePreview(URL.createObjectURL(file));
         } else {

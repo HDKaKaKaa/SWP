@@ -1,0 +1,10 @@
+# Database migration scripts
+*.sql
+
+# PlantUML diagrams
+*.puml
+
+# IDE files
+.idea/
+.idea_backup/
+

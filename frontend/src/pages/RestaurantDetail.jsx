@@ -1,13 +1,11 @@
-import { useEffect, useState, useContext, useMemo } from 'react';
+import { useEffect, useState, useContext, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { getRestaurantById, getProductsByRestaurant } from '../services/restaurantPublicService';
 import {
     getCart,
     addCartItem,
-    updateCartItemByProduct,
     updateCartItemByItemId,
-    deleteCartItemByProduct,
     clearCartForRestaurant,
 } from '../services/cartService';
 import {
@@ -69,6 +67,65 @@ const RestaurantDetail = () => {
             ),
         [cartQuantities]
     );
+
+    const MAX_PER_PRODUCT = 100;
+    const LARGE_ORDER_THRESHOLD = 10;
+    const largeOrderWarnedRef = useRef({}); // productId -> true
+    const prevQtyMapRef = useRef({}); // productId -> qty trước đó
+    const [messageApi, contextHolder] = message.useMessage();
+
+    const maybeWarnLargeOrder = (productId, nextQty) => {
+        const pid = String(productId);
+        const q = Number(nextQty ?? 0);
+
+        // Nếu giảm xuống <= 10 thì reset để lần sau vượt lại vẫn warn
+        if (q <= LARGE_ORDER_THRESHOLD) {
+            delete largeOrderWarnedRef.current[pid];
+            return;
+        }
+
+        // Đã warn rồi thì thôi
+        if (largeOrderWarnedRef.current[pid]) return;
+
+        largeOrderWarnedRef.current[pid] = true;
+
+        messageApi.open({
+            type: 'warning',
+            duration: 6,
+            content: 'Bạn đang đặt số lượng lớn. Chủ quán sẽ gọi điện xác nhận đơn trước khi chuẩn bị.',
+        });
+    };
+
+    const warnIfCrossLargeOrder = (nextQtyMap) => {
+        const prev = prevQtyMapRef.current || {};
+        const warned = largeOrderWarnedRef.current;
+
+        // reset warn flag nếu qty <= threshold hoặc product biến mất
+        Object.keys(warned).forEach((pid) => {
+            const q = Number(nextQtyMap[pid] ?? 0);
+            if (q <= LARGE_ORDER_THRESHOLD) {
+                delete warned[pid];
+            }
+        });
+
+        // warn khi "vừa vượt ngưỡng" (prev <= 10 && next > 10)
+        Object.entries(nextQtyMap).forEach(([pid, qRaw]) => {
+            const nextQ = Number(qRaw ?? 0);
+            const prevQ = Number(prev[pid] ?? 0);
+
+            if (prevQ <= LARGE_ORDER_THRESHOLD && nextQ > LARGE_ORDER_THRESHOLD && !warned[pid]) {
+                warned[pid] = true;
+                messageApi.open({
+                    type: 'warning',
+                    duration: 6,
+                    content: 'Bạn đang đặt số lượng lớn. Chủ quán sẽ gọi điện xác nhận đơn trước khi chuẩn bị.',
+                });
+            }
+        });
+
+        // cập nhật prev
+        prevQtyMapRef.current = nextQtyMap;
+    };
 
     const formatPrice = (v) => {
         if (v === null || v === undefined) return '0 đ';
@@ -146,7 +203,7 @@ const RestaurantDetail = () => {
             if (!item || !item.productId) return;
 
             const pid = item.productId;
-            const q = item.quantity || 0;
+            const q = Number(item.quantity) || 0;
 
             qtyMap[pid] = (qtyMap[pid] || 0) + q;
 
@@ -156,14 +213,47 @@ const RestaurantDetail = () => {
             byProduct[pid].push(item);
         });
 
+        warnIfCrossLargeOrder(qtyMap);
+
+        // ===== GIỮ THỨ TỰ COMBO CŨ =====
+        setCartItemsByProduct((prev) => {
+            if (!prev) return byProduct;
+
+            const merged = {};
+
+            Object.keys(byProduct).forEach((pid) => {
+                const prevItems = prev[pid] || [];
+                const newItems = byProduct[pid];
+
+                // map itemId -> item mới
+                const map = new Map(newItems.map(it => [it.itemId, it]));
+
+                // giữ thứ tự cũ
+                const ordered = [];
+                prevItems.forEach((old) => {
+                    if (map.has(old.itemId)) {
+                        ordered.push(map.get(old.itemId));
+                        map.delete(old.itemId);
+                    }
+                });
+
+                // item mới (nếu có) thêm xuống cuối
+                map.forEach((it) => ordered.push(it));
+
+                merged[pid] = ordered;
+            });
+
+            return merged;
+        });
+
         setCartQuantities(qtyMap);
-        setCartItemsByProduct(byProduct);
         setCartSummary({
             subtotal: data?.subtotal || 0,
             shippingFee: data?.shippingFee || 0,
             total: data?.total || data?.subtotal || 0,
         });
     };
+
 
     // Nếu user đã login thì load giỏ hàng để biết mỗi món đang có bao nhiêu + tổng tiền
     useEffect(() => {
@@ -450,10 +540,11 @@ const RestaurantDetail = () => {
         }
 
         const currentQty = cartQuantities[product.id] || 0;
-        if (currentQty >= 10) {
-            message.warning('Bạn chỉ có thể đặt tối đa 10 phần cho một món.');
+        if (currentQty >= MAX_PER_PRODUCT) {
+            message.warning(`Bạn chỉ có thể đặt tối đa ${MAX_PER_PRODUCT} phần cho một món.`);
             return;
         }
+        maybeWarnLargeOrder(product.id, currentQty + 1);
 
         try {
             setAddingProductId(product.id);
@@ -485,14 +576,12 @@ const RestaurantDetail = () => {
         }
     };
 
-    // ====== TRỪ THEO PRODUCT (TRƯỜNG HỢP CHỈ CÓ 1 COMBO) ======
+    // ====== TĂNG/GIẢM CHO MÓN KHÔNG OPTIONS (DÙNG itemId) ======
     const handleChangeQuantity = async (product, delta) => {
         if (!user) {
             navigate('/login');
             return;
         }
-
-        // Nếu có đăng nhập nhưng role không được phép order
         if (!canOrder) {
             message.warning('Tài khoản này không được phép đặt món.');
             return;
@@ -503,29 +592,43 @@ const RestaurantDetail = () => {
 
         if (newQty < 0) return;
 
-        if (newQty > 10) {
-            message.warning('Bạn chỉ có thể đặt tối đa 20 phần cho một món.');
+        if (newQty > MAX_PER_PRODUCT) {
+            message.warning(`Bạn chỉ có thể đặt tối đa ${MAX_PER_PRODUCT} phần cho một món.`);
             return;
         }
 
+        maybeWarnLargeOrder(product.id, newQty);
+
         try {
             setAddingProductId(product.id);
-            let data;
 
-            if (newQty === 0) {
-                data = await deleteCartItemByProduct({
-                    accountId: user.id,
-                    productId: product.id,
-                    restaurantId: Number(id),
-                });
-            } else {
-                data = await updateCartItemByProduct({
-                    accountId: user.id,
-                    productId: product.id,
-                    quantity: newQty,
-                    restaurantId: Number(id),
-                });
+            // Lấy cartItem duy nhất của product này trong giỏ
+            const productItems = cartItemsByProduct[product.id] || [];
+            const onlyItem = productItems.length === 1 ? productItems[0] : null;
+
+            // Nếu vì lý do nào đó chưa có item (state chưa sync kịp) -> fallback gọi lại addCartItem
+            if (!onlyItem) {
+                // Nếu newQty >= 1 mà FE chưa có item -> cứ add 1 lần
+                if (newQty > 0) {
+                    const data = await addCartItem({
+                        accountId: user.id,
+                        restaurantId: Number(id),
+                        productId: product.id,
+                        quantity: 1,
+                        detailIds: [],
+                    });
+                    syncQuantitiesFromResponse(data);
+                }
+                return;
             }
+
+            // Update theo itemId. Backend của bạn đã hỗ trợ newQuantity=0 => delete item.
+            const data = await updateCartItemByItemId({
+                accountId: user.id,
+                itemId: onlyItem.itemId,
+                quantity: newQty, // 0 => backend tự xoá
+                restaurantId: Number(id), // gửi kèm cũng được, backend không cần nhưng không sao
+            });
 
             syncQuantitiesFromResponse(data);
         } catch (err) {
@@ -540,6 +643,88 @@ const RestaurantDetail = () => {
     const openDecreaseModal = (product) => {
         setDecreaseProduct(product);
         setDecreaseModalOpen(true);
+    };
+
+    // ====== TĂNG 1 ĐƠN VỊ Ở ĐÚNG COMBO ======
+    const handleIncreaseOneForItem = async (cartItem) => {
+        if (!user) {
+            navigate('/login');
+            return;
+        }
+
+        if (!canOrder) {
+            message.warning('Tài khoản này không được phép đặt món.');
+            return;
+        }
+
+        const pid = cartItem.productId;
+        const currentTotal = cartQuantities[pid] || 0;
+
+        if (currentTotal >= MAX_PER_PRODUCT) {
+            message.warning(`Bạn chỉ có thể đặt tối đa ${MAX_PER_PRODUCT} phần cho một món.`);
+            return;
+        }
+
+        maybeWarnLargeOrder(pid, currentTotal + 1);
+
+        try {
+            setAddingProductId(cartItem.productId);
+
+            const data = await updateCartItemByItemId({
+                accountId: user.id,
+                itemId: cartItem.itemId,
+                quantity: cartItem.quantity + 1,
+                restaurantId: Number(id),
+            });
+
+            syncQuantitiesFromResponse(data);
+        } catch (err) {
+            console.error(err);
+            message.error('Không cập nhật được số lượng.');
+        } finally {
+            setAddingProductId(null);
+        }
+    };
+
+    // ====== CHỈNH SỐ LƯỢNG TRỰC TIẾP CHO COMBO ======
+    const handleUpdateQuantityForItem = async (cartItem, quantity) => {
+        if (!user) {
+            navigate('/login');
+            return;
+        }
+
+        if (!canOrder) {
+            message.warning('Tài khoản này không được phép đặt món.');
+            return;
+        }
+
+        if (quantity > MAX_PER_PRODUCT) {
+            message.warning(`Bạn chỉ có thể đặt tối đa ${MAX_PER_PRODUCT} phần cho một combo.`);
+            return;
+        }
+        const pid = cartItem.productId;
+        const currentTotal = cartQuantities[pid] || 0;
+        const nextTotal = currentTotal - (cartItem.quantity || 0) + quantity;
+
+        maybeWarnLargeOrder(pid, nextTotal);
+
+        try {
+            setAddingProductId(cartItem.productId);
+
+            const data = await updateCartItemByItemId({
+                accountId: user.id,
+                itemId: cartItem.itemId,
+                quantity,
+                restaurantId: Number(id),
+            });
+
+            syncQuantitiesFromResponse(data);
+        } catch (err) {
+            console.error(err);
+            message.error('Không cập nhật được số lượng.');
+        } finally {
+            setAddingProductId(null);
+        }
     };
 
     // Trừ 1 đơn vị ở đúng combo (OrderItem) được chọn
@@ -576,7 +761,7 @@ const RestaurantDetail = () => {
             const productItems = (data?.items || []).filter(
                 (it) => it.productId === cartItem.productId
             );
-            if (productItems.length <= 1) {
+            if (productItems.length === 0) {
                 setDecreaseModalOpen(false);
                 setDecreaseProduct(null);
             }
@@ -634,6 +819,7 @@ const RestaurantDetail = () => {
 
     return (
         <>
+            {contextHolder}
             <div className="detail-container">
                 <div className="detail-wrapper">
                     {/* Cột trái: thông tin quán + menu */}
@@ -757,9 +943,21 @@ const RestaurantDetail = () => {
                                                             type="button"
                                                             className="menu-qty-btn"
                                                             onClick={() => {
+                                                                const productItems = cartItemsByProduct[p.id] || [];
                                                                 const hasOptions = p.details && p.details.length > 0;
-                                                                if (hasOptions) openOptionModal(p);
-                                                                else handleChangeQuantity(p, +1);
+
+                                                                if (!hasOptions) {
+                                                                    handleChangeQuantity(p, +1);
+                                                                    return;
+                                                                }
+
+                                                                if (productItems.length === 0) {
+                                                                    openOptionModal(p);
+                                                                    return;
+                                                                }
+
+                                                                // Có ít nhất 1 combo → mở modal quản lý
+                                                                openDecreaseModal(p);
                                                             }}
                                                             disabled={addingProductId === p.id}
                                                         >
@@ -870,12 +1068,21 @@ const RestaurantDetail = () => {
                 cartItemsByProduct={cartItemsByProduct}
                 formatPrice={formatPrice}
                 addingProductId={addingProductId}
+
+                onIncreaseOne={handleIncreaseOneForItem}
                 onDecreaseOne={handleDecreaseOneForItem}
+                onUpdateQuantity={handleUpdateQuantityForItem}
+                onAddNewOption={() => {
+                    setDecreaseModalOpen(false);
+                    setDecreaseProduct(null);
+                    openOptionModal(decreaseProduct);
+                }}
                 onClose={() => {
                     setDecreaseModalOpen(false);
                     setDecreaseProduct(null);
                 }}
             />
+
         </>
     );
 };
