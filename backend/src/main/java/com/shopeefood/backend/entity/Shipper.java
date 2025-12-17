@@ -35,6 +35,9 @@ public class Shipper {
     @Column(name = "avatar")
     private String avatar; // URL ảnh đại diện của shipper
 
+    @Column(name = "license_image")
+    private String licenseImage; // URL ảnh giấy phép lái xe
+
     @OneToOne
     @MapsId
     @JoinColumn(name = "account_id")

@@ -7,13 +7,16 @@ import {
     SearchOutlined,
     FilterOutlined,
     ReloadOutlined,
-    EditOutlined
+    EditOutlined,
+    StarOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
 import {
     getMyOrders,
     updateOrderStatus,
-    editOrder
+    editOrder,
+    submitShipperFeedback,
+    getShipperFeedback
 } from '../services/shipperService';
 import dayjs from 'dayjs';
 
@@ -34,6 +37,10 @@ const ShipperOrders = () => {
     const [editingOrder, setEditingOrder] = useState(null);
     const [form] = Form.useForm();
     const [currentPage, setCurrentPage] = useState(1);
+    const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
+    const [feedbackingOrder, setFeedbackingOrder] = useState(null);
+    const [feedbackForm] = Form.useForm();
+    const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
     useEffect(() => {
         if (user && user.id) {
@@ -181,6 +188,47 @@ const ShipperOrders = () => {
         }
     };
 
+    // Mở modal đánh giá
+    const handleOpenFeedback = async (order) => {
+        setFeedbackingOrder(order);
+        try {
+            // Lấy đánh giá hiện tại nếu có
+            const feedbackData = await getShipperFeedback(order.id, shipperId);
+            if (feedbackData.hasFeedback) {
+                feedbackForm.setFieldsValue({
+                    rating: feedbackData.rating,
+                    comment: feedbackData.comment
+                });
+            } else {
+                feedbackForm.resetFields();
+            }
+        } catch (error) {
+            feedbackForm.resetFields();
+        }
+        setFeedbackModalVisible(true);
+    };
+
+    // Xử lý submit đánh giá
+    const handleSubmitFeedback = async () => {
+        try {
+            const values = await feedbackForm.validateFields();
+            setSubmittingFeedback(true);
+            await submitShipperFeedback(feedbackingOrder.id, shipperId, values.rating, values.comment);
+            message.success('Đánh giá đơn hàng thành công!');
+            setFeedbackModalVisible(false);
+            setFeedbackingOrder(null);
+            feedbackForm.resetFields();
+            fetchOrders(); // Reload để hiển thị đánh giá mới
+        } catch (error) {
+            if (error.errorFields) {
+                return;
+            }
+            message.error(error.response?.data || 'Không thể gửi đánh giá!');
+        } finally {
+            setSubmittingFeedback(false);
+        }
+    };
+
 
     // Format số tiền
     const formatMoney = (amount) => {
@@ -307,12 +355,22 @@ const ShipperOrders = () => {
             title: 'Đánh giá',
             key: 'rating',
             render: (_, record) => {
-                // Giả lập đánh giá dựa trên trạng thái
-                const rating = record.status === 'COMPLETED' ? 5 : 
-                              record.status === 'SHIPPING' ? 0 : 0;
-                return <Rate disabled defaultValue={rating} style={{ fontSize: 14 }} />;
+                // Hiển thị đánh giá từ shipper nếu có
+                if (record.hasShipperFeedback && record.shipperFeedbackRating) {
+                    return (
+                        <div>
+                            <Rate disabled value={record.shipperFeedbackRating} style={{ fontSize: 14 }} />
+                            {record.shipperFeedbackComment && (
+                                <div style={{ fontSize: '11px', color: '#666', marginTop: '4px', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {record.shipperFeedbackComment}
+                                </div>
+                            )}
+                        </div>
+                    );
+                }
+                return <span style={{ color: '#999' }}>Chưa đánh giá</span>;
             },
-            width: 150,
+            width: 180,
         },
         {
             title: 'Thao tác',
@@ -342,14 +400,27 @@ const ShipperOrders = () => {
                         </>
                     )}
                     {(record.status === 'COMPLETED' || record.status === 'CANCELLED') && (
-                        <Button
-                            type="default"
-                            size="small"
-                            icon={<EditOutlined />}
-                            onClick={() => handleEditOrder(record)}
-                        >
-                            Ghi chú
-                        </Button>
+                        <>
+                            <Button
+                                type="default"
+                                size="small"
+                                icon={<EditOutlined />}
+                                onClick={() => handleEditOrder(record)}
+                            >
+                                Ghi chú
+                            </Button>
+                            {record.status === 'COMPLETED' && (
+                                <Button
+                                    type="primary"
+                                    size="small"
+                                    icon={<StarOutlined />}
+                                    onClick={() => handleOpenFeedback(record)}
+                                    style={{ backgroundColor: record.hasShipperFeedback ? '#52c41a' : '#1890ff' }}
+                                >
+                                    {record.hasShipperFeedback ? 'Sửa đánh giá' : 'Đánh giá'}
+                                </Button>
+                            )}
+                        </>
                     )}
                 </Space>
             ),
@@ -536,6 +607,50 @@ const ShipperOrders = () => {
                                     rules={[{ required: true, message: 'Vui lòng nhập địa chỉ giao hàng!' }]}
                                 >
                                     <Input placeholder="Nhập địa chỉ giao hàng..." />
+                                </Form.Item>
+                            </Form>
+                        </div>
+                    )}
+                </Modal>
+
+                {/* Modal đánh giá đơn hàng */}
+                <Modal
+                    title={`Đánh giá đơn hàng #${feedbackingOrder?.id}`}
+                    open={feedbackModalVisible}
+                    onOk={handleSubmitFeedback}
+                    onCancel={() => {
+                        setFeedbackModalVisible(false);
+                        setFeedbackingOrder(null);
+                        feedbackForm.resetFields();
+                    }}
+                    okText="Gửi đánh giá"
+                    cancelText="Hủy"
+                    width={600}
+                    confirmLoading={submittingFeedback}
+                >
+                    {feedbackingOrder && (
+                        <div>
+                            <div style={{ marginBottom: 16, padding: '12px', background: '#f5f5f5', borderRadius: '4px' }}>
+                                <p style={{ margin: 0 }}><strong>Nhà hàng:</strong> {feedbackingOrder.restaurantName}</p>
+                                <p style={{ margin: '8px 0 0 0' }}><strong>Khách hàng:</strong> {feedbackingOrder.customerName || 'N/A'}</p>
+                                <p style={{ margin: '8px 0 0 0' }}><strong>Tổng tiền:</strong> {formatMoney(feedbackingOrder.totalAmount)}</p>
+                            </div>
+                            <Form form={feedbackForm} layout="vertical">
+                                <Form.Item
+                                    label="Đánh giá"
+                                    name="rating"
+                                    rules={[{ required: true, message: 'Vui lòng chọn số sao đánh giá!' }]}
+                                >
+                                    <Rate />
+                                </Form.Item>
+                                <Form.Item
+                                    label="Nhận xét"
+                                    name="comment"
+                                >
+                                    <Input.TextArea
+                                        rows={4}
+                                        placeholder="Nhập nhận xét về đơn hàng, khách hàng hoặc trải nghiệm giao hàng..."
+                                    />
                                 </Form.Item>
                             </Form>
                         </div>

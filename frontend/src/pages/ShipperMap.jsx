@@ -1,27 +1,66 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { Card, Row, Col, Button, message, Spin, Space, Tag, Select } from 'antd';
-import {
-    EnvironmentOutlined,
-    CarOutlined,
-    ReloadOutlined
-} from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Card, Button, Typography, Tag, Avatar, message, Spin, Space, Row, Col } from 'antd';
+import { ReloadOutlined, ShopOutlined, UserOutlined, CarOutlined } from '@ant-design/icons';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import axios from 'axios';
+
+// --- QUAN TRỌNG: PHẢI IMPORT CSS CỦA LEAFLET NẾU KHÔNG MAP SẼ VỠ ---
+import 'leaflet/dist/leaflet.css';
+
 import { useAuth } from '../context/AuthContext';
 import { useSearchParams } from 'react-router-dom';
-import {
-    getMyOrders,
-    getShipperProfile
-} from '../services/shipperService';
+import { getMyOrders, getMapLocations } from '../services/shipperService';
+
+const { Title } = Typography;
+
+// --- CẤU HÌNH ICON ---
+// Icon cho Shipper (Màu xanh)
+const shipperIcon = L.divIcon({
+    className: 'custom-icon-shipper',
+    html: `<div style="background-color: #1677ff; width: 30px; height: 30px; border-radius: 50%; border: 2px solid white; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+            <span style="color: white; font-size: 16px;">🛵</span>
+           </div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 30],
+    popupAnchor: [0, -30]
+});
+
+// Icon cho Customer (Màu đỏ)
+const customerIcon = L.divIcon({
+    className: 'custom-icon-customer',
+    html: `<div style="background-color: #ff4d4f; width: 30px; height: 30px; border-radius: 50%; border: 2px solid white; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+            <span style="color: white; font-size: 16px;">📍</span>
+           </div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 30],
+    popupAnchor: [0, -30]
+});
+
+// Component con để tự động zoom bản đồ bao trọn các điểm
+const FitBounds = ({ locations }) => {
+    const map = useMap();
+    useEffect(() => {
+        if (locations.length > 0) {
+            const markers = locations.map(loc => [loc.latitude, loc.longitude]);
+            const bounds = L.latLngBounds(markers);
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
+    }, [locations, map]);
+    return null;
+};
 
 const ShipperMap = () => {
     const { user } = useAuth();
     const [searchParams] = useSearchParams();
+    const [locations, setLocations] = useState([]);
     const [orders, setOrders] = useState([]);
     const [selectedOrder, setSelectedOrder] = useState(null);
-    const [shipperLocation, setShipperLocation] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [shipperId, setShipperId] = useState(null);
-    const mapRef = useRef(null);
-    const mapInstanceRef = useRef(null);
+
+    // Tọa độ mặc định (Hà Nội) phòng khi chưa có dữ liệu
+    const defaultCenter = [21.0285, 105.8542];
 
     useEffect(() => {
         if (user && user.id) {
@@ -32,111 +71,66 @@ const ShipperMap = () => {
     useEffect(() => {
         if (shipperId) {
             fetchData();
-            getCurrentLocation();
+            // Auto refresh mỗi 30 giây
+            const interval = setInterval(fetchData, 30000);
+            return () => clearInterval(interval);
         }
     }, [shipperId]);
 
     useEffect(() => {
-        if (mapRef.current && shipperLocation) {
-            initMap();
+        // Nếu có orderId trong URL, tự động chọn đơn hàng đó
+        const orderIdFromUrl = searchParams.get('orderId');
+        if (orderIdFromUrl && orders.length > 0) {
+            const order = orders.find(o => o.id === parseInt(orderIdFromUrl));
+            if (order) {
+                setSelectedOrder(order);
+            }
         }
-    }, [shipperLocation, orders, selectedOrder]);
+    }, [searchParams, orders]);
 
     const fetchData = async () => {
+        setLoading(true);
         try {
-            setLoading(true);
-            const [ordersData, profileData] = await Promise.all([
-                getMyOrders(shipperId),
-                getShipperProfile(shipperId)
+            // Lấy dữ liệu song song
+            const [locationsData, ordersData] = await Promise.all([
+                getMapLocations(shipperId),
+                getMyOrders(shipperId)
             ]);
-            
+
+            // Lọc và validate dữ liệu locations
+            if (Array.isArray(locationsData)) {
+                const validLocations = locationsData.filter(l =>
+                    l.latitude && l.longitude && !isNaN(Number(l.latitude)) && !isNaN(Number(l.longitude))
+                );
+                setLocations(validLocations);
+            } else {
+                console.warn("API không trả về danh sách JSON hợp lệ:", locationsData);
+            }
+
             // Lấy đơn hàng đang giao (SHIPPING)
             const activeOrders = ordersData.filter(o => o.status === 'SHIPPING');
             setOrders(activeOrders);
-            
-            // Nếu có orderId trong URL, tự động chọn đơn hàng đó
-            const orderIdFromUrl = searchParams.get('orderId');
-            if (orderIdFromUrl) {
-                const order = activeOrders.find(o => o.id === parseInt(orderIdFromUrl));
-                if (order) {
-                    setSelectedOrder(order);
-                }
-            }
-            
-            // Lấy vị trí shipper từ profile
-            if (profileData.currentLat && profileData.currentLong) {
-                setShipperLocation({
-                    lat: profileData.currentLat,
-                    lng: profileData.currentLong
-                });
-            }
         } catch (error) {
+            console.error("Lỗi tải map:", error);
             message.error('Không thể tải dữ liệu bản đồ!');
         } finally {
             setLoading(false);
         }
     };
 
-    const getCurrentLocation = () => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    setShipperLocation({
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude
-                    });
-                },
-                (error) => {
-                    console.error('Lỗi lấy vị trí:', error);
-                    // Dùng vị trí mặc định (Hà Nội)
-                    setShipperLocation({ lat: 21.0285, lng: 105.8542 });
-                }
-            );
-        } else {
-            // Dùng vị trí mặc định
-            setShipperLocation({ lat: 21.0285, lng: 105.8542 });
-        }
-    };
-
-    const initMap = () => {
-        if (!mapRef.current || !shipperLocation) return;
-
-        // Nếu có đơn hàng được chọn, zoom vào vị trí khách hàng
-        if (selectedOrder && selectedOrder.shippingLat && selectedOrder.shippingLong) {
-            handleSelectOrder(selectedOrder);
-            return;
-        }
-
-        // Mặc định: hiển thị vị trí shipper
-        const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${shipperLocation.lng - 0.1},${shipperLocation.lat - 0.1},${shipperLocation.lng + 0.1},${shipperLocation.lat + 0.1}&layer=mapnik&marker=${shipperLocation.lat},${shipperLocation.lng}`;
-        
-        // Tạo iframe để hiển thị bản đồ
-        if (!mapInstanceRef.current) {
-            const iframe = document.createElement('iframe');
-            iframe.width = '100%';
-            iframe.height = '600px';
-            iframe.frameBorder = '0';
-            iframe.scrolling = 'no';
-            iframe.src = mapUrl;
-            mapRef.current.appendChild(iframe);
-            mapInstanceRef.current = iframe;
-        } else {
-            mapInstanceRef.current.src = mapUrl;
-        }
-    };
-
     const calculateDistance = (order) => {
-        if (!shipperLocation || !order.shippingLat || !order.shippingLong) {
+        const shipperLoc = locations.find(l => l.type === 'SHIPPER');
+        if (!shipperLoc || !order.shippingLat || !order.shippingLong) {
             return 'N/A';
         }
         
         // Công thức Haversine để tính khoảng cách
         const R = 6371; // Bán kính Trái Đất (km)
-        const dLat = (order.shippingLat - shipperLocation.lat) * Math.PI / 180;
-        const dLon = (order.shippingLong - shipperLocation.lng) * Math.PI / 180;
+        const dLat = (order.shippingLat - shipperLoc.latitude) * Math.PI / 180;
+        const dLon = (order.shippingLong - shipperLoc.longitude) * Math.PI / 180;
         const a = 
             Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(shipperLocation.lat * Math.PI / 180) * 
+            Math.cos(shipperLoc.latitude * Math.PI / 180) * 
             Math.cos(order.shippingLat * Math.PI / 180) *
             Math.sin(dLon / 2) * Math.sin(dLon / 2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
@@ -164,158 +158,173 @@ const ShipperMap = () => {
 
     const handleSelectOrder = (order) => {
         setSelectedOrder(order);
-        // Zoom vào đúng vị trí khách hàng (địa chỉ giao hàng)
-        if (order.shippingLat && order.shippingLong && mapInstanceRef.current) {
-            // Tính bounding box để hiển thị cả vị trí shipper và vị trí khách hàng (nếu có)
-            let bbox;
-            if (shipperLocation && shipperLocation.lat && shipperLocation.lng) {
-                // Có cả 2 vị trí: tính bounding box bao phủ cả 2 điểm
-                const minLat = Math.min(shipperLocation.lat, order.shippingLat);
-                const maxLat = Math.max(shipperLocation.lat, order.shippingLat);
-                const minLng = Math.min(shipperLocation.lng, order.shippingLong);
-                const maxLng = Math.max(shipperLocation.lng, order.shippingLong);
-                // Add padding để map không sát biên
-                const padding = 0.01;
-                bbox = `${minLng - padding},${minLat - padding},${maxLng + padding},${maxLat + padding}`;
-            } else {
-                // Chỉ có vị trí khách hàng: zoom vào đó
-                const padding = 0.01;
-                bbox = `${order.shippingLong - padding},${order.shippingLat - padding},${order.shippingLong + padding},${order.shippingLat + padding}`;
-            }
-            
-            // Tạo URL với marker tại vị trí khách hàng
-            const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${order.shippingLat},${order.shippingLong}`;
-            mapInstanceRef.current.src = mapUrl;
-        } else {
-            // Nếu không có tọa độ, hiển thị thông báo
-            message.warning('Đơn hàng này chưa có tọa độ địa chỉ giao hàng. Vui lòng cập nhật địa chỉ trong profile để hiển thị trên bản đồ.');
-        }
     };
 
-    if (loading) {
+    if (loading && locations.length === 0) {
         return <div style={{ textAlign: 'center', marginTop: 50 }}><Spin size="large" /></div>;
     }
 
     return (
-        <div style={{ padding: 0, margin: 0, width: '100%' }}>
-            <Card style={{ margin: 0 }}>
-                <Space direction="vertical" style={{ width: '100%' }} size="large">
+        <div style={{ padding: 20, height: '100vh', display: 'flex', flexDirection: 'column' }}>
+            <Card
+                title={
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h2 style={{ margin: 0 }}>
-                            <EnvironmentOutlined /> Bản đồ giao hàng
-                        </h2>
-                        <Button
-                            icon={<ReloadOutlined />}
-                            onClick={() => {
-                                getCurrentLocation();
-                                fetchData();
-                            }}
-                        >
-                            Làm mới vị trí
-                        </Button>
+                        <Title level={4} style={{ margin: 0 }}>🗺️ Bản đồ Giao hàng</Title>
+                        <div style={{ display: 'flex', gap: 10 }}>
+                            <Tag color="blue">🛵 Shipper: {locations.filter(l => l.type === 'SHIPPER').length}</Tag>
+                            <Tag color="red">📍 Khách hàng: {locations.filter(l => l.type === 'CUSTOMER').length}</Tag>
+                            <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading} type="primary">
+                                Cập nhật
+                            </Button>
+                        </div>
                     </div>
+                }
+                bodyStyle={{ padding: 0, height: '600px' }}
+            >
+                <Row gutter={16} style={{ height: '100%' }}>
+                    <Col span={16} style={{ height: '100%' }}>
+                        {/* MapContainer bắt buộc phải có height rõ ràng */}
+                        <MapContainer
+                            center={defaultCenter}
+                            zoom={12}
+                            style={{ width: '100%', height: '100%' }}
+                        >
+                            <TileLayer
+                                attribution='&copy; OpenStreetMap contributors'
+                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            />
 
+                            {/* Tự động zoom fit toàn bộ marker */}
+                            <FitBounds locations={locations} />
+
+                            {locations.map((loc) => (
+                                <Marker
+                                    key={`${loc.type}-${loc.id}`}
+                                    position={[loc.latitude, loc.longitude]}
+                                    icon={loc.type === 'SHIPPER' ? shipperIcon : customerIcon}
+                                >
+                                    <Popup>
+                                        <div style={{ minWidth: 200 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                                                <Avatar
+                                                    shape="square"
+                                                    size={40}
+                                                    src={loc.image}
+                                                    icon={loc.type === 'SHIPPER' ? <CarOutlined /> : <UserOutlined />}
+                                                    style={{ backgroundColor: loc.type === 'SHIPPER' ? '#1677ff' : '#ff4d4f' }}
+                                                />
+                                                <div>
+                                                    <div style={{ fontWeight: 'bold' }}>{loc.name}</div>
+                                                    <Tag color={
+                                                        loc.status === 'ONLINE' || loc.status === 'SHIPPING'
+                                                            ? 'success'
+                                                            : 'default'
+                                                    }>
+                                                        {loc.status}
+                                                    </Tag>
+                                                </div>
+                                            </div>
+                                            <div style={{ fontSize: 12 }}>📍 {loc.info}</div>
+                                            {loc.restaurantName && (
+                                                <div style={{ fontSize: 12, marginTop: 5 }}>
+                                                    🏠 Nhà hàng: {loc.restaurantName}
+                                                </div>
+                                            )}
+                                            <div style={{ fontSize: 11, color: '#888', marginTop: 5 }}>
+                                                Lat: {loc.latitude.toFixed(4)}, Long: {loc.longitude.toFixed(4)}
+                                            </div>
+                                        </div>
+                                    </Popup>
+                                </Marker>
+                            ))}
+                        </MapContainer>
+                    </Col>
+
+                    <Col span={8} style={{ height: '100%', overflowY: 'auto' }}>
+                        <Card title="Đơn hàng đang giao" style={{ height: '100%' }}>
+                            {orders.length === 0 ? (
+                                <p style={{ textAlign: 'center', color: '#999' }}>
+                                    Không có đơn hàng đang giao
+                                </p>
+                            ) : (
+                                <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                                    {orders.map((order) => (
+                                        <Card
+                                            key={order.id}
+                                            size="small"
+                                            hoverable
+                                            onClick={() => handleSelectOrder(order)}
+                                            style={{
+                                                cursor: 'pointer',
+                                                border: selectedOrder?.id === order.id ? '2px solid #1890ff' : '1px solid #d9d9d9'
+                                            }}
+                                        >
+                                            <Space direction="vertical" style={{ width: '100%' }} size="small">
+                                                <div>
+                                                    <strong>Đơn #{order.id}</strong>
+                                                    <Tag color="blue" style={{ marginLeft: 8 }}>
+                                                        {order.status}
+                                                    </Tag>
+                                                </div>
+                                                <div>
+                                                    <ShopOutlined /> {order.restaurantName}
+                                                </div>
+                                                <div style={{ fontSize: '12px', color: '#666' }}>
+                                                    📍 {order.shippingAddress}
+                                                </div>
+                                                <Row gutter={8}>
+                                                    <Col span={12}>
+                                                        <div style={{ fontSize: '12px' }}>
+                                                            <strong>Khoảng cách:</strong>
+                                                            <div style={{ color: '#1890ff' }}>
+                                                                {calculateDistance(order)}
+                                                            </div>
+                                                        </div>
+                                                    </Col>
+                                                    <Col span={12}>
+                                                        <div style={{ fontSize: '12px' }}>
+                                                            <strong>Thời gian ước tính:</strong>
+                                                            <div style={{ color: '#52c41a' }}>
+                                                                {calculateEstimatedTime(order)}
+                                                            </div>
+                                                        </div>
+                                                    </Col>
+                                                </Row>
+                                                <div style={{ fontSize: '12px' }}>
+                                                    <strong>Tổng tiền:</strong> {formatMoney(order.totalAmount)}
+                                                </div>
+                                            </Space>
+                                        </Card>
+                                    ))}
+                                </Space>
+                            )}
+                        </Card>
+                    </Col>
+                </Row>
+            </Card>
+
+            {selectedOrder && (
+                <Card title={`Chi tiết đơn hàng #${selectedOrder.id}`} style={{ marginTop: 16 }}>
                     <Row gutter={16}>
-                        <Col span={16}>
-                            <Card title="Bản đồ" style={{ height: '650px' }}>
-                                <div ref={mapRef} style={{ width: '100%', height: '600px' }} />
-                                {!shipperLocation && (
-                                    <div style={{ textAlign: 'center', padding: '50px' }}>
-                                        <Spin size="large" />
-                                        <p>Đang tải bản đồ...</p>
-                                    </div>
-                                )}
-                            </Card>
+                        <Col span={12}>
+                            <p><strong>Nhà hàng:</strong> {selectedOrder.restaurantName}</p>
+                            <p><strong>Địa chỉ giao hàng:</strong> {selectedOrder.shippingAddress}</p>
+                            <p><strong>Khoảng cách:</strong> {calculateDistance(selectedOrder)}</p>
+                            <p><strong>Thời gian ước tính:</strong> {calculateEstimatedTime(selectedOrder)}</p>
                         </Col>
-
-                        <Col span={8}>
-                            <Card title="Đơn hàng đang giao" style={{ maxHeight: '650px', overflowY: 'auto' }}>
-                                {orders.length === 0 ? (
-                                    <p style={{ textAlign: 'center', color: '#999' }}>
-                                        Không có đơn hàng đang giao
-                                    </p>
-                                ) : (
-                                    <Space direction="vertical" style={{ width: '100%' }} size="middle">
-                                        {orders.map((order) => (
-                                            <Card
-                                                key={order.id}
-                                                size="small"
-                                                hoverable
-                                                onClick={() => handleSelectOrder(order)}
-                                                style={{
-                                                    cursor: 'pointer',
-                                                    border: selectedOrder?.id === order.id ? '2px solid #1890ff' : '1px solid #d9d9d9'
-                                                }}
-                                            >
-                                                <Space direction="vertical" style={{ width: '100%' }} size="small">
-                                                    <div>
-                                                        <strong>Đơn #{order.id}</strong>
-                                                        <Tag color="blue" style={{ marginLeft: 8 }}>
-                                                            {order.status}
-                                                        </Tag>
-                                                    </div>
-                                                    <div>
-                                                        <CarOutlined /> {order.restaurantName}
-                                                    </div>
-                                                    <div style={{ fontSize: '12px', color: '#666' }}>
-                                                        📍 {order.shippingAddress}
-                                                    </div>
-                                                    <Row gutter={8}>
-                                                        <Col span={12}>
-                                                            <div style={{ fontSize: '12px' }}>
-                                                                <strong>Khoảng cách:</strong>
-                                                                <div style={{ color: '#1890ff' }}>
-                                                                    {calculateDistance(order)}
-                                                                </div>
-                                                            </div>
-                                                        </Col>
-                                                        <Col span={12}>
-                                                            <div style={{ fontSize: '12px' }}>
-                                                                <strong>Thời gian ước tính:</strong>
-                                                                <div style={{ color: '#52c41a' }}>
-                                                                    {calculateEstimatedTime(order)}
-                                                                </div>
-                                                            </div>
-                                                        </Col>
-                                                    </Row>
-                                                    <div style={{ fontSize: '12px' }}>
-                                                        <strong>Tổng tiền:</strong> {formatMoney(order.totalAmount)}
-                                                    </div>
-                                                </Space>
-                                            </Card>
-                                        ))}
-                                    </Space>
-                                )}
-                            </Card>
+                        <Col span={12}>
+                            <p><strong>Tổng tiền:</strong> {formatMoney(selectedOrder.totalAmount)}</p>
+                            <p><strong>Phương thức thanh toán:</strong> <Tag>{selectedOrder.paymentMethod}</Tag></p>
+                            <p><strong>Trạng thái:</strong> <Tag color="blue">{selectedOrder.status}</Tag></p>
+                            {selectedOrder.note && (
+                                <p><strong>Ghi chú:</strong> {selectedOrder.note}</p>
+                            )}
                         </Col>
                     </Row>
-
-                    {selectedOrder && (
-                        <Card title={`Chi tiết đơn hàng #${selectedOrder.id}`} style={{ marginTop: 16 }}>
-                            <Row gutter={16}>
-                                <Col span={12}>
-                                    <p><strong>Nhà hàng:</strong> {selectedOrder.restaurantName}</p>
-                                    <p><strong>Địa chỉ giao hàng:</strong> {selectedOrder.shippingAddress}</p>
-                                    <p><strong>Khoảng cách:</strong> {calculateDistance(selectedOrder)}</p>
-                                    <p><strong>Thời gian ước tính:</strong> {calculateEstimatedTime(selectedOrder)}</p>
-                                </Col>
-                                <Col span={12}>
-                                    <p><strong>Tổng tiền:</strong> {formatMoney(selectedOrder.totalAmount)}</p>
-                                    <p><strong>Phương thức thanh toán:</strong> <Tag>{selectedOrder.paymentMethod}</Tag></p>
-                                    <p><strong>Trạng thái:</strong> <Tag color="blue">{selectedOrder.status}</Tag></p>
-                                    {selectedOrder.note && (
-                                        <p><strong>Ghi chú:</strong> {selectedOrder.note}</p>
-                                    )}
-                                </Col>
-                            </Row>
-                        </Card>
-                    )}
-                </Space>
-            </Card>
+                </Card>
+            )}
         </div>
     );
 };
 
 export default ShipperMap;
-
-
