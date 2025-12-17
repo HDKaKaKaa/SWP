@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/preserve-manual-memoization */
 /* eslint-disable react-hooks/set-state-in-effect */
 import React, { useState, useEffect, useCallback, useContext } from "react";
 import axios from "axios";
@@ -8,11 +9,11 @@ import { FaSort, FaSortUp, FaSortDown } from "react-icons/fa";
 import { AuthContext } from "../context/AuthContext";
 
 // Cần import CSS của DatePicker
-import "react-datepicker/dist/react-datepicker.css"; // Giữ lại nếu muốn dùng tạm thời cho date range
-// Hoặc đảm bảo bạn import CSS của antd DatePicker
+import "react-datepicker/dist/react-datepicker.css";
 
 const { Option } = Select;
 const { Search } = Input;
+
 
 // --- Component con để hiển thị Trạng thái Đơn hàng bằng Tag của Ant Design ---
 const OrderStatusTag = ({ status }) => {
@@ -26,7 +27,6 @@ const OrderStatusTag = ({ status }) => {
     };
     return <Tag color={colorMap[status] || "default"}>{status}</Tag>;
 };
-
 // --- Component con để hiển thị chi tiết sản phẩm và thuộc tính (Không đổi) ---
 const OrderItemDetails = ({ items }) => {
     if (!items || items.length === 0) {
@@ -61,11 +61,10 @@ export default function OwnerOrders() {
     const [orders, setOrders] = useState([]);
     const [restaurants, setRestaurants] = useState([]);
     const [selectedRestaurant, setSelectedRestaurant] = useState(null);
-
+    const [activeSearch, setActiveSearch] = useState("");
     const [search, setSearch] = useState("");
     const [fromDate, setFromDate] = useState(null);
     const [toDate, setToDate] = useState(null);
-
     const [pagination, setPagination] = useState({
         current: 1,
         pageSize: 10,
@@ -126,8 +125,7 @@ export default function OwnerOrders() {
                 params: {
                     ownerId,
                     restaurantId: selectedRestaurant || null,
-                    search,
-                    // Format DatePicker Moment objects
+                    search: activeSearch,
                     from: fromDate ? fromDate.startOf('day').toISOString() : null,
                     to: toDate ? toDate.endOf('day').toISOString() : null,
                     page: pagination.current - 1,
@@ -150,11 +148,8 @@ export default function OwnerOrders() {
             setOrders([]);
         }
         setLoading(false);
-    }, [ownerId, selectedRestaurant, search, fromDate, toDate, pagination.current, pagination.pageSize, sort.field, sort.order]);
+    }, [ownerId, selectedRestaurant, activeSearch, fromDate, toDate, pagination.current, pagination.pageSize, sort.field, sort.order]);
 
-    useEffect(() => {
-        fetchOrders();
-    }, [fetchOrders]);
 
     // Xử lý thay đổi Table (Phân trang và Sắp xếp)
     const handleTableChange = (newPagination, filters, sorter) => {
@@ -203,15 +198,24 @@ export default function OwnerOrders() {
         }
     }, [fetchOrders]);
 
+    const handleSearchSubmit = () => {
+        setActiveSearch(search);
+        setPagination(prev => ({ ...prev, current: 1 }));
+    };
     // Reset Filter
     const handleReset = () => {
         setSearch("");
+        setActiveSearch("");
         setSelectedRestaurant(null);
         setFromDate(null);
         setToDate(null);
         setSort({ field: "createdAt", order: "descend" });
         setPagination(prev => ({ ...prev, current: 1 }));
     };
+    
+    useEffect(() => {
+        fetchOrders();
+    }, [ownerId, selectedRestaurant, fromDate, toDate, pagination.current, pagination.pageSize, sort.field, sort.order, activeSearch]);
 
     // Định nghĩa cột cho Ant Design Table
     const columns = [
@@ -224,8 +228,8 @@ export default function OwnerOrders() {
         },
         {
             title: 'Mã đơn',
-            dataIndex: 'id',
-            key: 'id',
+            dataIndex: 'orderNumber',
+            key: 'orderNumber',
             sorter: true,
             width: 100,
             align: 'center',
@@ -328,7 +332,7 @@ export default function OwnerOrders() {
         <div className="p-4">
             <h2 className="mb-4">Quản lý đơn hàng</h2>
 
-            <Space direction="horizontal" size="middle" className="mb-4 w-100" wrap>
+            <Space direction="horizontal" size="middle" className="mb-4 w-130" wrap>
                 {/* Lọc theo Nhà hàng (Ant Design Select) */}
                 <Select
                     style={{ width: 200 }}
@@ -369,22 +373,27 @@ export default function OwnerOrders() {
                     allowClear
                 />
                 {/* Tìm kiếm theo mã đơn (Ant Design Input Search) */}
-                <Col xs={24} sm={12} md={6} lg={4}>
+                <Space.Compact style={{ width: 350, marginLeft: 20 }}>
                     <Input
                         placeholder="Tìm theo mã đơn"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        // Thêm xử lý khi nhấn Enter (tương đương với onSearch)
-                        onPressEnter={() => setPagination(prev => ({ ...prev, current: 1 }))}
-                        style={{ width: 300, height: 33, marginLeft: 20 }}
+                        onPressEnter={handleSearchSubmit}
+                        style={{ width: 300, height: 34, marginLeft: 30 }}
                     />
-                </Col>
+                    <AntButton
+                    style={{marginLeft: 10 }}
+                        type="primary"
+                        icon={<SearchOutlined/>}
+                        onClick={handleSearchSubmit}
+                    />
+                </Space.Compact>
                 {/* Nút Reset */}
                 <AntButton
                     icon={<ReloadOutlined />}
                     onClick={handleReset}
                 >
-                    Reset
+                    Tải lại
                 </AntButton>
             </Space>
 

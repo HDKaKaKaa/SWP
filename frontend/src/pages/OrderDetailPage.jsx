@@ -25,6 +25,7 @@ import { useAuth } from '../context/AuthContext';
 import { getCustomerOrders, createFeedback } from '../services/orderService';
 import dayjs from 'dayjs';
 import OrderTrackingModal from '../components/OrderTrackingModal';
+import axios from 'axios';
 
 const { TextArea } = Input;
 const { RangePicker } = DatePicker;
@@ -250,9 +251,35 @@ const OrderDetailPage = () => {
     }
   };
 
-  const handleOpenTracking = (order) => {
-    setOrderToTrack(order);
-    setTrackingModalVisible(true);
+  const handleOpenTracking = async (orderSummary) => {
+    try {
+      message.loading({
+        content: 'Đang tải dữ liệu đường đi...',
+        key: 'tracking_load',
+      });
+
+      // Gọi API chi tiết đơn hàng để lấy đủ thông tin tọa độ (lat/long của quán và của đơn hàng)
+      // Lưu ý: Bạn cần đảm bảo endpoint này trả về object restaurant có lat, long
+      // Param shipperId=0 chỉ là giả định nếu API yêu cầu, nếu không cần thì bỏ qua
+      const res = await axios.get(
+        `http://localhost:8080/api/shipper/orders/${
+          orderSummary.id
+        }/detail?shipperId=${orderSummary.shipperId || 0}`
+      );
+
+      setOrderToTrack(res.data); // Set dữ liệu đầy đủ
+      setTrackingModalVisible(true);
+      message.success({ content: 'Đã tải xong!', key: 'tracking_load' });
+    } catch (error) {
+      console.error(error);
+      // Fallback: Nếu lỗi API detail thì dùng tạm dữ liệu summary
+      setOrderToTrack(orderSummary);
+      setTrackingModalVisible(true);
+      message.warning({
+        content: 'Không tải được chi tiết bản đồ, dùng dữ liệu hiển thị.',
+        key: 'tracking_load',
+      });
+    }
   };
 
   // Định nghĩa cột cho bảng

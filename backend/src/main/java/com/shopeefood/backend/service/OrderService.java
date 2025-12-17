@@ -83,8 +83,7 @@ public class OrderService {
         Page<Order> finalPage = new PageImpl<>(
                 sortedOrders,
                 pageable,
-                orderIdsPage.getTotalElements() 
-        );
+                orderIdsPage.getTotalElements());
         return finalPage.map(OrderDTO::new);
     }
 
@@ -129,6 +128,11 @@ public class OrderService {
 
         Order savedOrder = orderRepository.save(order);
         return orderRepository.findByIdWithDetails(savedOrder.getId()).orElse(savedOrder);
+    }
+
+    public Order getOrderDetailsById(Integer orderId) {
+        return orderRepository.findByIdWithDetails(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found with id: " + orderId));
     }
 
     public Order getOrderById(Integer orderId) {

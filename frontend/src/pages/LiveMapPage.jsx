@@ -106,8 +106,8 @@ const LiveMapPage = () => {
                     style={{ width: '100%', height: '100%' }} // Height 100% ăn theo bodyStyle của Card
                 >
                     <TileLayer
-                        attribution='&copy; OpenStreetMap contributors'
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        attribution='&copy; Google Maps'
+                        url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=vi&gl=VN"
                     />
 
                     {/* Tự động zoom fit toàn bộ marker */}
