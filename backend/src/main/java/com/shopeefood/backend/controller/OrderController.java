@@ -34,7 +34,6 @@ public class OrderController {
     private FeedbackRepository feedbackRepository;
     @Autowired
     private CustomerRepository customerRepository;
-
     @Autowired
     private OrderAnalyticsService orderAnalyticsService;
 
@@ -314,7 +313,8 @@ public class OrderController {
         Customer customer = customerRepository.findById(order.getCustomer().getId())
                 .orElseGet(() -> {
                     Customer newCustomer = new Customer();
-                    newCustomer.setAccountId(order.getCustomer().getId());
+                    newCustomer.setAccount(order.getCustomer());
+                    newCustomer.setFullName(order.getCustomer().getUsername());
                     return customerRepository.save(newCustomer);
                 });
 

@@ -198,33 +198,60 @@ const RestaurantEdit = () => {
 
       // 1. Xử lý Cover Image
       let finalCoverUrl = '';
-      const coverFile = values.coverImage[0];
-      if (coverFile.url) {
-        finalCoverUrl = coverFile.url;
-      } else {
-        const formData = new FormData();
-        formData.append('file', coverFile.originFileObj);
-        const res = await axios.post(
-          'http://localhost:8080/api/upload/image',
-          formData
-        );
-        finalCoverUrl = res.data;
+      if (coverFileList.length > 0) {
+        const file = coverFileList[0];
+        if (file.url) {
+          finalCoverUrl = file.url;
+        } else {
+          // Với Cover Image dùng onChange của Antd, ưu tiên lấy originFileObj
+          const actualFile = file.originFileObj || file;
+
+          // DEBUG: Kiểm tra xem file có đúng là Blob/File không
+          console.log('Uploading Cover:', actualFile);
+
+          const formData = new FormData();
+          formData.append('file', actualFile);
+          try {
+            const res = await axios.post(
+              'http://localhost:8080/api/upload/image',
+              formData
+            );
+            finalCoverUrl = res.data;
+          } catch (uploadErr) {
+            // Bắt lỗi riêng cho upload để dễ debug
+            console.error('Lỗi upload Cover:', uploadErr);
+            message.error('Lỗi khi upload ảnh đại diện!');
+            setLoading(false);
+            return; // Dừng luôn nếu upload lỗi
+          }
+        }
       }
 
       // 2. Xử lý License Images
       const finalLicenseUrls = [];
-      for (const file of values.licenseImages) {
+      for (const file of licenseFileList) {
         if (file.url) {
           finalLicenseUrls.push(file.url);
         } else {
-          const formData = new FormData();
+          // Với License Image add thủ công, file chính là file gốc
           const actualFile = file.originFileObj || file;
+
+          console.log('Uploading License:', actualFile);
+
+          const formData = new FormData();
           formData.append('file', actualFile);
-          const res = await axios.post(
-            'http://localhost:8080/api/upload/image',
-            formData
-          );
-          finalLicenseUrls.push(res.data);
+          try {
+            const res = await axios.post(
+              'http://localhost:8080/api/upload/image',
+              formData
+            );
+            finalLicenseUrls.push(res.data);
+          } catch (uploadErr) {
+            console.error('Lỗi upload License:', uploadErr);
+            message.error('Lỗi khi upload giấy phép!');
+            setLoading(false);
+            return;
+          }
         }
       }
 
@@ -253,10 +280,43 @@ const RestaurantEdit = () => {
 
       setTimeout(() => {
         navigate('/my-registrations');
-      }, 1500);
+      }, 500);
     } catch (err) {
-      console.error(err);
-      message.error(err.response?.data || 'Có lỗi xảy ra khi cập nhật.');
+      // 1. In lỗi ra console để debug (quan trọng để xem cấu trúc lỗi thực tế)
+      console.error('Full Error Object:', err);
+
+      // 2. Khởi tạo thông báo lỗi mặc định
+      let errorMsg = 'Có lỗi xảy ra khi cập nhật.';
+
+      // 3. Kiểm tra xem có phản hồi từ server không
+      if (err.response && err.response.data) {
+        // TRƯỜNG HỢP A: Server trả về chuỗi văn bản (String)
+        // Ví dụ: return ResponseEntity.badRequest().body("Tên quán quá dài");
+        if (typeof err.response.data === 'string') {
+          errorMsg = err.response.data;
+        }
+
+        // TRƯỜNG HỢP B: Server trả về Object JSON (thường gặp ở lỗi 500 Spring Boot)
+        // Ví dụ: { timestamp: "...", status: 500, error: "Internal Server Error", message: "File too large" }
+        else if (typeof err.response.data === 'object') {
+          // Ưu tiên lấy thuộc tính 'message' hoặc 'error'
+          if (err.response.data.message) {
+            errorMsg = err.response.data.message;
+          } else if (err.response.data.error) {
+            errorMsg = err.response.data.error;
+          } else {
+            // Nếu không tìm thấy message, chuyển cả object thành chuỗi để không bị crash
+            errorMsg = JSON.stringify(err.response.data);
+          }
+        }
+      }
+      // TRƯỜNG HỢP C: Lỗi mạng hoặc không có response (Server tắt)
+      else if (err.message) {
+        errorMsg = err.message;
+      }
+
+      // 4. Hiển thị thông báo an toàn
+      message.error(errorMsg);
     } finally {
       setLoading(false);
     }
