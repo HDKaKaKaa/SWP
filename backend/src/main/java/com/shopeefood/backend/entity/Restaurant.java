@@ -21,10 +21,10 @@ public class Restaurant {
     private Double latitude;
     private Double longitude;
 
-    @Column(name = "cover_image")
+    @Column(name = "cover_image", columnDefinition = "TEXT")
     private String coverImage;
 
-    @Column(name = "license_image")
+    @Column(name = "license_image", columnDefinition = "TEXT")
     private String licenseImage;
 
     @Column(name = "rejection_reason", columnDefinition = "TEXT")

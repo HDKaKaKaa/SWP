@@ -63,7 +63,11 @@ public class RestaurantService {
         restaurant.setCoverImage(request.getCoverImageUrl());
         restaurant.setLatitude(request.getLatitude());
         restaurant.setLongitude(request.getLongitude());
-       
+
+        if (request.getLicenseImages() != null && !request.getLicenseImages().isEmpty()) {
+            String joinedLicenseUrls = String.join(",", request.getLicenseImages());
+            restaurant.setLicenseImage(joinedLicenseUrls);
+        }
 
         // Set quan hệ
         restaurant.setOwner(owner);
@@ -88,6 +92,17 @@ public class RestaurantService {
         restaurant.setDescription(request.getDescription());
         restaurant.setCoverImage(request.getCoverImageUrl());
 
+        // --- BỔ SUNG ĐOẠN NÀY ĐỂ CẬP NHẬT ẢNH GIẤY PHÉP ---
+        if (request.getLicenseImages() != null && !request.getLicenseImages().isEmpty()) {
+            // Nối danh sách link ảnh thành chuỗi (cách nhau bởi dấu phẩy) để lưu vào DB
+            String joinedLicenseUrls = String.join(",", request.getLicenseImages());
+            restaurant.setLicenseImage(joinedLicenseUrls);
+        } else {
+            // (Tuỳ chọn) Nếu danh sách gửi lên rỗng thì xóa ảnh cũ hoặc giữ nguyên tùy
+            // logic bạn muốn
+            // Ở đây nếu frontend gửi mảng rỗng thì ta set rỗng
+            restaurant.setLicenseImage("");
+        }
 
         // Cập nhật tọa độ
         if (request.getLatitude() != null && request.getLongitude() != null) {
