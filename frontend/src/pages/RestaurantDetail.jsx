@@ -484,7 +484,7 @@ const RestaurantDetail = () => {
             const current = tmpSelections[attrId];
             if (!current) continue;
             if (current.type === 'single' && current.values.length === 0) {
-                message.warning(`Vui lòng chọn "${g.attribute.name}".`);
+                messageApi.warning(`Vui lòng chọn "${g.attribute.name}".`);
                 return;
             }
         }
@@ -535,13 +535,13 @@ const RestaurantDetail = () => {
 
         // Nếu có đăng nhập nhưng role không được phép order
         if (!canOrder) {
-            message.warning('Tài khoản này không được phép đặt món.');
+            messageApi.warning('Tài khoản này không được phép đặt món.');
             return;
         }
 
         const currentQty = cartQuantities[product.id] || 0;
         if (currentQty >= MAX_PER_PRODUCT) {
-            message.warning(`Bạn chỉ có thể đặt tối đa ${MAX_PER_PRODUCT} phần cho một món.`);
+            messageApi.warning(`Bạn chỉ có thể đặt tối đa ${MAX_PER_PRODUCT} phần cho một món.`);
             return;
         }
         maybeWarnLargeOrder(product.id, currentQty + 1);
@@ -583,7 +583,7 @@ const RestaurantDetail = () => {
             return;
         }
         if (!canOrder) {
-            message.warning('Tài khoản này không được phép đặt món.');
+            messageApi.warning('Tài khoản này không được phép đặt món.');
             return;
         }
 
@@ -593,7 +593,7 @@ const RestaurantDetail = () => {
         if (newQty < 0) return;
 
         if (newQty > MAX_PER_PRODUCT) {
-            message.warning(`Bạn chỉ có thể đặt tối đa ${MAX_PER_PRODUCT} phần cho một món.`);
+            messageApi.warning(`Bạn chỉ có thể đặt tối đa ${MAX_PER_PRODUCT} phần cho một món.`);
             return;
         }
 
@@ -633,7 +633,7 @@ const RestaurantDetail = () => {
             syncQuantitiesFromResponse(data);
         } catch (err) {
             console.error(err);
-            message.error('Không cập nhật được số lượng. Vui lòng thử lại.');
+            messageApi.error('Không cập nhật được số lượng. Vui lòng thử lại.');
         } finally {
             setAddingProductId(null);
         }
@@ -653,7 +653,7 @@ const RestaurantDetail = () => {
         }
 
         if (!canOrder) {
-            message.warning('Tài khoản này không được phép đặt món.');
+            messageApi.warning('Tài khoản này không được phép đặt món.');
             return;
         }
 
@@ -661,7 +661,7 @@ const RestaurantDetail = () => {
         const currentTotal = cartQuantities[pid] || 0;
 
         if (currentTotal >= MAX_PER_PRODUCT) {
-            message.warning(`Bạn chỉ có thể đặt tối đa ${MAX_PER_PRODUCT} phần cho một món.`);
+            messageApi.warning(`Bạn chỉ có thể đặt tối đa ${MAX_PER_PRODUCT} phần cho một món.`);
             return;
         }
 
@@ -680,7 +680,7 @@ const RestaurantDetail = () => {
             syncQuantitiesFromResponse(data);
         } catch (err) {
             console.error(err);
-            message.error('Không cập nhật được số lượng.');
+            messageApi.error('Không cập nhật được số lượng.');
         } finally {
             setAddingProductId(null);
         }
@@ -694,14 +694,16 @@ const RestaurantDetail = () => {
         }
 
         if (!canOrder) {
-            message.warning('Tài khoản này không được phép đặt món.');
+            messageApi.warning('Tài khoản này không được phép đặt món.');
             return;
         }
 
         if (quantity > MAX_PER_PRODUCT) {
-            message.warning(`Bạn chỉ có thể đặt tối đa ${MAX_PER_PRODUCT} phần cho một combo.`);
+            messageApi.warning(`Bạn chỉ có thể đặt tối đa ${MAX_PER_PRODUCT} phần cho một combo.`);
             return;
         }
+        if (quantity < 0) return;
+
         const pid = cartItem.productId;
         const currentTotal = cartQuantities[pid] || 0;
         const nextTotal = currentTotal - (cartItem.quantity || 0) + quantity;
@@ -719,9 +721,16 @@ const RestaurantDetail = () => {
             });
 
             syncQuantitiesFromResponse(data);
+
+            // nếu sau update mà product này không còn item nào -> đóng modal
+            const productItems = (data?.items || []).filter((it) => it.productId === pid);
+            if (productItems.length === 0) {
+                setDecreaseModalOpen(false);
+                setDecreaseProduct(null);
+            }
         } catch (err) {
             console.error(err);
-            message.error('Không cập nhật được số lượng.');
+            messageApi.error('Không cập nhật được số lượng.');
         } finally {
             setAddingProductId(null);
         }
@@ -736,7 +745,7 @@ const RestaurantDetail = () => {
 
         // Nếu có đăng nhập nhưng role không được phép order
         if (!canOrder) {
-            message.warning('Tài khoản này không được phép đặt món.');
+            messageApi.warning('Tài khoản này không được phép đặt món.');
             return;
         }
 
@@ -767,7 +776,7 @@ const RestaurantDetail = () => {
             }
         } catch (err) {
             console.error(err);
-            message.error('Không cập nhật được số lượng. Vui lòng thử lại.');
+            messageApi.error('Không cập nhật được số lượng. Vui lòng thử lại.');
         } finally {
             setAddingProductId(null);
         }
@@ -781,7 +790,7 @@ const RestaurantDetail = () => {
 
         // Nếu có đăng nhập nhưng role không được phép order
         if (!canOrder) {
-            message.warning('Tài khoản này không được phép đặt món.');
+            messageApi.warning('Tài khoản này không được phép đặt món.');
             return;
         }
 

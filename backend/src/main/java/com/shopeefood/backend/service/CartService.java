@@ -72,7 +72,7 @@ public class CartService {
         Customer customer = customerRepository.findById(accountId)
                 .orElseGet(() -> {
                     Customer c = new Customer();
-                    c.setAccountId(accountId);
+                    c.setAccount(account);
                     // fullName không bắt buộc, set tạm để tránh null quá nhiều
                     c.setFullName(account.getUsername());
                     return customerRepository.save(c);

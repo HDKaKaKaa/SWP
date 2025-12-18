@@ -132,110 +132,176 @@ export const DecreaseComboModal = ({
                                        onUpdateQuantity,     // (cartItem, quantity) => void
                                        onAddNewOption,       // () => void
                                        onClose,
-                                   }) => (
-    <Modal
-        open={open}
-        title={
-            product
-                ? `Quản lý "${product.name}"`
-                : 'Quản lý combo'
+                                   }) => {
+    const [draftQty, setDraftQty] = React.useState({}); // itemId -> string
+
+    // sync draft khi mở modal / đổi product / list item thay đổi
+    React.useEffect(() => {
+        if (!open || !product) {
+            setDraftQty({});
+            return;
         }
-        onCancel={onClose}
-        footer={null}
-    >
-        {product ? (() => {
-            const productItems = cartItemsByProduct[product.id] || [];
-            if (!productItems.length) {
-                return <p>Không tìm thấy combo nào cho món này.</p>;
-            }
+        const items = cartItemsByProduct?.[product.id] || [];
+        const next = {};
+        items.forEach((it) => {
+            next[it.itemId] = String(it.quantity ?? 1);
+        });
+        setDraftQty(next);
+    }, [open, product?.id, cartItemsByProduct]);
 
-            return (
-                <div className="option-modal-body">
-                    {productItems.map((item) => {
-                        const optionText =
-                            item.options && item.options.length
-                                ? item.options
-                                    .map((o) =>
-                                        o.attributeName
-                                            ? `${o.attributeName}: ${o.value}`
-                                            : o.value
-                                    )
-                                    .join(', ')
-                                : 'Không có tuỳ chọn';
+    const commitQty = (item) => {
+        const raw = draftQty[item.itemId];
 
-                        return (
-                            <div
-                                key={item.itemId}
-                                className="option-group"
-                                style={{ marginBottom: 12 }}
-                            >
-                                <div className="option-group-header">
-                                    <span className="option-group-title">
-                                        {optionText}
-                                    </span>
-                                    <span className="option-group-type">
-                                        {formatPrice(item.unitPrice)} / phần
-                                    </span>
-                                </div>
+        const val = raw === '' ? NaN : Number(raw);
+        // chỉ reject NaN hoặc <0
+        if (!Number.isFinite(val) || val < 0) {
+            setDraftQty((prev) => ({ ...prev, [item.itemId]: String(item.quantity ?? 1) }));
+            return;
+        }
 
+        const nextQty = Math.floor(val);
+        if (nextQty === (item.quantity ?? 1)) return;
+
+        onUpdateQuantity(item, nextQty);
+    };
+
+    return (
+        <Modal
+            open={open}
+            title={product ? `Quản lý "${product.name}"` : 'Quản lý combo'}
+            onCancel={onClose}
+            footer={null}
+        >
+            {product ? (() => {
+                const productItems = cartItemsByProduct?.[product.id] || [];
+                if (!productItems.length) {
+                    return <p>Không tìm thấy combo nào cho món này.</p>;
+                }
+
+                return (
+                    <div className="option-modal-body">
+                        {productItems.map((item) => {
+                            const optionText =
+                                item.options && item.options.length
+                                    ? item.options
+                                        .map((o) =>
+                                            o.attributeName
+                                                ? `${o.attributeName}: ${o.value}`
+                                                : o.value
+                                        )
+                                        .join(', ')
+                                    : 'Không có tuỳ chọn';
+
+                            return (
                                 <div
-                                    className="option-items"
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 8,
-                                    }}
+                                    key={item.itemId}
+                                    className="option-group"
+                                    style={{ marginBottom: 12 }}
                                 >
-                                    <button
-                                        type="button"
-                                        className="menu-qty-btn"
-                                        onClick={() => onDecreaseOne(item)}
-                                        disabled={addingProductId === item.productId}
-                                    >
-                                        −
-                                    </button>
+                                    <div className="option-group-header">
+                                        <span className="option-group-title">
+                                            {optionText}
+                                        </span>
+                                        <span className="option-group-type">
+                                            {formatPrice(item.unitPrice)} / phần
+                                        </span>
+                                    </div>
 
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        value={item.quantity}
-                                        onChange={(e) => {
-                                            const val = Number(e.target.value);
-                                            if (!val || val < 1) return;
-                                            onUpdateQuantity(item, val);
+                                    <div
+                                        className="option-items"
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 8,
                                         }}
-                                        className="combo-qty-input"
-                                    />
-
-                                    <button
-                                        type="button"
-                                        className="menu-qty-btn"
-                                        onClick={() => onIncreaseOne(item)}
-                                        disabled={addingProductId === item.productId}
                                     >
-                                        +
-                                    </button>
+                                        <button
+                                            type="button"
+                                            className="menu-qty-btn"
+                                            onClick={() => onDecreaseOne(item)}
+                                            disabled={addingProductId === item.productId}
+                                        >
+                                            −
+                                        </button>
 
-                                    <span style={{ marginLeft: 'auto', fontSize: '13', fontWeight: '500', color: '#8c8c8c' }}>
-                                        x{item.quantity}
-                                    </span>
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            value={draftQty[item.itemId] ?? String(item.quantity ?? 1)}
+                                            onChange={(e) => {
+                                                const next = e.target.value;
+                                                // cho phép rỗng hoặc toàn số
+                                                if (next === '' || /^\d+$/.test(next)) {
+                                                    setDraftQty((prev) => ({
+                                                        ...prev,
+                                                        [item.itemId]: next,
+                                                    }));
+                                                }
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    commitQty(item);
+                                                } else if (e.key === 'Escape') {
+                                                    // ESC -> revert về số cũ
+                                                    setDraftQty((prev) => ({
+                                                        ...prev,
+                                                        [item.itemId]: String(item.quantity ?? 1),
+                                                    }));
+                                                    e.currentTarget.blur();
+                                                }
+                                            }}
+                                            onBlur={() => {
+                                                // bạn yêu cầu Enter mới xác nhận => blur không commit
+                                                // nếu user để rỗng rồi blur -> revert
+                                                const raw = draftQty[item.itemId];
+                                                if (raw === '') {
+                                                    setDraftQty((prev) => ({
+                                                        ...prev,
+                                                        [item.itemId]: String(item.quantity ?? 1),
+                                                    }));
+                                                }
+                                            }}
+                                            className="combo-qty-input"
+                                        />
+
+                                        <button
+                                            type="button"
+                                            className="menu-qty-btn"
+                                            onClick={() => onIncreaseOne(item)}
+                                            disabled={addingProductId === item.productId}
+                                        >
+                                            +
+                                        </button>
+
+                                        <span
+                                            style={{
+                                                marginLeft: 'auto',
+                                                fontSize: 13,
+                                                fontWeight: 500,
+                                                color: '#8c8c8c',
+                                            }}
+                                        >
+                                            x{item.quantity}
+                                        </span>
+                                    </div>
                                 </div>
-                            </div>
-                        );
-                    })}
+                            );
+                        })}
 
-                    <button
-                        type="button"
-                        className="btn-add-primary"
-                        style={{ width: '100%', marginTop: 12 }}
-                        onClick={onAddNewOption}
-                    >
-                        + Thêm lựa chọn mới
-                    </button>
-                </div>
-            );
-        })() : (
-            <p>Đang tải dữ liệu...</p>
-        )}
-    </Modal>
-);
+                        <button
+                            type="button"
+                            className="btn-add-primary"
+                            style={{ width: '100%', marginTop: 12 }}
+                            onClick={onAddNewOption}
+                        >
+                            + Thêm lựa chọn mới
+                        </button>
+                    </div>
+                );
+            })() : (
+                <p>Đang tải dữ liệu...</p>
+            )}
+        </Modal>
+    );
+};
