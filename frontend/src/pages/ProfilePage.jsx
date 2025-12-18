@@ -516,10 +516,10 @@ const ProfilePage = () => {
                                     <label>Tên đăng nhập</label>
                                     <Input value={form.username} disabled />
                                 </div>
-                                <div className="profile-form-group">
-                                    <label>Vai trò</label>
-                                    <Input value={form.role} disabled />
-                                </div>
+                                {/*<div className="profile-form-group">*/}
+                                {/*    <label>Vai trò</label>*/}
+                                {/*    <Input value={form.role} disabled />*/}
+                                {/*</div>*/}
                             </div>
                         </section>
 

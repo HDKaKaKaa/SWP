@@ -40,7 +40,7 @@ public class CustomerProfileController {
         Customer customer = customerRepository.findById(accountId)
                 .orElseGet(() -> {
                     Customer c = new Customer();
-                    c.setAccountId(accountId);
+                    c.setAccount(acc);
                     return c;
                 });
 
