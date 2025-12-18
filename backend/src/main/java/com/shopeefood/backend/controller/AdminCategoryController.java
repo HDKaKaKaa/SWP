@@ -18,10 +18,8 @@ public class AdminCategoryController {
 
     // GET: Lấy danh sách
     @GetMapping
-    public ResponseEntity<List<Category>> getAll() {
-        // Trả về Entity list, nhưng Attribute đã có @JsonIgnore ở chiều ngược lại
-        // nên Homepage load danh sách này sẽ KHÔNG bị lỗi 500.
-        return ResponseEntity.ok(categoryService.getAllCategories());
+    public ResponseEntity<List<Category>> getAll(@RequestParam(required = false) String keyword) {
+        return ResponseEntity.ok(categoryService.getAllCategories(keyword));
     }
 
     // POST: Thêm mới (Nhận DTO để xử lý cả list thuộc tính)
