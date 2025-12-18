@@ -18,32 +18,44 @@ public class AdminCategoryService {
     private CategoryRepository categoryRepository;
 
     // 1. Lấy tất cả (Giữ nguyên, Homepage dùng cái này vẫn OK nhờ @JsonIgnore ở Entity con)
-    public List<Category> getAllCategories() {
+    public List<Category> getAllCategories(String keyword) {
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            return categoryRepository.searchByKeyword(keyword.trim());
+        }
         return categoryRepository.findAll();
+    }
+    // Hàm validate chung (Private)
+    private void validateCategory(CategoryDTO dto) {
+        // Validate độ dài
+        if (dto.getName() != null && dto.getName().length() > 100) {
+            throw new RuntimeException("Tên danh mục không được vượt quá 100 ký tự!");
+        }
+        if (dto.getDescription() != null && dto.getDescription().length() > 100) {
+            throw new RuntimeException("Mô tả không được vượt quá 100 ký tự!");
+        }
     }
 
     // 2. Tạo mới danh mục (CÓ SỬA ĐỔI)
-    @Transactional // Thêm Transactional để đảm bảo toàn vẹn dữ liệu
+    @Transactional
     public Category createCategory(CategoryDTO dto) {
-        if (categoryRepository.existsByName(dto.getName())) {
-            throw new RuntimeException("Tên danh mục đã tồn tại: " + dto.getName());
+        validateCategory(dto);
+
+        // Check trùng (Không phân biệt hoa thường)
+        if (categoryRepository.existsByNameIgnoreCase(dto.getName().trim())) {
+            throw new RuntimeException("Tên danh mục đã tồn tại (trùng tên): " + dto.getName());
         }
+
         Category category = new Category();
-        category.setName(dto.getName());
+        category.setName(dto.getName().trim()); // Trim cho sạch
         category.setDescription(dto.getDescription());
         category.setImage(dto.getImage());
 
-        // Xử lý thuộc tính
         if (dto.getAttributes() != null) {
             for (CategoryDTO.AttributeDTO attrDto : dto.getAttributes()) {
                 CategoryAttribute attr = new CategoryAttribute();
                 attr.setName(attrDto.getName());
                 attr.setDataType(attrDto.getDataType());
-
-                // Gán cha cho con
                 attr.setCategory(category);
-
-                // Thêm vào list của cha
                 category.getAttributes().add(attr);
             }
         }
@@ -54,57 +66,46 @@ public class AdminCategoryService {
     // 3. Cập nhật danh mục (CÓ SỬA ĐỔI)
     @Transactional
     public Category updateCategory(Integer id, CategoryDTO dto) {
+        validateCategory(dto);
+
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục ID: " + id));
 
-        category.setName(dto.getName());
+        // Check trùng khi update (Loại trừ chính nó)
+        if (categoryRepository.existsByNameIgnoreCaseAndIdNot(dto.getName().trim(), id)) {
+            throw new RuntimeException("Tên danh mục đã tồn tại ở một mục khác: " + dto.getName());
+        }
+
+        category.setName(dto.getName().trim());
         category.setDescription(dto.getDescription());
         category.setImage(dto.getImage());
 
-        // --- LOGIC CẬP NHẬT THÔNG MINH (SMART MERGE) ---
-
+        // Logic Smart Merge (Giữ nguyên như code cũ của bạn)
         List<CategoryDTO.AttributeDTO> incomingAttrs = dto.getAttributes();
         List<CategoryAttribute> currentAttrs = category.getAttributes();
 
         if (incomingAttrs != null) {
             List<Integer> keptIds = new ArrayList<>();
-
             for (CategoryDTO.AttributeDTO attrDto : incomingAttrs) {
                 if (attrDto.getId() != null) {
-                    // TRƯỜNG HỢP 1: UPDATE (Đã có ID)
-                    // Tìm thuộc tính cũ trong list hiện tại để sửa
                     CategoryAttribute existingAttr = currentAttrs.stream()
                             .filter(a -> a.getId().equals(attrDto.getId()))
-                            .findFirst()
-                            .orElse(null);
-
+                            .findFirst().orElse(null);
                     if (existingAttr != null) {
                         existingAttr.setName(attrDto.getName());
                         existingAttr.setDataType(attrDto.getDataType());
                         keptIds.add(existingAttr.getId());
                     }
                 } else {
-                    // TRƯỜNG HỢP 2: INSERT (Mới tinh, chưa có ID)
                     CategoryAttribute newAttr = new CategoryAttribute();
                     newAttr.setName(attrDto.getName());
                     newAttr.setDataType(attrDto.getDataType());
                     newAttr.setCategory(category);
-
-                    // Thêm vào list hiện tại
                     currentAttrs.add(newAttr);
                 }
             }
-
-            // TRƯỜNG HỢP 3: DELETE
-            // Những cái cũ không nằm trong danh sách "keptIds" và cũng không phải mới thêm -> Xóa
-            // Lưu ý: Nếu thuộc tính này đang được Product sử dụng, dòng này sẽ gây lỗi SQL 23503.
-            // Bạn có thể try-catch khối này nếu muốn thông báo lỗi thân thiện hơn.
-            currentAttrs.removeIf(attr ->
-                    attr.getId() != null && !keptIds.contains(attr.getId())
-            );
-
+            currentAttrs.removeIf(attr -> attr.getId() != null && !keptIds.contains(attr.getId()));
         } else {
-            // Nếu gửi lên null -> Xóa hết (Sẽ lỗi nếu có ràng buộc)
             currentAttrs.clear();
         }
 

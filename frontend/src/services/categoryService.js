@@ -4,8 +4,9 @@ import axios from 'axios';
 const API_URL = 'http://localhost:8080/api/admin/categories';
 
 // 1. Lấy danh sách
-export const getAllCategories = async () => {
-    const response = await axios.get(API_URL);
+export const getAllCategories = async (keyword = '') => {
+    // Truyền param keyword lên server
+    const response = await axios.get(API_URL, { params: { keyword } });
     return response.data;
 };
 
