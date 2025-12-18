@@ -2,12 +2,12 @@
 import React, { useState, useEffect, useCallback, useContext } from "react";
 import axios from "axios";
 import { Row, Col, Card, Statistic, Select, DatePicker, Space, Typography, Spin, Empty, Table, notification } from 'antd';
-import { 
-    DollarCircleOutlined, 
-    ShoppingCartOutlined, 
-    ShopOutlined, 
-    StarOutlined, 
-    ArrowUpOutlined, 
+import {
+    DollarCircleOutlined,
+    ShoppingCartOutlined,
+    ShopOutlined,
+    StarOutlined,
+    ArrowUpOutlined,
     ArrowDownOutlined,
     CalendarOutlined,
     PieChartOutlined
@@ -136,10 +136,10 @@ const OwnerDashboard = () => {
                             <Option value={null}>Tất cả nhà hàng</Option>
                             {restaurants.map(r => <Option key={r.id} value={r.id}>{r.name}</Option>)}
                         </Select>
-                        <RangePicker 
-                            value={dateRange} 
-                            onChange={(dates) => setDateRange(dates)} 
-                            format="DD/MM/YYYY" 
+                        <RangePicker
+                            value={dateRange}
+                            onChange={(dates) => setDateRange(dates)}
+                            format="DD/MM/YYYY"
                         />
                     </Space>
                 </Col>
@@ -149,22 +149,22 @@ const OwnerDashboard = () => {
             <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                 <Col xs={24} sm={12} lg={6}>
                     <Card bordered={false} hoverable>
-                        <Statistic 
-                            title="Doanh thu" 
-                            value={data.stats.totalRevenue} 
-                            suffix="đ" 
-                            valueStyle={{color: '#3f8600'}}
-                            prefix={<DollarCircleOutlined />} 
+                        <Statistic
+                            title="Doanh thu"
+                            value={data.stats.totalRevenue}
+                            suffix="đ"
+                            valueStyle={{ color: '#3f8600' }}
+                            prefix={<DollarCircleOutlined />}
                         />
                         {renderTrend(data.stats.revenueGrowth)}
                     </Card>
                 </Col>
                 <Col xs={24} sm={12} lg={6}>
                     <Card bordered={false} hoverable>
-                        <Statistic 
-                            title="Tổng đơn hàng" 
-                            value={data.stats.totalOrders} 
-                            prefix={<ShoppingCartOutlined />} 
+                        <Statistic
+                            title="Tổng đơn hàng"
+                            value={data.stats.totalOrders}
+                            prefix={<ShoppingCartOutlined />}
                         />
                         {renderTrend(data.stats.orderGrowth)}
                     </Card>
@@ -176,7 +176,7 @@ const OwnerDashboard = () => {
                 </Col>
                 <Col xs={24} sm={12} lg={6}>
                     <Card bordered={false} hoverable>
-                        <Statistic title="Đánh giá trung bình" value={data.stats.avgRating} precision={1} prefix={<StarOutlined style={{color: '#fadb14'}} />} suffix="/ 5" />
+                        <Statistic title="Đánh giá trung bình" value={data.stats.avgRating} precision={1} prefix={<StarOutlined style={{ color: '#fadb14' }} />} suffix="/ 5" />
                     </Card>
                 </Col>
             </Row>
@@ -184,21 +184,23 @@ const OwnerDashboard = () => {
             {/* Main Charts Row */}
             <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                 <Col xs={24} xl={16}>
-                    <Card 
-                        title={<span><CalendarOutlined /> Biến động doanh thu</span>} 
-                        bordered={false}
-                        styles={{ body: { height: 400, overflow: 'hidden' } }}
+                    <Card
+                        title={<span><CalendarOutlined /> Biến động doanh thu</span>}
+                        styles={{ body: { minHeight: 500, paddingBottom: 24 } }}
                     >
                         <Spin spinning={loading}>
-                            <div style={{ height: 350 }}>
-                                {data.chartData.length > 0 ? <RevenueChart data={data.chartData} /> : <Empty />}
+                            <div style={{ height: 500 }}>
+                                {data.chartData.length > 0 ? <RevenueChart data={data.chartData.map(item => ({
+                                    label: item.date,
+                                    value: item.revenue
+                                }))} /> : <Empty />}
                             </div>
                         </Spin>
                     </Card>
                 </Col>
                 <Col xs={24} xl={8}>
-                    <Card 
-                        title={<span><PieChartOutlined /> Tỉ trọng theo chi nhánh</span>} 
+                    <Card
+                        title={<span><PieChartOutlined /> Tỉ trọng theo chi nhánh</span>}
                         bordered={false}
                         styles={{ body: { height: 400, overflow: 'hidden' } }}
                     >
@@ -219,8 +221,8 @@ const OwnerDashboard = () => {
             <Row gutter={[16, 16]}>
                 <Col xs={24} lg={12}>
                     <Card title="Sản phẩm bán chạy nhất" bordered={false}>
-                        <Table 
-                            dataSource={data.topProducts} 
+                        <Table
+                            dataSource={data.topProducts}
                             columns={[
                                 { title: 'Món ăn', dataIndex: 'name', key: 'name' },
                                 { title: 'Số lượng', dataIndex: 'soldCount', key: 'soldCount', align: 'center' },
@@ -233,8 +235,8 @@ const OwnerDashboard = () => {
                 </Col>
                 <Col xs={24} lg={12}>
                     <Card title="Hiệu quả từng chi nhánh" bordered={false}>
-                        <Table 
-                            dataSource={data.branchComparison} 
+                        <Table
+                            dataSource={data.branchComparison}
                             columns={[
                                 { title: 'Chi nhánh', dataIndex: 'restaurantName', key: 'restaurantName' },
                                 { title: 'Đơn hàng', dataIndex: 'orderCount', key: 'orderCount', align: 'center' },
