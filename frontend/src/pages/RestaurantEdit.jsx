@@ -206,9 +206,6 @@ const RestaurantEdit = () => {
           // Với Cover Image dùng onChange của Antd, ưu tiên lấy originFileObj
           const actualFile = file.originFileObj || file;
 
-          // DEBUG: Kiểm tra xem file có đúng là Blob/File không
-          console.log('Uploading Cover:', actualFile);
-
           const formData = new FormData();
           formData.append('file', actualFile);
           try {
@@ -235,8 +232,6 @@ const RestaurantEdit = () => {
         } else {
           // Với License Image add thủ công, file chính là file gốc
           const actualFile = file.originFileObj || file;
-
-          console.log('Uploading License:', actualFile);
 
           const formData = new FormData();
           formData.append('file', actualFile);

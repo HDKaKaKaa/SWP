@@ -23,6 +23,7 @@ public class RestaurantDTO {
     private String image;
     private List<String> licenseImages;
     private String status;
+    private String rejectionReason;
     private String ownerName; // Hiển thị tên chủ quán
     private String ownerIdCard;
     private Double latitude;
@@ -39,6 +40,7 @@ public class RestaurantDTO {
             this.image = restaurant.getCoverImage();
             this.latitude = restaurant.getLatitude();
             this.longitude = restaurant.getLongitude();
+            this.rejectionReason = restaurant.getRejectionReason();
 
             if (restaurant.getStatus() != null) {
                 this.status = restaurant.getStatus().name();
