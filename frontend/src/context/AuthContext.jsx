@@ -4,13 +4,20 @@ export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   // Khi F5 trang, kiểm tra xem còn lưu phiên đăng nhập trong localStorage không
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (error) {
+        console.error('Failed to parse user from localStorage', error);
+        localStorage.removeItem('user');
+      }
     }
+    setLoading(false);
   }, []);
 
   // Hàm Đăng nhập
@@ -24,6 +31,10 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     localStorage.removeItem('user');
   };
+
+  if (loading) {
+    return null; // Hoặc một spinner loading
+  }
 
   return (
     <AuthContext.Provider value={{ user, login, logout }}>

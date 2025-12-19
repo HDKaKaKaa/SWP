@@ -266,11 +266,6 @@ const LandingPage = () => {
               options={[
                 { value: 'newest', label: 'Mới nhất' },
                 { value: 'rating', label: 'Đánh giá cao' },
-                {
-                  value: 'distance',
-                  label: 'Gần tôi nhất',
-                  disabled: !userLocation,
-                },
               ]}
             />
           </div>
@@ -345,7 +340,7 @@ const RestaurantCard = ({ data, onClick }) => {
             e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
           }}
         />
-        {data.distance && (
+        {/* {data.distance && (
           <div
             className="card-distance-badge"
             style={{
@@ -366,7 +361,7 @@ const RestaurantCard = ({ data, onClick }) => {
           >
             <FaMapMarkerAlt size={12} /> {data.distance.toFixed(1)} km
           </div>
-        )}
+        )} */}
         <div className="card-overlay"></div>
       </div>
 
