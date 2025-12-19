@@ -10,4 +10,5 @@ public class RestaurantLandingDTO {
     private String coverImage;
     private Double averageRating;
     private Long totalReviews;
+    private Integer ownerAccountId;
 }
