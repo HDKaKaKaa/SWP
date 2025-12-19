@@ -5,11 +5,11 @@ import axios from "axios";
 import { Card, Spinner, Alert, Form, Row, Col, Button, Image } from "react-bootstrap";
 import { FaStore, FaMapMarkerAlt, FaPhoneAlt, FaRegClock, FaImage, FaAlignLeft, FaExclamationCircle } from 'react-icons/fa';
 import { AuthContext } from "../context/AuthContext";
-import { Switch, Space } from 'antd';
+// Sử dụng Select, Switch, Space từ Ant Design
+import { Switch, Space, Select } from 'antd';
 
 // --- CONFIG & CONSTANTS ---
 const API_BASE_URL = "http://localhost:8080/api";
-const RESTAURANT_BY_ACCOUNT_URL = `${API_BASE_URL}/owner/byAccount`;
 const API_RESTAURANTS_URL = `${API_BASE_URL}/owner/restaurants`;
 const UPLOAD_URL = "http://localhost:8080/api/upload/image";
 
@@ -21,7 +21,7 @@ const SYSTEM_STATUS = {
 // --- HELPERS ---
 const isValidPhoneNumber = (phone) => /^\+?\d{10,11}$/.test(phone);
 
-// --- SUB-COMPONENT: FORM ROW ---
+// --- SUB-COMPONENT: FORM ROW (Giữ nguyên) ---
 const FormRow = ({ label, children, required, icon, controlId, type = "text", formData, handleChange, isProcessing, error, validateOnBlur }) => {
     const fieldName = controlId.replace('restaurant', '').toLowerCase();
     const handleBlur = (e) => validateOnBlur && handleChange(e, true);
@@ -50,7 +50,7 @@ const FormRow = ({ label, children, required, icon, controlId, type = "text", fo
     );
 };
 
-// --- SUB-COMPONENT: EDIT FORM ---
+// --- SUB-COMPONENT: EDIT FORM (Giữ nguyên) ---
 const RestaurantEditForm = ({ restaurant, isProcessing, onSave }) => {
     const [formData, setFormData] = useState({ ...restaurant });
     const [newLicenseFiles, setNewLicenseFiles] = useState([]);
@@ -107,10 +107,8 @@ const RestaurantEditForm = ({ restaurant, isProcessing, onSave }) => {
             if (Object.keys(vErrors).length > 0) { setErrors(vErrors); return; }
             onSave(formData, newImageFile, newLicenseFiles);
         }}>
-            <h5 className="fw-bold text-primary mb-4 border-bottom pb-2"><FaStore className="me-2" />Thông tin Nhà hàng</h5>
 
             {formAlert && <Alert variant={formAlert.variant} dismissible>{formAlert.message}</Alert>}
-
             <FormRow label="Tên Nhà hàng" required controlId="restaurantName" formData={formData} handleChange={handleChange} isProcessing={isProcessing} error={errors.name} validateOnBlur />
             <FormRow label="Điện thoại" required controlId="restaurantPhone" icon={<FaPhoneAlt />} formData={formData} handleChange={handleChange} isProcessing={isProcessing} error={errors.phone} validateOnBlur />
             <FormRow label="Địa chỉ" required controlId="restaurantAddress" icon={<FaMapMarkerAlt />} formData={formData} handleChange={handleChange} isProcessing={isProcessing} error={errors.address} validateOnBlur />
@@ -122,7 +120,6 @@ const RestaurantEditForm = ({ restaurant, isProcessing, onSave }) => {
                 </Col>
             </Form.Group>
 
-            {/* Ảnh đại diện */}
             <Form.Group as={Row} className="mb-4 pt-3 border-top">
                 <Form.Label column sm={3} className="fw-bold text-md-end"><FaImage /> Ảnh đại diện</Form.Label>
                 <Col sm={5}><Form.Control type="file" onChange={(e) => handleFileChange(e, 'cover')} accept="image/*" disabled={isProcessing} /></Col>
@@ -131,7 +128,6 @@ const RestaurantEditForm = ({ restaurant, isProcessing, onSave }) => {
                 </Col>
             </Form.Group>
 
-            {/* Giấy phép */}
             <Form.Group as={Row} className="mb-4 pt-3 border-top">
                 <Form.Label column sm={3} className="fw-bold text-md-end">Giấy phép</Form.Label>
                 <Col sm={5}>
@@ -194,11 +190,10 @@ export default function RestaurantStatusToggle() {
         } finally { setIsProcessing(false); }
     };
 
-    // 3. Save Details (Process Upload + JSON Update)
+    // 3. Save Details
     const handleSaveDetails = async (formData, newCover, newLicenses) => {
         setIsProcessing(true);
         try {
-            // Upload Cover
             let coverUrl = formData.image;
             if (newCover) {
                 const data = new FormData(); data.append('file', newCover);
@@ -206,7 +201,6 @@ export default function RestaurantStatusToggle() {
                 coverUrl = res.data;
             }
 
-            // Upload Licenses
             let licenseUrls = [...formData.licenseImages];
             if (newLicenses.length > 0) {
                 const uploads = newLicenses.map(file => {
@@ -217,7 +211,6 @@ export default function RestaurantStatusToggle() {
                 licenseUrls = [...licenseUrls, ...responses.map(r => r.data)];
             }
 
-            // Final Update
             const finalData = {
                 restaurantName: formData.name,
                 address: formData.address,
@@ -240,43 +233,72 @@ export default function RestaurantStatusToggle() {
         } finally { setIsProcessing(false); }
     };
 
-    if (loading) return <Spinner animation="grow" />;
+    if (loading) return <Spinner animation="grow" className="d-block mx-auto mt-5" />;
 
     return (
         <Row className="g-4">
+            {globalMsg.text && (
+                <Col xs={12}>
+                    <Alert variant={globalMsg.variant} dismissible onClose={() => setGlobalMsg({ text: null, variant: 'info' })}>
+                        {globalMsg.text}
+                    </Alert>
+                </Col>
+            )}
             <Col xs={12}>
-                <Card className="p-3 shadow-sm d-flex flex-row justify-content-between align-items-center">
-                    <Form.Select className="w-50" value={selectedId} onChange={e => setSelectedId(parseInt(e.target.value))}>
-                        {allRestaurants.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                    </Form.Select>
-                    <Space><Switch
-                        checked={isOnline}
-                        onChange={handleToggleStatus}
-                        disabled={isFixed || isProcessing}
-                        checkedChildren="Mở cửa"
-                        unCheckedChildren="Đóng cửa"
-                        size="large"
-                        style={{
-                            backgroundColor: isOnline ? '#47a717ff' : '#ff4d4f', // Màu xanh khi bật, đỏ khi tắt
-                            transform: 'scale(1.5)', // Phóng to toàn bộ nút lên 1.5 lần
-                            marginRight: '50px',      // Bù khoảng trống sau khi scale
-                            width: '100px'
-                        }}
-                    />
-                    </Space>
+                <Card className="p-3 shadow-sm border-0">
+                    <Row className="align-items-center">
+                        <h5 className="fw-bold text-primary mb-4 border-bottom pb-2">
+                            <FaStore className="me-2" />Thông tin Nhà hàng</h5>
+                        <Col md={3} className="text-md-end mb-2 mb-md-0">
+                            <span className="fw-bold">Chọn nhà hàng:</span>
+                        </Col>
+                        <Col md={6}>
+                            <Select
+                                showSearch
+                                style={{ width: '100%' }}
+                                placeholder="Nhập tên để tìm kiếm nhà hàng..."
+                                value={selectedId}
+                                onChange={(value) => setSelectedId(value)}
+                                filterOption={(input, option) =>
+                                    (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                                }
+                                options={allRestaurants.map(r => ({
+                                    value: r.id,
+                                    label: r.name
+                                }))}
+                            />
+                        </Col>
+                        <Col md={3} className="d-flex justify-content-end">
+                            <Space align="center">
+                                <Switch
+                                    checked={isOnline}
+                                    onChange={handleToggleStatus}
+                                    disabled={isFixed || isProcessing}
+                                    checkedChildren="Mở cửa"
+                                    unCheckedChildren="Đóng cửa"
+                                    size="large"
+                                    style={{
+                                        backgroundColor: isOnline ? '#47a717' : '#ff4d4f',
+                                    }}
+                                />
+                            </Space>
+                        </Col>
+                    </Row>
                 </Card>
             </Col>
 
-            {globalMsg.text && <Col xs={12}><Alert variant={globalMsg.variant} dismissible>{globalMsg.text}</Alert></Col>}
+            
 
             <Col xs={12}>
-                <Card className="p-4 shadow-sm">
-                    {selectedRestaurant && (
+                <Card className="p-4 shadow-sm border-0">
+                    {selectedRestaurant ? (
                         <RestaurantEditForm
                             restaurant={selectedRestaurant}
                             isProcessing={isProcessing}
                             onSave={handleSaveDetails}
                         />
+                    ) : (
+                        <div className="text-center py-5 text-muted">Vui lòng chọn một nhà hàng để quản lý.</div>
                     )}
                 </Card>
             </Col>

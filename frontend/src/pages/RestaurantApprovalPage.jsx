@@ -321,26 +321,29 @@ const RestaurantApprovalPage = () => {
                         </Row>
 
                         <div style={{ marginTop: 20 }}>
-                            <Card type="inner" size="small" title={<Space><FileProtectOutlined /> Giấy phép kinh doanh</Space>} className="info-card">
-                                {selectedRestaurant.licenseImage ? (
+                            <Card
+                                type="inner"
+                                size="small"
+                                title={<Space><FileProtectOutlined /> Giấy phép kinh doanh</Space>}
+                                className="info-card"
+                            >
+                                {selectedRestaurant.licenseImages && selectedRestaurant.licenseImages.length > 0 ? (
                                     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                                        {(() => {
-                                            let images = [];
-                                            try {
-                                                if (selectedRestaurant.licenseImage.trim().startsWith('[')) {
-                                                    images = JSON.parse(selectedRestaurant.licenseImage);
-                                                } else {
-                                                    images = [selectedRestaurant.licenseImage];
-                                                }
-                                            } catch (e) {
-                                                images = [selectedRestaurant.licenseImage];
-                                            }
-                                            return images.map((imgUrl, index) => (
-                                                <Image key={index} src={imgUrl} width={150} height={200} style={{ objectFit: 'contain', border: '1px solid #eee', borderRadius: 8, background: '#fff' }} fallback="https://via.placeholder.com/150x200?text=Error" />
-                                            ));
-                                        })()}
+                                        {selectedRestaurant.licenseImages.map((imgUrl, index) => (
+                                            <div key={index} style={{ border: '1px solid #d9d9d9', borderRadius: 8, padding: 4 }}>
+                                                <Image
+                                                    src={imgUrl}
+                                                    width={140}
+                                                    height={180}
+                                                    style={{ objectFit: 'contain' }}
+                                                    fallback="https://via.placeholder.com/140x180?text=Error"
+                                                />
+                                            </div>
+                                        ))}
                                     </div>
-                                ) : <Tag color="default">Chưa cập nhật giấy phép</Tag>}
+                                ) : (
+                                    <Tag color="default">Chưa cập nhật giấy phép</Tag>
+                                )}
                             </Card>
                         </div>
 

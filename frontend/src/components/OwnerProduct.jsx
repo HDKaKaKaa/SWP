@@ -389,7 +389,7 @@ const OwnerProducts = () => {
 
                 {/* Tìm kiếm theo tên sản phẩm (Ant Design Input với addonBefore) */}
                 <Input
-                    placeholder="Tìm theo tên sản phẩm"
+                    placeholder="Tìm kiếm sản phẩm..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     onPressEnter={handleFilter}
@@ -444,7 +444,7 @@ const OwnerProducts = () => {
                 centered
             >
                 <AddProduct
-                    onProductAdded={handleProductActionSuccess}
+                    onProductActionSuccess={handleProductActionSuccess}
                     ownerId={ownerId}
                     restaurants={restaurants}
                 />

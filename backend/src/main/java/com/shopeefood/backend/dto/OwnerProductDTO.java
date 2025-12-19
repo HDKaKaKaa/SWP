@@ -1,6 +1,10 @@
 package com.shopeefood.backend.dto;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 import com.shopeefood.backend.entity.Product;
+
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -16,6 +20,7 @@ public class OwnerProductDTO {
     private Double price;
     private String image;
     private Boolean isAvailable;
+    private List<ProductDetailDTO> details;
 
     // Constructor thủ công để ánh xạ từ Entity Product
     public OwnerProductDTO(Product product) {
@@ -25,11 +30,16 @@ public class OwnerProductDTO {
         this.description = product.getDescription();
         this.price = product.getPrice();
         this.image = product.getImage();
-        this.isAvailable = product.getIsAvailable(); 
+        this.isAvailable = product.getIsAvailable();
 
         if (product.getCategory() != null) {
             this.categoryId = product.getCategory().getId();
             this.categoryName = product.getCategory().getName();
+        }
+        if (product.getDetails() != null) {
+            this.details = product.getDetails().stream()
+                    .map(ProductDetailDTO::new)
+                    .collect(Collectors.toList());
         }
     }
 }
