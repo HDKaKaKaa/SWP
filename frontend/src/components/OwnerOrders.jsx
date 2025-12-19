@@ -24,8 +24,22 @@ const OrderStatusTag = ({ status }) => {
         SHIPPING: "warning",
         COMPLETED: "success",
         CANCELLED: "error",
+        REFUNDED: "error",
     };
-    return <Tag color={colorMap[status] || "default"}>{status}</Tag>;
+    return (
+        <Tag color={colorMap[status] || "default"}>
+            {STATUS_TRANSLATIONS[status] || status}
+        </Tag>
+    );
+};
+const STATUS_TRANSLATIONS = {
+    PENDING: "Chờ xử lý",
+    PAID: "Chờ nhận đơn",
+    PREPARING: "Đang chuẩn bị",
+    SHIPPING: "Đang giao hàng",
+    COMPLETED: "Đã hoàn thành",
+    CANCELLED: "Đã hủy",
+    REFUNDED: "Đã hoàn tiền",
 };
 // --- Component con để hiển thị chi tiết sản phẩm và thuộc tính (Không đổi) ---
 const OrderItemDetails = ({ items }) => {
@@ -61,6 +75,7 @@ export default function OwnerOrders() {
     const [orders, setOrders] = useState([]);
     const [restaurants, setRestaurants] = useState([]);
     const [selectedRestaurant, setSelectedRestaurant] = useState(null);
+    const [selectedStatus, setSelectedStatus] = useState(null);
     const [activeSearch, setActiveSearch] = useState("");
     const [search, setSearch] = useState("");
     const [fromDate, setFromDate] = useState(null);
@@ -78,11 +93,10 @@ export default function OwnerOrders() {
 
     const [loading, setLoading] = useState(false);
 
-    // Hàm chuyển đổi Ant Design Sort Order sang Backend Sort Dir
     const mapSortOrderToDir = (order) => {
         if (order === 'ascend') return 'asc';
         if (order === 'descend') return 'desc';
-        return 'desc'; // Mặc định
+        return 'desc';
     };
 
     // Load Owner ID và Restaurants
@@ -125,6 +139,7 @@ export default function OwnerOrders() {
                 params: {
                     ownerId,
                     restaurantId: selectedRestaurant || null,
+                    status: selectedStatus || null,
                     search: activeSearch,
                     from: fromDate ? fromDate.startOf('day').toISOString() : null,
                     to: toDate ? toDate.endOf('day').toISOString() : null,
@@ -148,7 +163,7 @@ export default function OwnerOrders() {
             setOrders([]);
         }
         setLoading(false);
-    }, [ownerId, selectedRestaurant, activeSearch, fromDate, toDate, pagination.current, pagination.pageSize, sort.field, sort.order]);
+    }, [ownerId, selectedRestaurant, selectedStatus, activeSearch, fromDate, toDate, pagination.current, pagination.pageSize, sort.field, sort.order]);
 
 
     // Xử lý thay đổi Table (Phân trang và Sắp xếp)
@@ -162,7 +177,7 @@ export default function OwnerOrders() {
         }
     };
 
-    // Hàm xử lý hành động (Sử dụng Button)
+    // Hàm xử lý hành động thay đổi trạng thái đơn hàng
     const handleAction = useCallback(async (orderId, currentStatus, targetStatus) => {
         if (targetStatus === "CANCELLED" && !window.confirm("Bạn có chắc chắn muốn HỦY đơn hàng này?")) {
             return;
@@ -194,7 +209,7 @@ export default function OwnerOrders() {
                 message: 'Cập nhật thất bại',
                 description: 'Đã có lỗi xảy ra trong quá trình cập nhật trạng thái đơn hàng.',
             });
-            fetchOrders(); // Tải lại dữ liệu để đồng bộ
+            fetchOrders();
         }
     }, [fetchOrders]);
 
@@ -206,23 +221,23 @@ export default function OwnerOrders() {
     const handleReset = () => {
         setSearch("");
         setActiveSearch("");
+        setSelectedStatus(null);
         setSelectedRestaurant(null);
         setFromDate(null);
         setToDate(null);
         setSort({ field: "createdAt", order: "descend" });
         setPagination(prev => ({ ...prev, current: 1 }));
     };
-    
+
     useEffect(() => {
         fetchOrders();
-    }, [ownerId, selectedRestaurant, fromDate, toDate, pagination.current, pagination.pageSize, sort.field, sort.order, activeSearch]);
-
+    }, [fetchOrders]);
     // Định nghĩa cột cho Ant Design Table
     const columns = [
         {
             title: 'STT',
             key: 'stt',
-            width: 50,
+            width: 60,
             render: (text, record, index) => (pagination.current - 1) * pagination.pageSize + index + 1,
             align: 'center',
         },
@@ -235,19 +250,20 @@ export default function OwnerOrders() {
             align: 'center',
         },
         {
-            title: 'Đơn hàng & Chi tiết',
+            title: 'Đơn hàng',
             dataIndex: 'items',
             key: 'items',
             render: (items) => <OrderItemDetails items={items} />,
-            width: 250,
-            align: 'center'
+            width: 220,
+            align: 'center',
         },
         {
             title: 'Ghi chú',
             dataIndex: 'note',
             key: 'note',
-            render: (note) => note || '—',
-            align: 'center'
+            ellipsis: true,
+            render: (note) => note || <span className="text-muted">—</span>,
+            align: 'center',
         },
         {
             title: 'Tổng tiền',
@@ -260,31 +276,48 @@ export default function OwnerOrders() {
                 </span>
             ),
             align: 'center',
-            width: 150,
+            width: 110,
+        },
+        {
+            title: 'Khách hàng',
+            key: 'customer',
+            width: 160,
+            render: (_, record) => (
+                <div className="text-center">
+                    <div style={{ fontWeight: '500', fontSize: '0.9rem' }}>
+                        {record.customerName || "Khách lạ"}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: '#8c8c8c' }}>
+                        {record.customerPhone || "—"}
+                    </div>
+                </div>
+            ),
+            align: 'center',
         },
         {
             title: 'Thanh toán',
             dataIndex: 'paymentMethod',
             key: 'paymentMethod',
-            width: 120,
-            align: 'center'
+            width: 100,
+            align: 'center',
+            render: (method) => <small>{method}</small>
         },
         {
-            title: 'Ngày tạo',
+            title: 'Thời gian tạo đơn',
             dataIndex: 'createdAt',
             key: 'createdAt',
             sorter: true,
             align: 'center',
+            width: 130,
             render: (dateString) => {
                 const d = new Date(dateString);
-                const dd = String(d.getDate()).padStart(2, "0");
-                const mm = String(d.getMonth() + 1).padStart(2, "0");
-                const yyyy = d.getFullYear();
-                const hh = String(d.getHours()).padStart(2, "0");
-                const mi = String(d.getMinutes()).padStart(2, "0");
-                return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
+                return (
+                    <div style={{ fontSize: '0.85rem' }}>
+                        <div>{d.toLocaleDateString('vi-VN')}</div>
+                        <div className="text-muted">{d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</div>
+                    </div>
+                );
             },
-            width: 150,
         },
         {
             title: 'Trạng thái',
@@ -292,51 +325,49 @@ export default function OwnerOrders() {
             key: 'status',
             render: (status) => <OrderStatusTag status={status} />,
             align: 'center',
-            width: 120,
+            width: 110,
         },
         {
             title: 'Hành động',
             key: 'action',
+            align: 'center',
+            width: 120,
             render: (text, record) => (
-                <Space direction="vertical" size="small">
-                    {/* Nút Chấp nhận */}
+                <Space direction="vertical" size={4}>
                     {(record.status === "PAID" || record.status === "PENDING") && (
-                        <AntButton
-                            type="primary"
-                            size="small"
-                            onClick={() => handleAction(record.id, record.status, "PREPARING")}
-                        >
-                            Chấp nhận
-                        </AntButton>
+                        <>
+                            <AntButton
+                                type="primary"
+                                size="small"
+                                block
+                                onClick={() => handleAction(record.id, record.status, "PREPARING")}
+                            >
+                                Nhận
+                            </AntButton>
+                            <AntButton
+                                danger
+                                size="small"
+                                block
+                                onClick={() => handleAction(record.id, record.status, "CANCELLED")}
+                            >
+                                Hủy
+                            </AntButton>
+                        </>
                     )}
-
-                    {/* Nút Hủy */}
-                    {(record.status === "PAID" || record.status === "PENDING") && (
-                        <AntButton
-                            danger
-                            size="small"
-                            onClick={() => handleAction(record.id, record.status, "CANCELLED")}
-                        >
-                            Hủy đơn
-                        </AntButton>
-                    )}
-
-
                 </Space>
             ),
-            width: 150,
         },
     ];
-
     return (
         <div className="p-4">
             <h2 className="mb-4">Quản lý đơn hàng</h2>
 
-            <Space direction="horizontal" size="middle" className="mb-4 w-130" wrap>
+            <Space size="middle" className="mb-4 w-130" wrap>
                 {/* Lọc theo Nhà hàng (Ant Design Select) */}
                 <Select
+                    showSearch
                     style={{ width: 200 }}
-                    placeholder="Chọn Nhà hàng"
+                    placeholder="Tất cả nhà hàng"
                     value={selectedRestaurant}
                     allowClear
                     onChange={(value) => {
@@ -348,7 +379,23 @@ export default function OwnerOrders() {
                         <Option key={r.id} value={r.id}>{r.name}</Option>
                     ))}
                 </Select>
-
+                <Select
+                    style={{ width: 160 }}
+                    showSearch
+                    placeholder="Trạng thái đơn"
+                    value={selectedStatus}
+                    allowClear
+                    onChange={(value) => {
+                        setSelectedStatus(value || null);
+                        setPagination(prev => ({ ...prev, current: 1 }));
+                    }}
+                >
+                    {Object.entries(STATUS_TRANSLATIONS).map(([value, label]) => (
+                        <Option key={value} value={value}>
+                            {label}
+                        </Option>
+                    ))}
+                </Select>
                 {/* Lọc theo Ngày tạo (Ant Design DatePicker Range) */}
                 <DatePicker
                     placeholder="Từ ngày"
@@ -375,16 +422,17 @@ export default function OwnerOrders() {
                 {/* Tìm kiếm theo mã đơn (Ant Design Input Search) */}
                 <Space.Compact style={{ width: 350, marginLeft: 20 }}>
                     <Input
-                        placeholder="Tìm theo mã đơn"
+                        placeholder="Tìm kiếm"
                         value={search}
+                        allowClear
                         onChange={(e) => setSearch(e.target.value)}
                         onPressEnter={handleSearchSubmit}
                         style={{ width: 300, height: 34, marginLeft: 30 }}
                     />
                     <AntButton
-                    style={{marginLeft: 10 }}
+                        style={{ marginLeft: 10 }}
                         type="primary"
-                        icon={<SearchOutlined/>}
+                        icon={<SearchOutlined />}
                         onClick={handleSearchSubmit}
                     />
                 </Space.Compact>
@@ -403,6 +451,7 @@ export default function OwnerOrders() {
                 dataSource={orders}
                 rowKey="id"
                 loading={loading}
+                scroll={{ x: 1300 }}
                 pagination={{
                     ...pagination,
                     showSizeChanger: true,

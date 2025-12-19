@@ -26,8 +26,6 @@ public class OwnerRestaurantService {
         @Autowired
         private OwnerRepository ownerRepository;
 
-        @Autowired
-        private CloudinaryService cloudinaryService;
 
         /**
          * Lấy danh sách tất cả nhà hàng mà Owner đang sở hữu.
@@ -118,12 +116,5 @@ public class OwnerRestaurantService {
 
                 Restaurant updatedRestaurant = restaurantRepository.save(restaurant);
                 return new RestaurantDTO(updatedRestaurant);
-        }
-
-        private boolean isValidImageType(String contentType) {
-                // Chấp nhận: image/jpeg, image/png
-                return contentType.startsWith("image/jpeg")
-                                || contentType.startsWith("image/png")
-                                || contentType.startsWith("image/jpg");
         }
 }

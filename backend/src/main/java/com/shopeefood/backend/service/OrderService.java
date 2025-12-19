@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 
 import com.shopeefood.backend.dto.OrderDTO;
 import com.shopeefood.backend.entity.Order;
+import com.shopeefood.backend.repository.CustomerRepository;
 import com.shopeefood.backend.repository.OrderRepository;
 
 @Service
@@ -25,12 +26,19 @@ public class OrderService {
 
     @Autowired
     private OrderRepository orderRepository;
+    @Autowired
+    private CustomerRepository customerRepository;
 
     // Lấy đơn hàng cho Owner, với filter: restaurant, search, from-to, page-size
-    public Page<OrderDTO> getOrdersForOwner(Integer ownerId, Integer restaurantId,
+    public Page<OrderDTO> getOrdersForOwner(Integer ownerId, Integer restaurantId, String status,
             int page, int size, String search,
             LocalDateTime from, LocalDateTime to, String sortField, String sortDir) {
-        List<String> allowedStatuses = List.of("PAID", "PREPARING", "SHIPPING", "COMPLETED", "CANCELLED");
+        List<String> allowedStatuses;
+        if (status != null && !status.isBlank()) {
+            allowedStatuses = List.of(status);
+        } else {
+            allowedStatuses = List.of("PENDING", "PAID", "PREPARING", "SHIPPING", "COMPLETED", "CANCELLED", "REFUNDED");
+        }
         if (to == null)
             to = LocalDateTime.now();
 
@@ -56,7 +64,7 @@ public class OrderService {
 
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        Page<Integer> orderIdsPage = orderRepository.findOrderIdsByOwnerAndRestaurant(
+        Page<Order> ordersPage = orderRepository.findOrderIdsByOwnerAndRestaurant(
                 ownerId,
                 restaurantId,
                 searchPattern,
@@ -64,12 +72,14 @@ public class OrderService {
                 to,
                 allowedStatuses,
                 pageable);
-        if (orderIdsPage.isEmpty()) {
+        if (ordersPage.isEmpty()) {
             return new PageImpl<Order>(Collections.emptyList(), pageable, 0).map(OrderDTO::new);
         }
 
         // 4. BƯỚC 2: Lấy chi tiết đơn hàng (dùng JOIN FETCH) bằng các ID đã lấy
-        List<Integer> orderIds = orderIdsPage.getContent();
+        List<Integer> orderIds = ordersPage.getContent().stream()
+                .map(Order::getId)
+                .collect(Collectors.toList());
         List<Order> ordersWithDetails = orderRepository.findOrdersWithDetailsByIds(orderIds);
         Map<Integer, Order> orderMap = ordersWithDetails.stream()
                 .collect(Collectors.toMap(Order::getId, Function.identity()));
@@ -79,12 +89,35 @@ public class OrderService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
+        // lấy thông tin khách hàng
+        List<Integer> customerAccountIds = sortedOrders.stream()
+                .map(o -> o.getCustomer() != null ? o.getCustomer().getId() : null)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+
+        Map<Integer, String> customerNameMap = customerRepository.findAllById(customerAccountIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        c -> c.getAccountId(),
+                        c -> c.getFullName() != null ? c.getFullName() : ""));
+
         // 6. Trả về Page<OrderDTO> hoàn chỉnh
-        Page<Order> finalPage = new PageImpl<>(
+        return new PageImpl<>(
                 sortedOrders,
                 pageable,
-                orderIdsPage.getTotalElements());
-        return finalPage.map(OrderDTO::new);
+                ordersPage.getTotalElements()).map(order -> {
+                    OrderDTO dto = new OrderDTO(order);
+
+                    if (order.getCustomer() != null) {
+                        dto.setCustomerPhone(order.getCustomer().getPhone());
+                        String fullName = customerNameMap.get(order.getCustomer().getId());
+                        if (fullName != null && !fullName.isEmpty()) {
+                            dto.setCustomerName(fullName);
+                        }
+                    }
+                    return dto;
+                });
     }
 
     // Cập nhật trạng thái đơn hàng
@@ -95,32 +128,31 @@ public class OrderService {
         String currentStatus = order.getStatus();
 
         switch (newStatus) {
-            case "PREPARING":
+            case "PREPARING" -> {
                 if (!currentStatus.equals("PAID")) {
                     throw new RuntimeException(
                             "Trạng thái chuyển đổi không hợp lệ. Chỉ đơn hàng ở trạng thái PAID mới có thể chấp nhận thành PREPARING.");
                 }
-                break;
-            case "SHIPPING":
+            }
+            case "SHIPPING" -> {
                 if (!currentStatus.equals("PREPARING")) {
                     throw new RuntimeException(
                             "Trạng thái chuyển đổi không hợp lệ. Chỉ đơn hàng ở trạng thái PREPARING mới có thể chuyển sang SHIPPING.");
                 }
-                break;
-            case "CANCELLED":
+            }
+            case "CANCELLED" -> {
                 if (!currentStatus.equals("PAID")) {
                     throw new RuntimeException("Chỉ đơn hàng ở trạng thái PAID mới có thể chấp nhận/hủy bởi Owner.");
                 }
-                break;
+            }
 
-            case "COMPLETED":
+            case "COMPLETED" -> {
                 if (!currentStatus.equals("SHIPPING")) {
                     throw new RuntimeException("Chỉ đơn hàng đang SHIPPING mới có thể chuyển sang COMPLETED.");
                 }
-                break;
+            }
 
-            default:
-                throw new RuntimeException("Trạng thái chuyển đổi không hợp lệ: " + newStatus);
+            default -> throw new RuntimeException("Trạng thái chuyển đổi không hợp lệ: " + newStatus);
 
         }
 

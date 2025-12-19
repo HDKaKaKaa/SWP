@@ -78,16 +78,24 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
         // Lấy đơn hàng theo trạng thái (filter)
         List<Order> findByRestaurantIdAndStatus(Integer restaurantId, String status);
 
-        // Tìm đơn theo mã đơn/ngày tạo đơn
-        @Query("SELECT o.id FROM Order o " +
+        // Tìm đơn theo mã đơn/ngày tạo đơn, trạng thái, nhà hàng,...
+        @Query("SELECT o FROM Order o " +
+                        "JOIN o.customer acc " + // Join với Account để lấy phone
+                        "JOIN Customer c ON acc.id = c.accountId " + // Join với Customer để lấy fullName
                         "WHERE o.restaurant.owner.id = :ownerId " +
                         "AND (:restaurantId IS NULL OR o.restaurant.id = :restaurantId) " +
                         "AND (o.status IN :statusList) " +
-                        "AND (:searchPattern IS NULL OR LOWER(o.orderNumber) LIKE :searchPattern) " +
+                        "AND (" +
+                        ":searchPattern IS NULL OR " +
+                        "LOWER(o.orderNumber) LIKE :searchPattern OR " + // Mã đơn hàng
+                        "LOWER(c.fullName) LIKE :searchPattern OR " + // Tên khách hàng
+                        "LOWER(acc.phone) LIKE :searchPattern OR " + // Số điện thoại
+                        "LOWER(o.status) LIKE :searchPattern OR " + // Trạng thái
+                        "LOWER(o.note) LIKE :searchPattern" + // Ghi chú
+                        ") " +
                         "AND (CAST(:from AS timestamp) IS NULL OR o.createdAt >= :from) " +
-                        "AND (CAST(:to AS timestamp) IS NULL OR o.createdAt <= :to) ")
-
-        Page<Integer> findOrderIdsByOwnerAndRestaurant(
+                        "AND (CAST(:to AS timestamp) IS NULL OR o.createdAt <= :to)")
+        Page<Order> findOrderIdsByOwnerAndRestaurant( 
                         @Param("ownerId") Integer ownerId,
                         @Param("restaurantId") Integer restaurantId,
                         @Param("searchPattern") String searchPattern,

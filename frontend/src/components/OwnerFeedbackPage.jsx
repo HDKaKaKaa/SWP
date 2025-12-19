@@ -288,15 +288,23 @@ const OwnerFeedbackPage = () => {
             render: (name) => <Text ellipsis={{ tooltip: name }}>{name}</Text>
         },
         {
-            title: 'Rating',
-            dataIndex: 'rating',
+            title: 'Đánh giá',
+            dataIndex: 'rating', // Khớp với private Integer rating trong DTO
             key: 'rating',
-            width: 120,
+            width: 160,
             sorter: true,
-            sortDirections: ['descend', 'ascend'],
             align: 'center',
             render: (rating) => (
-                <Rate disabled defaultValue={rating} count={5} character={<StarFilled />} style={{ fontSize: 1 }} />
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 'bold',
+                    fontSize: '15px'
+                }}>
+                    <span>{rating || 0}/5</span>
+                    <StarFilled style={{ color: '#fadb14', marginLeft: 6, fontSize: '16px' }} />
+                </div>
             ),
         },
         {

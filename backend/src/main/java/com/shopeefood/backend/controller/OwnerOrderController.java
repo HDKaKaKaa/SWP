@@ -28,6 +28,7 @@ public class OwnerOrderController {
     public Page<OrderDTO> getOrders(
             @RequestParam Integer ownerId,
             @RequestParam(required = false) Integer restaurantId,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String search,
@@ -36,8 +37,7 @@ public class OwnerOrderController {
 
             @RequestParam(defaultValue = "createdAt") String sortField,
             @RequestParam(defaultValue = "desc") String sortDir) {
-        // Truyền TẤT CẢ tham số, bao gồm sortField và sortDir, vào service
-        return orderService.getOrdersForOwner(ownerId, restaurantId, page, size,
+        return orderService.getOrdersForOwner(ownerId, restaurantId, status, page, size,
                 search, from, to, sortField, sortDir);
     }
 
