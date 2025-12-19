@@ -1,11 +1,24 @@
 package com.shopeefood.backend.entity;
 
-import jakarta.persistence.*;
-import lombok.Data;
 import java.math.BigDecimal;
-import java.time.LocalDateTime; // CHỈ DÙNG GÓI NÀY
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
+import java.util.List; // CHỈ DÙNG GÓI NÀY
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import lombok.Data;
 
 @Data
 @Entity
@@ -79,14 +92,19 @@ public class Order {
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
     private List<OrderItem> orderItems;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", referencedColumnName = "account_id", insertable = false, updatable = false)
+    private Customer customerName;
 
     // Hàm tự động set ngày tạo trước khi lưu
     @PrePersist
     protected void onCreate() {
         // Dùng LocalDateTime.now()
         createdAt = LocalDateTime.now();
-        if (status == null) status = "PENDING";
-        if (paymentMethod == null) paymentMethod = "PAYOS";
+        if (status == null)
+            status = "PENDING";
+        if (paymentMethod == null)
+            paymentMethod = "PAYOS";
     }
 
     // Helper tạo order number

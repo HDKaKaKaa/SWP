@@ -132,7 +132,7 @@ public class IssueService {
         }
 
         if ("OWNER".equals(role)) {
-            // CASE 1: OWNER tạo issue như CUSTOMER (nếu chính họ là người đặt đơn)
+            //   CASE 1: OWNER tạo issue như CUSTOMER (nếu chính họ là người đặt đơn)
             if (isOrderCustomer) return;
 
             // CASE 2: giữ logic cũ (owner-side) cho đơn thuộc quán của họ

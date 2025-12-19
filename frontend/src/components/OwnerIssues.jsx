@@ -5,11 +5,11 @@ import axios from "axios";
 import {
     Table, Space, Select, Input, Button as AntButton, Modal, Tag,
     notification, Drawer, Timeline, Typography, Card,
-    Divider, message, Image
+    Divider, message, Image, InputNumber
 } from 'antd';
 import {
     MessageOutlined, ReloadOutlined, SearchOutlined,
-    DollarOutlined, HistoryOutlined, SendOutlined, 
+    DollarOutlined, HistoryOutlined, SendOutlined,
     StopOutlined, CheckCircleOutlined, InfoCircleOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -44,18 +44,16 @@ const OwnerIssues = () => {
     const [ownerId, setOwnerId] = useState(null);
     const [accountId, setAccountId] = useState(null);
 
-    // Filter states
     const [restaurants, setRestaurants] = useState([]);
     const [selectedRestaurant, setSelectedRestaurant] = useState(null);
     const [statusFilter, setStatusFilter] = useState(null);
     const [search, setSearch] = useState("");
 
-    // Drawer states
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selectedIssue, setSelectedIssue] = useState(null);
     const [issueEvents, setIssueEvents] = useState([]);
+    const [customRefundAmount, setCustomRefundAmount] = useState(0);
 
-    // Form states
     const [replyContent, setReplyContent] = useState("");
     const [submitting, setSubmitting] = useState(false);
 
@@ -65,7 +63,9 @@ const OwnerIssues = () => {
         total: 0,
     });
 
-    // 1. Khởi tạo ID người dùng
+    const maxAmount = selectedIssue?.order?.totalAmount || 0;
+    const isAmountInvalid = customRefundAmount < 0 || customRefundAmount > maxAmount;
+
     useEffect(() => {
         if (user) {
             setAccountId(user.id);
@@ -82,7 +82,6 @@ const OwnerIssues = () => {
         }
     };
 
-    // 2. Tải danh sách Nhà hàng của Owner
     useEffect(() => {
         if (!accountId) return;
         const loadRestaurants = async () => {
@@ -98,7 +97,6 @@ const OwnerIssues = () => {
         loadRestaurants();
     }, [accountId]);
 
-    // 3. Tải danh sách Khiếu nại (Issues)
     const fetchIssues = useCallback(async () => {
         if (!ownerId) return;
         setLoading(true);
@@ -124,11 +122,16 @@ const OwnerIssues = () => {
 
     useEffect(() => { fetchIssues(); }, [fetchIssues]);
 
-    // 4. Mở Drawer chi tiết
     const handleViewDetail = async (issue) => {
         setSelectedIssue(issue);
         setDrawerOpen(true);
         setReplyContent("");
+        const defaultAmount = issue.ownerRefundAmount > 0
+            ? issue.ownerRefundAmount
+            : (issue.order?.totalAmount || 0);
+
+        setCustomRefundAmount(defaultAmount);
+
         try {
             const res = await axios.get(`${API_URL}/${issue.id}/events`);
             setIssueEvents(res.data);
@@ -137,65 +140,101 @@ const OwnerIssues = () => {
         }
     };
 
-    // 5. Gửi sự kiện (Nhắn tin / Hoàn tiền / Từ chối)
-    const handleAddEvent = async (type, amount = null) => {
-        if ((type === 'MESSAGE' || type === 'REJECT') && !replyContent.trim()) {
-            return message.warning("Vui lòng nhập nội dung phản hồi.");
-        }
+    // --- 1. Gửi tin nhắn trao đổi ---
+    const handleAddEvent = async (type) => {
+        if (!replyContent.trim()) return message.warning("Vui lòng nhập nội dung tin nhắn.");
 
         setSubmitting(true);
         try {
             await axios.post(`${API_URL}/${selectedIssue.id}/events`, {
                 accountId,
-                eventType: type,
-                content: replyContent,
-                amount: amount
+                eventType: "MESSAGE",
+                content: replyContent
             });
 
-            message.success(type === 'OWNER_REFUND' ? "Đã phê duyệt hoàn tiền & Đóng khiếu nại" : "Đã cập nhật khiếu nại");
+            message.success("Đã gửi tin nhắn đến khách hàng");
             setReplyContent("");
-            setDrawerOpen(false);
-            fetchIssues(); // Refresh danh sách
+
+            // Load lại timeline để thấy tin nhắn mới
+            const res = await axios.get(`${API_URL}/${selectedIssue.id}/events`);
+            setIssueEvents(res.data);
         } catch (err) {
-            message.error("Thao tác thất bại. Vui lòng kiểm tra lại.");
+            message.error("Không thể gửi tin nhắn.");
         } finally {
             setSubmitting(false);
         }
     };
 
-    // --- Modal xác nhận Hoàn tiền ---
+    // --- 2. Chốt quyết định (Hoàn tiền / Từ chối - Có resolvedReason) ---
+    const handleDecision = async (type, amount = null) => {
+        if (type === 'REJECTED' && !replyContent.trim()) {
+            return message.warning("Vui lòng nhập lý do từ chối để khách hàng được biết.");
+        }
+
+        if (type === 'APPROVED' && (!amount || amount <= 0)) {
+            return message.warning("Vui lòng nhập số tiền hoàn hợp lệ.");
+        }
+
+        setSubmitting(true);
+        try {
+            const payload = {
+                accountId: accountId,
+                decision: type, // 'APPROVED' hoặc 'REJECTED'
+                amount: amount,
+                resolvedReason: replyContent
+            };
+            await axios.post(`${API_URL}/${selectedIssue.id}/decision`, payload);
+
+            message.success(type === 'APPROVED' ? "Đã xác nhận hoàn tiền" : "Đã từ chối khiếu nại");
+            setReplyContent("");
+            setDrawerOpen(false);
+            fetchIssues();
+        } catch (err) {
+            message.error(err.response?.data?.message || "Lỗi khi xử lý quyết định.");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     const confirmRefund = () => {
         Modal.confirm({
             title: 'Xác nhận hoàn tiền?',
-            icon: <DollarOutlined style={{ color: '#ff4d4f' }} />,
-            content: `Hệ thống sẽ hoàn ${selectedIssue?.ownerRefundAmount?.toLocaleString()}đ cho khách và đóng khiếu nại này.`,
+            icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
+            content: `Hệ thống sẽ hoàn ${customRefundAmount?.toLocaleString()}đ cho khách. Lý do: ${replyContent}`,
             okText: 'Xác nhận',
-            cancelText: 'Hủy',
-            onOk: () => handleAddEvent('OWNER_REFUND', selectedIssue.ownerRefundAmount)
+            onOk: () => handleDecision('APPROVED', customRefundAmount)
         });
     };
 
-    // --- Modal xác nhận Từ chối ---
     const confirmReject = () => {
         Modal.confirm({
             title: 'Từ chối khiếu nại?',
-            icon: <StopOutlined style={{ color: '#faad14' }} />,
-            content: 'Bạn chắc chắn muốn từ chối? Khiếu nại sẽ được đóng lại mà không hoàn tiền.',
+            icon: <StopOutlined style={{ color: '#ff4d4f' }} />,
+            content: `Khiếu nại sẽ được đóng và không hoàn tiền. Lý do: ${replyContent}`,
             okText: 'Xác nhận từ chối',
             okType: 'danger',
-            onOk: () => handleAddEvent('REJECT')
+            onOk: () => handleDecision('REJECTED', 0)
         });
     };
 
     const columns = [
+        { title: 'Mã Issue', dataIndex: 'code', render: (text) => <Text strong color="blue">{text}</Text>, width: 100 },
         {
-            title: 'Mã Issue',
-            dataIndex: 'code',
-            render: (text) => <Text strong style={{ color: '#1890ff' }}>{text}</Text>,
-            width: 100,
+            title: 'Đơn hàng',
+            render: (_, r) => <Text copyable>{r.order?.orderNumber || `#${r.orderId}`}</Text>,
+            align: 'center'
         },
         {
-            title: 'Thông tin khiếu nại',
+            title: 'Khách hàng',
+            render: (_, record) => (
+                <Space direction="vertical" size={0}>
+                    <Text strong>{record.order?.customerName?.fullName || 'N/A'}</Text>
+                    <Text type="secondary" style={{ fontSize: '12px' }}>{record.order?.customer?.phone}</Text>
+                </Space>
+            ),
+        },
+        {
+            title: 'Nội dung',
             render: (_, record) => (
                 <Space direction="vertical" size={0}>
                     <Text strong>{record.title}</Text>
@@ -203,13 +242,12 @@ const OwnerIssues = () => {
                 </Space>
             ),
         },
-        { title: 'Đơn hàng', dataIndex: 'orderId', render: (id) => `#${id}`, align: 'center' },
         { title: 'Trạng thái', dataIndex: 'status', render: (status) => <IssueStatusTag status={status} />, align: 'center' },
         {
             title: 'Thao tác',
             key: 'action',
             render: (_, record) => (
-                <AntButton type="primary"  icon={<MessageOutlined />} onClick={() => handleViewDetail(record)}> Xử lý </AntButton>
+                <AntButton type="primary" icon={<MessageOutlined />} onClick={() => handleViewDetail(record)}> Xử lý </AntButton>
             ),
             align: 'center',
         },
@@ -219,17 +257,16 @@ const OwnerIssues = () => {
         <div style={{ padding: '24px', background: '#f0f2f5', minHeight: '100vh' }}>
             <Card bordered={false}>
                 <Title level={3}>Quản Lý Khiếu Nại</Title>
-
                 <Space size="middle" style={{ marginBottom: 20 }} wrap>
-                    <Select style={{ width: 220 }} placeholder="Chọn nhà hàng" value={selectedRestaurant} allowClear onChange={val => setSelectedRestaurant(val)}>
+                    <Select style={{ width: 220 }} placeholder="Chọn nhà hàng" value={selectedRestaurant} allowClear onChange={setSelectedRestaurant}>
                         {restaurants.map(r => <Option key={r.id} value={r.id}>{r.name}</Option>)}
                     </Select>
-                    <Select style={{ width: 160 }} placeholder="Trạng thái" value={statusFilter} allowClear onChange={val => setStatusFilter(val)}>
+                    <Select style={{ width: 160 }} placeholder="Trạng thái" value={statusFilter} allowClear onChange={setStatusFilter}>
                         <Option value="OPEN">Mới</Option>
                         <Option value="NEED_OWNER_ACTION">Cần xử lý</Option>
                         <Option value="CLOSED">Đã đóng</Option>
                     </Select>
-                    <Input placeholder="Tìm mã khiếu nại..." value={search} onChange={e => setSearch(e.target.value)} style={{ width: 200 }} suffix={<SearchOutlined />} />
+                    <Input placeholder="Tìm mã..." value={search} onChange={e => setSearch(e.target.value)} style={{ width: 200, height: 32 }} suffix={<SearchOutlined />} />
                     <AntButton icon={<ReloadOutlined />} onClick={() => { setSearch(""); setStatusFilter(null); setSelectedRestaurant(null); }}>Làm mới</AntButton>
                 </Space>
 
@@ -238,31 +275,56 @@ const OwnerIssues = () => {
                     dataSource={issues}
                     rowKey="id"
                     loading={loading}
-                    pagination={{ ...pagination, showSizeChanger: false }}
+                    pagination={pagination}
                     onChange={(p) => setPagination(prev => ({ ...prev, current: p.current }))}
                 />
             </Card>
 
             <Drawer
-                title={<Space><HistoryOutlined /> Chi tiết xử lý: {selectedIssue?.code}</Space>}
-                width={600}
+                title={<Space><HistoryOutlined /> Chi tiết: {selectedIssue?.code}</Space>}
+                width={650}
                 onClose={() => setDrawerOpen(false)}
                 open={drawerOpen}
                 footer={
-                    selectedIssue?.status !== 'CLOSED' && (
+                    selectedIssue?.status !== 'CLOSED' && selectedIssue?.status !== 'REFUNDED' && (
                         <div style={{ padding: '10px 0' }}>
-                            <TextArea 
-                                rows={3} 
-                                placeholder="Nhập tin nhắn phản hồi hoặc lý do..." 
-                                value={replyContent} 
-                                onChange={e => setReplyContent(e.target.value)} 
-                            />
-                            <div style={{ marginTop: 15, display: 'flex', justifyContent: 'space-between' }}>
+                            <div style={{ marginBottom: 15 }}>
+                                <Text strong>Nội dung phản hồi / Lý do (Bắt buộc):</Text>
+                                <TextArea
+                                    rows={3}
+                                    value={replyContent}
+                                    onChange={e => setReplyContent(e.target.value)}
+                                    placeholder="Nhập tin nhắn trao đổi hoặc lý do chốt khiếu nại..."
+                                    style={{ marginTop: 8 }}
+                                />
+                            </div>
+
+                            <div style={{ marginBottom: 20 }}>
+                                <Text strong>Số tiền hoàn trả (VNĐ):</Text>
+                                <InputNumber
+                                    style={{ width: '100%', marginTop: 8 }}
+                                    value={customRefundAmount}
+                                    onChange={setCustomRefundAmount}
+                                    formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                    parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                                    status={isAmountInvalid ? "error" : ""}
+                                />
+                                {isAmountInvalid && <Text type="danger" style={{ fontSize: 12 }}>* Số tiền không hợp lệ (Tối đa: {maxAmount.toLocaleString()}đ)</Text>}
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <Space>
-                                    <AntButton danger type="primary" icon={<CheckCircleOutlined />} onClick={confirmRefund} loading={submitting}>Hoàn tiền</AntButton>
-                                    <AntButton danger icon={<StopOutlined />} onClick={confirmReject} loading={submitting}>Từ chối</AntButton>
+                                    <AntButton type="primary" success="true" style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                                        icon={<CheckCircleOutlined />} onClick={confirmRefund} disabled={isAmountInvalid} loading={submitting}>
+                                        Hoàn tiền & Đóng
+                                    </AntButton>
+                                    <AntButton danger icon={<StopOutlined />} onClick={confirmReject} disabled={!replyContent.trim()} loading={submitting}>
+                                        Từ chối
+                                    </AntButton>
                                 </Space>
-                                <AntButton type="primary" icon={<SendOutlined />} onClick={() => handleAddEvent('MESSAGE')} loading={submitting}>Gửi phản hồi</AntButton>
+                                <AntButton type="default" icon={<SendOutlined />} onClick={() => handleAddEvent('MESSAGE')} disabled={!replyContent.trim()} loading={submitting}>
+                                    Chỉ gửi tin nhắn
+                                </AntButton>
                             </div>
                         </div>
                     )
@@ -270,33 +332,29 @@ const OwnerIssues = () => {
             >
                 {selectedIssue && (
                     <>
-                        <Card size="small" style={{ backgroundColor: '#fffbe6', border: '1px solid #ffe58f', marginBottom: 20 }}>
-                            <Title level={5}><InfoCircleOutlined /> {selectedIssue.title}</Title>
-                            <Text>{selectedIssue.description}</Text>
-                            <Divider style={{ margin: '12px 0' }} />
-                            <Space split={<Divider type="vertical" />}>
-                                <Text>Đơn: <b>#{selectedIssue.orderId}</b></Text>
-                                <Text>Hoàn tiền: <b style={{ color: '#f5222d' }}>{selectedIssue.ownerRefundAmount?.toLocaleString()}đ</b></Text>
-                                <IssueStatusTag status={selectedIssue.status} />
-                            </Space>
+                        <Card size="small" style={{ backgroundColor: '#fffbe6', marginBottom: 20 }}>
+                            <div style={{ marginBottom: 20, padding: '0 10px' }}>
+                                <Space direction="vertical" style={{ width: '100%' }}>
+                                    <div><Text type="secondary">Khách hàng: </Text><Text strong>{selectedIssue.order?.customerName?.fullName || 'N/A'}</Text></div>
+                                    <div><Text type="secondary">Số điện thoại: </Text><Text strong style={{ color: '#1890ff' }}>{selectedIssue.order?.customer?.phone || 'N/A'}</Text></div>
+                                    <div><Text type="secondary">Mã đơn hàng: </Text><Text strong>#{selectedIssue.order?.orderNumber}</Text></div>
+                                    <div><Text type="secondary">Tổng đơn: </Text><Text strong style={{ color: '#f5222d' }}>{selectedIssue.order?.totalAmount?.toLocaleString()}đ</Text></div>
+                                    <div><Text type="secondary">Trạng thái hiện tại: </Text><IssueStatusTag status={selectedIssue.status} /></div>
+                                </Space>
+                            </div>
                         </Card>
 
                         <Timeline mode="left">
                             {issueEvents.map((ev) => (
-                                <Timeline.Item 
-                                    key={ev.id} 
-                                    color={ev.accountRole === 'OWNER' ? 'green' : (ev.accountRole === 'ADMIN' ? 'red' : 'blue')}
+                                <Timeline.Item
+                                    key={ev.id}
+                                    color={ev.accountRole === 'OWNER' ? 'green' : 'blue'}
                                     label={dayjs(ev.createdAt).format('HH:mm DD/MM')}
                                 >
-                                    <Text strong>{ev.accountRole === 'OWNER' ? 'Bạn' : (ev.accountRole === 'ADMIN' ? 'CSKH' : 'Khách hàng')}</Text>
+                                    <Text strong>{ev.accountRole === 'OWNER' ? 'Bạn' : 'Khách hàng'}</Text>
                                     <div style={{ background: '#f5f5f5', padding: '10px', borderRadius: '8px', marginTop: 5 }}>
                                         {ev.content}
-                                        {ev.attachmentUrl && (
-                                            <div style={{ marginTop: 8 }}>
-                                                <Image width={120} src={ev.attachmentUrl} style={{ borderRadius: 4 }} />
-                                            </div>
-                                        )}
-                                        {ev.eventType === 'OWNER_REFUND' && <Tag color="volcano" style={{marginTop: 5}}>Đã xác nhận hoàn tiền</Tag>}
+                                        {ev.attachmentUrl && <div style={{ marginTop: 8 }}><Image width={100} src={ev.attachmentUrl} /></div>}
                                     </div>
                                 </Timeline.Item>
                             ))}
