@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
     Form,
     Input,
@@ -16,6 +16,7 @@ import {
     List,
     Typography,
     Divider,
+    notification
 } from 'antd';
 import axios from 'axios';
 
@@ -25,39 +26,35 @@ const { TextArea } = Input;
 const { Title, Text } = Typography;
 const API_BASE_URL = "http://localhost:8080/api";
 
+// Regex: Cho phép chữ, số, khoảng trắng và tiếng Việt (không ký tự đặc biệt)
+const VALID_NAME_REGEX = /^[a-zA-Z0-9\sàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđĐ]+$/;
+
 // =================================================================
-// 1. AttributeEditor Component (Tối ưu giao diện)
+// 1. AttributeEditor Component
 // =================================================================
 const AttributeEditor = React.memo(({ attribute, details, onAddDetail, onDetailChange, onRemoveDetail }) => {
     return (
         <Card
-            title={
-                <Title level={5} style={{ color: '#1890ff', textAlign: 'center', margin: 0 }}>
-                    {attribute.name}
-                </Title>
-            }
+            title={<Title level={5} style={{ color: '#1890ff', margin: 0 }}>{attribute.name}</Title>}
             bordered={true}
-            style={{ marginBottom: 24, borderColor: 'rgba(24, 144, 255, 0.25)', backgroundColor: '#fafafa' }}
+            style={{ marginBottom: 16, backgroundColor: '#fafafa' }}
             bodyStyle={{ padding: 12 }}
         >
             <List
                 itemLayout="horizontal"
                 dataSource={details}
                 renderItem={(detail, index) => (
-                    <List.Item
-                        key={detail.id || index}
-                        style={{ padding: '8px 0', borderBottom: index < details.length - 1 ? '1px solid #f0f0f0' : 'none' }}
-                    >
-                        <Row gutter={[16, 8]} style={{ width: '100%' }} align="middle">
-                            <Col xs={24} sm={12}>
+                    <List.Item style={{ padding: '8px 0' }}>
+                        <Row gutter={8} style={{ width: '100%' }} align="middle">
+                            <Col span={12}>
                                 <Input
                                     value={detail.value}
                                     onChange={(e) => onDetailChange(attribute.id, index, 'value', e.target.value)}
-                                    placeholder={`VD: Size L, 50% đường...`}
+                                    placeholder="Giá trị (VD: Size L)"
+                                    status={detail.value.trim() === '' ? 'error' : ''}
                                 />
                             </Col>
-
-                            <Col xs={16} sm={8}>
+                            <Col span={8}>
                                 <InputNumber
                                     style={{ width: '100%' }}
                                     formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
@@ -68,27 +65,15 @@ const AttributeEditor = React.memo(({ attribute, details, onAddDetail, onDetailC
                                     addonAfter="đ"
                                 />
                             </Col>
-                            <Col xs={8} sm={4}>
-                                <Button
-                                    danger
-                                    type="text"
-                                    onClick={() => onRemoveDetail(attribute.id, index)}
-                                    style={{ width: '100%' }}
-                                >
-                                    Xóa
-                                </Button>
+                            <Col span={4}>
+                                <Button danger type="text" onClick={() => onRemoveDetail(attribute.id, index)}>Xóa</Button>
                             </Col>
                         </Row>
                     </List.Item>
                 )}
             />
-
-            <Button
-                type="dashed"
-                onClick={() => onAddDetail(attribute.id)}
-                style={{ width: '100%', marginTop: 8 }}
-            >
-                + Thêm tùy chọn {attribute.name}
+            <Button type="dashed" onClick={() => onAddDetail(attribute.id)} block style={{ marginTop: 8 }}>
+                + Thêm {attribute.name}
             </Button>
         </Card>
     );
@@ -98,118 +83,114 @@ const AttributeEditor = React.memo(({ attribute, details, onAddDetail, onDetailC
 // 2. Main UpdateProduct Component
 // =================================================================
 export default function UpdateProduct({ onProductActionSuccess, restaurants = [], productData }) {
+    const [form] = Form.useForm();
+    const errorRef = useRef(null);
+
     const [categories, setCategories] = useState([]);
     const [loadingInitial, setLoadingInitial] = useState(true);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
+    const [serverError, setServerError] = useState(null);
+    const fileInputRef = useRef(null);
+    const [imageError, setImageError] = useState(null);
+    // State riêng cho các phần không thuộc Form đơn thuần
     const [activeAttributes, setActiveAttributes] = useState([]);
-
-    // Memoized initial state
-    const initialProductState = useMemo(() => {
-        const findId = (data, primaryKey, nestedKey) => {
-            if (!data) return '';
-            const idValue = data[primaryKey];
-            const nestedIdValue = data[nestedKey]?.id;
-            const finalId = idValue || nestedIdValue;
-            return finalId ? finalId.toString() : '';
-        };
-
-        return {
-            id: productData?.id || null,
-            name: productData?.name || '',
-            description: productData?.description || '',
-            categoryId: findId(productData, 'categoryId', 'category'),
-            price: productData?.price || 0,
-            isAvailable: productData?.isAvailable ?? true,
-            restaurantId: findId(productData, 'restaurantId', 'restaurant')
-        };
-    }, [productData]);
-
-    const [productFormData, setProductFormData] = useState(initialProductState);
+    const [productDetails, setProductDetails] = useState({});
     const [productImage, setProductImage] = useState(null);
     const [imagePreview, setImagePreview] = useState(productData?.image || null);
-    const [productDetails, setProductDetails] = useState({});
 
-    // 1. Tải danh mục khi mount
+    // 1. Khởi tạo dữ liệu
     useEffect(() => {
-        const fetchCategories = async () => {
+        const initData = async () => {
             try {
                 const resCat = await axios.get(`${API_BASE_URL}/categories`);
                 setCategories(resCat.data);
+
+                if (productData) {
+                    // Đổ dữ liệu vào Form Antd
+                    form.setFieldsValue({
+                        name: productData.name,
+                        price: productData.price,
+                        categoryId: productData.category?.id?.toString() || productData.categoryId?.toString(),
+                        restaurantId: productData.restaurant?.id?.toString() || productData.restaurantId?.toString(),
+                        description: productData.description,
+                        isAvailable: productData.isAvailable ?? true,
+                    });
+                    setImagePreview(productData.image);
+                }
             } catch (err) {
-                setError("Không thể tải danh mục sản phẩm.");
+                setServerError("Không thể tải dữ liệu ban đầu.");
             } finally {
                 setLoadingInitial(false);
             }
         };
-        fetchCategories();
-    }, []);
+        initData();
+    }, [productData, form]);
 
-    // 2. Đồng bộ form khi productData thay đổi (khi mở modal mới)
+    // 2. Theo dõi Category thay đổi để load Attributes
+    const selectedCategoryId = Form.useWatch('categoryId', form);
+
     useEffect(() => {
-        setProductFormData(initialProductState);
-        setImagePreview(productData?.image || null);
-        setError(null);
-    }, [initialProductState, productData?.image]);
-
-    // 3. LOGIC QUAN TRỌNG: Fetch Attributes và Pre-fill Product Details
-    useEffect(() => {
-        const categoryId = Number(productFormData.categoryId);
-        
-        const fetchAttributesAndDetails = async () => {
-            if (!categoryId) {
-                setActiveAttributes([]);
-                setProductDetails({});
-                return;
-            }
-
+        const fetchAttributes = async () => {
+            if (!selectedCategoryId) return;
             try {
-                const res = await axios.get(`${API_BASE_URL}/categories/${categoryId}/attributes`);
+                const res = await axios.get(`${API_BASE_URL}/categories/${selectedCategoryId}/attributes`);
                 const attributes = res.data;
                 setActiveAttributes(attributes);
 
-                // Gom nhóm các chi tiết cũ của sản phẩm theo attributeId
-                const groupedExistingDetails = {};
-                if (Array.isArray(productData?.productDetails)) {
-                    productData.productDetails.forEach(detail => {
-                        const attrId = detail.attributeId.toString();
-                        if (!groupedExistingDetails[attrId]) groupedExistingDetails[attrId] = [];
-                        groupedExistingDetails[attrId].push({
-                            id: detail.id,
-                            value: detail.value || '',
-                            priceAdjustment: detail.priceAdjustment || 0
-                        });
-                    });
-                }
-
-                // Khởi tạo state details cho từng attribute của Category
+                // Group existing details
+                const sourceDetails = productData?.details || [];
                 const initialDetails = {};
                 attributes.forEach(attr => {
                     const attrIdStr = attr.id.toString();
-                    // Nếu sản phẩm hiện tại thuộc category này và có data cũ, thì pre-fill
-                    // Nếu đổi category khác, groupedExistingDetails[attrIdStr] sẽ undefined -> rỗng
-                    initialDetails[attrIdStr] = groupedExistingDetails[attrIdStr] || [];
+                    initialDetails[attrIdStr] = sourceDetails
+                        .filter(d => (d.attribute?.id || d.attributeId)?.toString() === attrIdStr)
+                        .map(d => ({ id: d.id, value: d.value, priceAdjustment: d.priceAdjustment }));
                 });
-
                 setProductDetails(initialDetails);
             } catch (err) {
                 console.error("Lỗi tải thuộc tính:", err);
             }
         };
+        fetchAttributes();
+    }, [selectedCategoryId, productData]);
 
-        fetchAttributesAndDetails();
-    }, [productFormData.categoryId, productData]);
+    // --- Handlers cho Options ---
+    const handleAddDetail = useCallback((attrId) => {
+        setProductDetails(prev => ({
+            ...prev,
+            [attrId]: [...(prev[attrId] || []), { value: '', priceAdjustment: 0 }]
+        }));
+    }, []);
 
-    // --- Handlers ---
-    const handleChange = (name, value) => {
-        setProductFormData(prev => ({ ...prev, [name]: value }));
-    };
+    const handleDetailChange = useCallback((attrId, index, field, value) => {
+        setProductDetails(prev => {
+            const newArr = [...(prev[attrId] || [])];
+            newArr[index] = { ...newArr[index], [field]: value };
+            return { ...prev, [attrId]: newArr };
+        });
+    }, []);
+
+    const handleRemoveDetail = useCallback((attrId, index) => {
+        setProductDetails(prev => ({
+            ...prev,
+            [attrId]: prev[attrId].filter((_, i) => i !== index)
+        }));
+    }, []);
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         if (file) {
             if (file.size > MAX_FILE_SIZE) {
-                setError("Kích thước ảnh vượt quá 2MB.");
+                notification.error({
+                    message: "Ảnh quá lớn",
+                    description: "Vui lòng chọn ảnh dưới 2MB"
+                });
+                setProductImage(null);
+                setImagePreview(productData?.image || null);
+                setImageError("File đã chọn vượt quá 2MB, vui lòng chọn file khác.");
+                if (fileInputRef.current) {
+                    fileInputRef.current.value = "";
+                }
                 return;
             }
             setProductImage(file);
@@ -217,64 +198,48 @@ export default function UpdateProduct({ onProductActionSuccess, restaurants = []
         }
     };
 
-    const handleAddDetail = useCallback((attributeId) => {
-        setProductDetails(prev => ({
-            ...prev,
-            [attributeId]: [...(prev[attributeId] || []), { value: '', priceAdjustment: 0 }]
-        }));
-    }, []);
-
-    const handleDetailChange = useCallback((attributeId, index, field, value) => {
-        setProductDetails(prev => {
-            const newArr = [...(prev[attributeId] || [])];
-            newArr[index] = { ...newArr[index], [field]: value };
-            return { ...prev, [attributeId]: newArr };
-        });
-    }, []);
-
-    const handleRemoveDetail = useCallback((attributeId, index) => {
-        setProductDetails(prev => ({
-            ...prev,
-            [attributeId]: prev[attributeId].filter((_, i) => i !== index)
-        }));
-    }, []);
-
-    const handleSubmit = async () => {
-        setError(null);
+    // --- SUBMIT LOGIC ---
+    const onFinish = async (values) => {
+        setServerError(null);
         setLoading(true);
 
-        const { id, name, price, categoryId, description, isAvailable } = productFormData;
-
-        // Chuẩn bị dữ liệu details (loại bỏ dòng trống)
-        const productDetailsList = Object.entries(productDetails).flatMap(([attrId, details]) =>
-            details
-                .filter(d => d.value.trim() !== '')
-                .map(d => ({
-                    id: d.id || null,
-                    value: d.value.trim(),
-                    priceAdjustment: Number(d.priceAdjustment),
-                    attributeId: Number(attrId)
-                }))
-        );
-
-        const productRequestData = {
-            name: name.trim(),
-            description: description.trim(),
-            categoryId: Number(categoryId),
-            price: Number(price),
-            isAvailable,
-            productDetails: productDetailsList
-        };
-
-        const formData = new FormData();
-        formData.append('productRequest', new Blob([JSON.stringify(productRequestData)], { type: 'application/json' }));
-        if (productImage) formData.append('imageFile', productImage);
-
         try {
-            await axios.put(`${API_BASE_URL}/owner/products/${id}`, formData);
-            onProductActionSuccess(`Cập nhật "${name}" thành công!`);
-        } catch (apiError) {
-            setError(apiError.response?.data?.message || "Lỗi cập nhật sản phẩm.");
+            // Validate Options thủ công vì nó nằm ngoài Form.Item chuẩn
+            const finalDetails = [];
+            for (const [attrId, details] of Object.entries(productDetails)) {
+                const checkSet = new Set();
+                for (const d of details) {
+                    const val = d.value.trim();
+                    if (!val) throw new Error(`Vui lòng nhập đầy đủ giá trị cho các tùy chọn.`);
+                    if (checkSet.has(val.toLowerCase())) throw new Error(`Giá trị "${val}" bị trùng lặp.`);
+                    checkSet.add(val.toLowerCase());
+
+                    finalDetails.push({
+                        id: d.id || null,
+                        value: val,
+                        priceAdjustment: d.priceAdjustment,
+                        attributeId: Number(attrId)
+                    });
+                }
+            }
+
+            const productRequestData = {
+                ...values,
+                categoryId: Number(values.categoryId),
+                restaurantId: Number(values.restaurantId),
+                productDetails: finalDetails
+            };
+
+            const formData = new FormData();
+            formData.append('productRequest', new Blob([JSON.stringify(productRequestData)], { type: 'application/json' }));
+            if (productImage) formData.append('imageFile', productImage);
+
+            await axios.put(`${API_BASE_URL}/owner/products/${productData.id}`, formData);
+            onProductActionSuccess(`Cập nhật thành công!`);
+        } catch (err) {
+            const msg = err.response?.data?.message || err.message || "Lỗi cập nhật.";
+            setServerError(msg);
+            errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         } finally {
             setLoading(false);
         }
@@ -284,113 +249,143 @@ export default function UpdateProduct({ onProductActionSuccess, restaurants = []
 
     return (
         <div style={{ padding: '16px 0' }}>
-            <Row justify="center">
-                <Col xs={24} lg={20}>
-                    <Card bordered={false}>
-                        <Title level={3} style={{ textAlign: 'center', color: '#1890ff' }}>Cập Nhật Sản Phẩm</Title>
-                        
-                        <Spin spinning={loadingInitial}>
-                            {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} />}
+            <Spin spinning={loadingInitial}>
+                <div ref={errorRef}>
+                    {serverError && <Alert type="error" message={serverError} showIcon closable className="mb-4" />}
+                </div>
 
-                            <Form layout="vertical" onFinish={handleSubmit}>
-                                {/* Phần 1: Thông tin cơ bản */}
-                                <Card title="1. Thông tin cơ bản" style={{ marginBottom: 20 }}>
-                                    <Row gutter={16}>
-                                        <Col span={12}>
-                                            <Form.Item label="Tên sản phẩm" required>
-                                                <Input value={productFormData.name} onChange={e => handleChange('name', e.target.value)} />
-                                            </Form.Item>
-                                        </Col>
-                                        <Col span={12}>
-                                            <Form.Item label="Giá bán (VND)" required>
-                                                <InputNumber 
-                                                    style={{ width: '100%' }} 
-                                                    value={productFormData.price} 
-                                                    onChange={v => handleChange('price', v)}
-                                                    addonAfter="VND"
-                                                />
-                                            </Form.Item>
-                                        </Col>
-                                    </Row>
+                <Form
+                    form={form}
+                    layout="vertical"
+                    onFinish={onFinish}
+                    scrollToFirstError={{ behavior: 'smooth', block: 'center' }}
+                    onValuesChange={() => setServerError(null)}
+                >
+                    <h2 className="text-center">Cập nhật sản phẩm</h2>
+                    <Card title="1. Thông tin cơ bản" className="mb-4">
+                        <Row gutter={16}>
+                            <Col span={12}>
+                                <Form.Item
+                                    label="Tên sản phẩm"
+                                    name="name"
+                                    rules={[
+                                        { required: true, message: 'Vui lòng nhập tên!' },
+                                        { min: 2, message: 'Tối thiểu 2 ký tự' },
+                                        { max: 100, message: 'Tối đa 100 ký tự' },
+                                        { pattern: VALID_NAME_REGEX, message: 'Không được chứa ký tự đặc biệt' }
+                                    ]}
+                                    validateTrigger={['onChange', 'onBlur']}
+                                >
+                                    <Input placeholder="Tên sản phẩm..." />
+                                </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                                <Form.Item
+                                    label="Giá bán (VND)"
+                                    name="price"
+                                    rules={[
+                                        { required: true, message: 'Vui lòng nhập giá!' },
+                                        { type: 'number', min: 0, max: 100000000, message: 'Giá từ 0 - 100 triệu' }
+                                    ]}
+                                >
+                                    <InputNumber style={{ width: '100%' }} addonAfter="đ" />
+                                </Form.Item>
+                            </Col>
+                        </Row>
 
-                                    <Row gutter={16}>
-                                        <Col span={8}>
-                                            <Form.Item label="Danh mục" required>
-                                                <Select 
-                                                    value={productFormData.categoryId} 
-                                                    onChange={v => handleChange('categoryId', v)}
-                                                >
-                                                    {categories.map(c => <Option key={c.id} value={c.id.toString()}>{c.name}</Option>)}
-                                                </Select>
-                                            </Form.Item>
-                                        </Col>
-                                        <Col span={8}>
-                                            <Form.Item label="Nhà hàng" required>
-                                                <Select 
-                                                    value={productFormData.restaurantId} 
-                                                    onChange={v => handleChange('restaurantId', v)}
-                                                >
-                                                    {restaurants.map(r => <Option key={r.id} value={r.id.toString()}>{r.name}</Option>)}
-                                                </Select>
-                                            </Form.Item>
-                                        </Col>
-                                        <Col span={8}>
-                                            <Form.Item label="Trạng thái">
-                                                <Switch 
-                                                    checked={productFormData.isAvailable} 
-                                                    onChange={v => handleChange('isAvailable', v)}
-                                                    checkedChildren="Đang bán" unCheckedChildren="Ngừng bán" 
-                                                />
-                                            </Form.Item>
-                                        </Col>
-                                    </Row>
+                        <Row gutter={16}>
+                            <Col span={8}>
+                                <Form.Item label="Danh mục" name="categoryId" rules={[{ required: true, message: 'Chọn danh mục!' }]}>
+                                    <Select placeholder="Chọn danh mục">
+                                        {categories.map(c => <Option key={c.id} value={c.id.toString()}>{c.name}</Option>)}
+                                    </Select>
+                                </Form.Item>
+                            </Col>
+                            <Col span={8}>
+                                <Form.Item label="Nhà hàng" name="restaurantId" rules={[{ required: true, message: 'Chọn nhà hàng!' }]}>
+                                    <Select placeholder="Chọn nhà hàng">
+                                        {restaurants.map(r => <Option key={r.id} value={r.id.toString()}>{r.name}</Option>)}
+                                    </Select>
+                                </Form.Item>
+                            </Col>
+                            <Col span={8}>
+                                <Form.Item label="Trạng thái" name="isAvailable" valuePropName="checked">
+                                    <Switch checkedChildren="Đang bán" unCheckedChildren="Ngừng bán" />
+                                </Form.Item>
+                            </Col>
+                        </Row>
 
-                                    <Form.Item label="Mô tả">
-                                        <TextArea rows={2} value={productFormData.description} onChange={e => handleChange('description', e.target.value)} />
-                                    </Form.Item>
+                        <Form.Item label="Mô tả" name="description" rules={[{ max: 500, message: 'Tối đa 500 ký tự' }]}>
+                            <TextArea rows={3} placeholder="Mô tả sản phẩm..." />
+                        </Form.Item>
 
-                                    <Form.Item label="Ảnh sản phẩm">
-                                        <input type="file" onChange={handleFileChange} accept="image/*" style={{ marginBottom: 10 }} />
-                                        {imagePreview && (
-                                            <div style={{ marginTop: 10 }}>
-                                                <img src={imagePreview} alt="preview" style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 8, border: '1px solid #eee' }} />
-                                                <div style={{ fontSize: 12, color: '#888' }}>{productImage ? 'Ảnh mới đã chọn' : 'Ảnh hiện tại'}</div>
-                                            </div>
-                                        )}
-                                    </Form.Item>
-                                </Card>
-
-                                {/* Phần 2: Thuộc tính tùy chọn */}
-                                <Card title="2. Tùy chọn & Thuộc tính (Options)">
-                                    {activeAttributes.length > 0 ? (
-                                        <Row gutter={[16, 16]}>
-                                            {activeAttributes.map(attr => (
-                                                <Col span={24} key={attr.id}>
-                                                    <AttributeEditor
-                                                        attribute={attr}
-                                                        details={productDetails[attr.id] || []}
-                                                        onAddDetail={handleAddDetail}
-                                                        onDetailChange={handleDetailChange}
-                                                        onRemoveDetail={handleRemoveDetail}
-                                                    />
-                                                </Col>
-                                            ))}
-                                        </Row>
-                                    ) : (
-                                        <Alert message="Danh mục này không có thuộc tính tùy chọn." type="info" showIcon />
-                                    )}
-                                </Card>
-
-                                <div style={{ textAlign: 'center', marginTop: 30 }}>
-                                    <Button type="primary" htmlType="submit" loading={loading} size="large" style={{ minWidth: 200 }}>
-                                        Lưu Cập Nhật
-                                    </Button>
+                        <Form.Item label="Ảnh sản phẩm (Tối đa 2MB)">
+                            <input
+                                type="file"
+                                ref={fileInputRef} 
+                                onChange={handleFileChange}
+                                accept="image/*"
+                                className="mb-2"
+                                style={{ display: 'block' }}
+                            />
+                            {/* Hiển thị thông báo lỗi màu đỏ ngay dưới input */}
+                            {imageError && (
+                                <div style={{ color: '#ff4d4f', marginBottom: 8, fontSize: '12px' }}>
+                                    {imageError}
                                 </div>
-                            </Form>
-                        </Spin>
+                            )}
+
+                            {imagePreview && (
+                                <div className="mt-2" style={{ position: 'relative', width: 120 }}>
+                                    <img
+                                        src={imagePreview}
+                                        alt="preview"
+                                        style={{
+                                            width: 120,
+                                            height: 120,
+                                            objectFit: 'cover',
+                                            borderRadius: 8,
+                                            border: '1px solid #ddd'
+                                        }}
+                                    />
+                                    <div style={{ marginTop: 4 }}>
+                                        <Text type="secondary" style={{ fontSize: 12 }}>
+                                            {productImage ? 'Ảnh mới (Chờ lưu)' : 'Ảnh hiện tại'}
+                                        </Text>
+                                    </div>
+                                </div>
+                            )}
+                        </Form.Item>
                     </Card>
-                </Col>
-            </Row>
+
+                    <Card title="2. Tùy chọn & Thuộc tính (Options)" className="mb-4">
+                        {activeAttributes.length > 0 ? (
+                            <Row gutter={[16, 16]}>
+                                {activeAttributes.map(attr => (
+                                    <Col span={24} key={attr.id}>
+                                        <AttributeEditor
+                                            attribute={attr}
+                                            details={productDetails[attr.id] || []}
+                                            onAddDetail={handleAddDetail}
+                                            onDetailChange={handleDetailChange}
+                                            onRemoveDetail={handleRemoveDetail}
+                                        />
+                                    </Col>
+                                ))}
+                            </Row>
+                        ) : (
+                            <Alert message="Danh mục này không có thuộc tính tùy chọn." type="info" showIcon />
+                        )}
+                    </Card>
+
+                    <Divider />
+                    <div style={{ textAlign: 'center' }}>
+                        <Button type="primary" htmlType="submit" loading={loading} size="large" style={{ minWidth: 220 }}>
+                            Lưu Cập Nhật
+                        </Button>
+                    </div>
+                </Form>
+            </Spin>
         </div>
     );
 }

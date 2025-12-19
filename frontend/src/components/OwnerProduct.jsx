@@ -357,6 +357,7 @@ const OwnerProducts = () => {
             <Space  size="middle" style={{marginLeft: 20 }} className="mb-4 w-140" wrap>
                 <Select
                     style={{ width: 250 }}
+                    showSearch
                     placeholder="Tất cả nhà hàng"
                     value={selectedRestaurant}
                     allowClear
@@ -373,6 +374,7 @@ const OwnerProducts = () => {
                 {/* //Lọc theo Category */}
                 <Select
                     style={{ width: 200 }}
+                    showSearch
                     placeholder="Tất cả danh mục"
                     value={selectedCategory}
                     allowClear

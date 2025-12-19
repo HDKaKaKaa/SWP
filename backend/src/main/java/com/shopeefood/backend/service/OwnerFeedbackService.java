@@ -95,7 +95,7 @@ public class OwnerFeedbackService {
         return new OwnerFeedbackDTO(feedback);
     }
 
-    // --- 3. Lấy chi tiết Feedback (Không cần sửa lỗi) ---
+    // --- 3. Lấy chi tiết Feedback  ---
     public OwnerFeedbackDTO getFeedbackById(Integer feedbackId, Integer ownerId) {
 
         Feedback feedback = feedbackRepository.findByIdAndRestaurantOwnerAccountId(feedbackId, ownerId)
