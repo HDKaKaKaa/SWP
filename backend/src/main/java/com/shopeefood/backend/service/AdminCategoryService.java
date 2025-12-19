@@ -1,15 +1,16 @@
 package com.shopeefood.backend.service;
 
-import com.shopeefood.backend.dto.CategoryDTO;
-import com.shopeefood.backend.entity.Category;
-import com.shopeefood.backend.entity.CategoryAttribute;
-import com.shopeefood.backend.repository.CategoryRepository;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional; // Thêm Transactional
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList; // Nhớ import
-import java.util.List;
+import com.shopeefood.backend.dto.CategoryDTO;
+import com.shopeefood.backend.entity.Category; // Thêm Transactional
+import com.shopeefood.backend.entity.CategoryAttribute; // Nhớ import
+import com.shopeefood.backend.repository.CategoryRepository;
 
 @Service
 public class AdminCategoryService {
@@ -17,13 +18,15 @@ public class AdminCategoryService {
     @Autowired
     private CategoryRepository categoryRepository;
 
-    // 1. Lấy tất cả (Giữ nguyên, Homepage dùng cái này vẫn OK nhờ @JsonIgnore ở Entity con)
+    // 1. Lấy tất cả (Giữ nguyên, Homepage dùng cái này vẫn OK nhờ @JsonIgnore ở
+    // Entity con)
     public List<Category> getAllCategories(String keyword) {
         if (keyword != null && !keyword.trim().isEmpty()) {
             return categoryRepository.searchByKeyword(keyword.trim());
         }
         return categoryRepository.findAll();
     }
+
     // Hàm validate chung (Private)
     private void validateCategory(CategoryDTO dto) {
         // Validate độ dài

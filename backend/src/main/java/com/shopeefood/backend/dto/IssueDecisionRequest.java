@@ -10,4 +10,5 @@ public class IssueDecisionRequest {
     private String decision; // APPROVED / REJECTED
     private BigDecimal amount; // required when APPROVED
     private String note; // optional
+    private String resolvedReason; // Lý do xử lý
 }

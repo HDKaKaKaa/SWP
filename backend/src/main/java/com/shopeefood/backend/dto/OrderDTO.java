@@ -94,6 +94,8 @@ public class OrderDTO {
         if (order.getCustomer() != null) {
             this.customerName = order.getCustomer().getUsername();
         }
-
+        if (order.getCustomer() != null) {
+            this.customerPhone = order.getCustomer().getPhone();    
+        }
     }
 }

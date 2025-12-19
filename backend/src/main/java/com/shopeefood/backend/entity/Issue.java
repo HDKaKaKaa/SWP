@@ -1,10 +1,20 @@
 package com.shopeefood.backend.entity;
 
-import jakarta.persistence.*;
-import lombok.Data;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import lombok.Data;
 
 @Data
 @Entity
@@ -80,15 +90,21 @@ public class Issue {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", referencedColumnName = "id", insertable = false, updatable = false)
+    private Order order;
 
     @PrePersist
     void prePersist() {
         var now = LocalDateTime.now();
         this.createdAt = now;
         this.updatedAt = now;
-        if (this.status == null) this.status = "OPEN";
-        if (this.ownerRefundStatus == null) this.ownerRefundStatus = "NONE";
-        if (this.adminCreditStatus == null) this.adminCreditStatus = "NONE";
+        if (this.status == null)
+            this.status = "OPEN";
+        if (this.ownerRefundStatus == null)
+            this.ownerRefundStatus = "NONE";
+        if (this.adminCreditStatus == null)
+            this.adminCreditStatus = "NONE";
     }
 
     @PreUpdate

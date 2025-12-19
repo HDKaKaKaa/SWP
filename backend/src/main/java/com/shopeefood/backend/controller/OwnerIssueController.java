@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.shopeefood.backend.dto.IssueDecisionRequest;
 import com.shopeefood.backend.dto.IssueEventRequest;
 import com.shopeefood.backend.entity.Issue;
 import com.shopeefood.backend.entity.IssueEvent;
@@ -24,10 +25,10 @@ import com.shopeefood.backend.service.OwnerIssueService;
 
 @RestController
 @RequestMapping("/api/owner/issues")
-@CrossOrigin(origins = "*") // Cho phép React gọi API
+@CrossOrigin(origins = "*")
 public class OwnerIssueController {
 
-    @Autowired 
+    @Autowired
     private OwnerIssueService issueService;
 
     /**
@@ -64,5 +65,12 @@ public class OwnerIssueController {
             @RequestBody IssueEventRequest request) {
         // Logic status đã được đóng gói trong issueService.addEvent
         return ResponseEntity.ok(issueService.addEvent(id, request));
+    }
+
+    @PostMapping("/{id}/decision")
+    public ResponseEntity<Issue> handleDecision(
+            @PathVariable Integer id,
+            @RequestBody IssueDecisionRequest request) { 
+        return ResponseEntity.ok(issueService.handleDecision(id, request));
     }
 }

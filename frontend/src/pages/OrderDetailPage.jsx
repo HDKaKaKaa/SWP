@@ -174,6 +174,8 @@ const OrderDetailPage = () => {
     switch (status) {
       case 'PENDING':
         return 'orange';
+      case 'PAID':
+        return 'purple';
       case 'PREPARING':
         return 'blue';
       case 'SHIPPING':
@@ -192,6 +194,8 @@ const OrderDetailPage = () => {
     switch (status) {
       case 'PENDING':
         return 'Chờ xác nhận';
+      case 'PAID':
+        return 'Đã thanh toán';
       case 'PREPARING':
         return 'Đang chuẩn bị';
       case 'SHIPPING':

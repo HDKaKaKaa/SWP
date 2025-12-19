@@ -21,7 +21,7 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
     List<Product> findByRestaurantId(Integer restaurantId);
 
     // Tìm món theo Owner ID với phân trang, tìm kiếm và lọc
-    @EntityGraph(attributePaths = {"restaurant", "category"})
+    @EntityGraph(attributePaths = {"restaurant", "category", "details", "details.attribute"}) // Thêm details ở đây
     @Query("SELECT p FROM Product p JOIN p.restaurant r WHERE r.owner.id = :ownerId " +
            "AND (:restaurantId IS NULL OR p.restaurant.id = :restaurantId) " +
            "AND (:categoryId IS NULL OR p.category.id = :categoryId) " +

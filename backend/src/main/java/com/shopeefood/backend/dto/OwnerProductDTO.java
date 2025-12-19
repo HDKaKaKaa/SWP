@@ -38,8 +38,10 @@ public class OwnerProductDTO {
         }
         if (product.getDetails() != null) {
             this.details = product.getDetails().stream()
+                    .filter(d -> d.getIsDeleted() == null || !d.getIsDeleted())
                     .map(ProductDetailDTO::new)
                     .collect(Collectors.toList());
         }
     }
+
 }
