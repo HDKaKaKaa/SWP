@@ -30,6 +30,24 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Integer>
                         "OR c.name LIKE %:keyword%")
         List<Restaurant> searchRestaurants(@Param("keyword") String keyword);
 
+        @Query("SELECT DISTINCT r FROM Restaurant r " +
+                        "LEFT JOIN r.products p " + // Join sang bảng Product
+                        "LEFT JOIN p.category c " + // Join sang bảng Category
+                        "LEFT JOIN p.details d " + // Join sang bảng ProductDetail (dựa vào biến 'details' trong
+                                                   // Product)
+                        "WHERE r.status = :status " + // Chỉ lấy quán đang ACTIVE
+                        "AND (" +
+                        "   LOWER(r.name) LIKE LOWER(CONCAT('%', :keyword, '%')) " + // Tìm tên quán
+                        "   OR LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) " + // Tìm tên món
+                        "   OR LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%')) " + // Tìm tên danh mục
+                        "   OR LOWER(d.value) LIKE LOWER(CONCAT('%', :keyword, '%')) " + // Tìm tên Option (dựa vào biến
+                                                                                         // 'value' trong ProductDetail)
+                        ")")
+        Page<Restaurant> searchGlobal(
+                        @Param("keyword") String keyword,
+                        @Param("status") RestaurantStatus status,
+                        Pageable pageable);
+
         /**
          * Đếm số nhà hàng đang hoạt động (Status = ACTIVE).
          * Không đếm các quán đang chờ duyệt (PENDING) hoặc bị khóa (BLOCKED).

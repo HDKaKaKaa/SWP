@@ -129,14 +129,16 @@ public class RestaurantService {
         Restaurant.RestaurantStatus activeStatus = Restaurant.RestaurantStatus.ACTIVE;
         Page<Restaurant> restaurantPage;
 
-        // 1. Lấy dữ liệu thô từ DB
-        if (keyword != null && !keyword.isEmpty()) {
-            restaurantPage = restaurantRepository.findByNameContainingAndStatus(keyword, activeStatus, pageable);
+        // 1. Logic chọn hàm tìm kiếm
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            // Nếu có keyword -> Gọi hàm Search Global (tìm sâu trong món, option...)
+            restaurantPage = restaurantRepository.searchGlobal(keyword.trim(), activeStatus, pageable);
         } else {
+            // Nếu không có keyword -> Lấy tất cả quán Active
             restaurantPage = restaurantRepository.findByStatus(activeStatus, pageable);
         }
 
-        // 2. Map từ Entity -> DTO và tính toán Rating cho từng quán
+        // 2. Map Entity sang DTO (như cũ)
         return restaurantPage.map(restaurant -> {
             RestaurantLandingDTO dto = new RestaurantLandingDTO();
             dto.setId(restaurant.getId());
@@ -144,11 +146,15 @@ public class RestaurantService {
             dto.setAddress(restaurant.getAddress());
             dto.setCoverImage(restaurant.getCoverImage());
 
-            // Gọi FeedbackRepository để lấy rating
+            // Map Owner ID để Frontend điều hướng
+            if (restaurant.getOwner() != null && restaurant.getOwner().getAccount() != null) {
+                dto.setOwnerAccountId(restaurant.getOwner().getAccount().getId());
+            }
+
+            // Lấy Rating
             Double avgRating = feedbackRepository.getAverageRating(restaurant.getId());
             Long totalReviews = feedbackRepository.countByRestaurantId(restaurant.getId());
 
-            // Nếu chưa có rating nào thì set mặc định 5 hoặc 0 tùy bạn
             dto.setAverageRating(avgRating != null ? avgRating : 0.0);
             dto.setTotalReviews(totalReviews != null ? totalReviews : 0L);
 

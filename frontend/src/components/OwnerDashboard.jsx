@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useCallback, useContext } from "react";
 import axios from "axios";
-import { Row, Col, Card, Statistic, Select, DatePicker, Space, Typography, Spin, Empty, Table, notification } from 'antd';
+import { Row, Col, Card, Statistic, Switch,Select, DatePicker, Space, Typography, Spin, Empty, Table, notification } from 'antd';
 import {
     DollarCircleOutlined,
     ShoppingCartOutlined,
@@ -127,10 +127,15 @@ const OwnerDashboard = () => {
                 <Col>
                     <Space size="middle" wrap>
                         <Select
+                            showSearch
                             style={{ width: 250 }}
                             placeholder="Tất cả nhà hàng"
                             value={selectedRestaurant}
                             allowClear
+                            optionFilterProp="children"
+                            filterOption={(input, option) =>
+                                (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                            }
                             onChange={(val) => setSelectedRestaurant(val)}
                         >
                             <Option value={null}>Tất cả nhà hàng</Option>

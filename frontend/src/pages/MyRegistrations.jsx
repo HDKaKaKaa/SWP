@@ -21,7 +21,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { motion } from 'framer-motion';
-import '../css/RestaurantRegistration.css'; // Dùng chung CSS
+import '../css/RestaurantRegistration.css';
 
 const MyRegistrations = () => {
   const { user } = useContext(AuthContext);
@@ -81,7 +81,7 @@ const MyRegistrations = () => {
       dataIndex: 'status',
       key: 'status',
       sorter: (a, b) => a.status.localeCompare(b.status),
-      render: (status) => {
+      render: (status, record) => {
         let color = 'default';
         let icon = null;
         let text = status;
@@ -95,10 +95,33 @@ const MyRegistrations = () => {
           icon = <CheckCircleOutlined />;
           text = 'Hoạt động';
         }
+        if (status === 'CLOSE') {
+          color = 'default';
+          icon = <StopOutlined />;
+          text = 'Đã đóng';
+        }
         if (status === 'REJECTED') {
           color = 'error';
           icon = <CloseCircleOutlined />;
           text = 'Từ chối';
+          if (record.rejectionReason) {
+            return (
+              <Tooltip title={record.rejectionReason}>
+                <Tag
+                  icon={icon}
+                  color={color}
+                  style={{
+                    fontSize: '13px',
+                    padding: '5px 12px',
+                    borderRadius: '20px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {text}
+                </Tag>
+              </Tooltip>
+            );
+          }
         }
         if (status === 'BLOCKED') {
           color = 'error';

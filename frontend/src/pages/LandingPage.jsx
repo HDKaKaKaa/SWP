@@ -71,9 +71,17 @@ const LandingPage = () => {
     fetchRestaurants(catName, 1);
   };
 
-  const handleRestaurantClick = (resId) => {
-    if (user) navigate(`/restaurant/${resId}`);
-    else navigate('/login');
+  const handleRestaurantClick = (restaurant) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    if (user.id === restaurant.ownerAccountId) {
+      navigate('/owner/dashboard');
+    } else {
+      navigate(`/restaurant/${restaurant.id}`);
+    }
   };
 
   // --- RENDER ---
@@ -219,7 +227,7 @@ const LandingPage = () => {
                   <RestaurantCard
                     key={res.id}
                     data={res}
-                    onClick={() => handleRestaurantClick(res.id)}
+                    onClick={() => handleRestaurantClick(res)}
                   />
                 ))
               )}

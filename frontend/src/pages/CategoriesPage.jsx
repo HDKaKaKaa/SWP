@@ -3,7 +3,7 @@ import {
     Table, Button, Modal, Form, Input, Space, message, Popconfirm, Card, Image, Upload, Tag, Divider
 } from 'antd';
 import {
-    PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, MinusCircleOutlined
+    PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, MinusCircleOutlined, SearchOutlined
 } from '@ant-design/icons';
 import {
     getAllCategories, createCategory, updateCategory, deleteCategory, uploadImage
@@ -16,22 +16,32 @@ const CategoriesPage = () => {
     const [editingCategory, setEditingCategory] = useState(null);
     const [fileList, setFileList] = useState([]);
 
+    // --- STATE CHO SEARCH ---
+    const [keyword, setKeyword] = useState('');
+
     const [form] = Form.useForm();
 
     useEffect(() => {
-        fetchData();
+        fetchData(); // Load lần đầu
     }, []);
 
-    const fetchData = async () => {
+    // Fetch có keyword
+    const fetchData = async (searchKey = keyword) => {
         setLoading(true);
         try {
-            const data = await getAllCategories();
+            const data = await getAllCategories(searchKey);
             setCategories(data);
         } catch (error) {
             message.error('Không thể tải danh sách danh mục!');
         } finally {
             setLoading(false);
         }
+    };
+
+    // Xử lý khi nhấn nút tìm kiếm
+    const handleSearch = (value) => {
+        setKeyword(value);
+        fetchData(value);
     };
 
     const handleAdd = () => {
@@ -57,11 +67,10 @@ const CategoriesPage = () => {
         setIsModalOpen(true);
     };
 
-    // --- SỬA LOGIC VALIDATE TẠI ĐÂY (10MB -> 5MB) ---
     const beforeUpload = (file) => {
-        const isLt5M = file.size / 1024 / 1024 < 5; // Đổi 10 thành 5
+        const isLt5M = file.size / 1024 / 1024 < 5;
         if (!isLt5M) {
-            message.error('Ảnh phải nhỏ hơn 5MB!'); // Cập nhật thông báo
+            message.error('Ảnh phải nhỏ hơn 5MB!');
             return Upload.LIST_IGNORE;
         }
         return true;
@@ -84,7 +93,6 @@ const CategoriesPage = () => {
     };
 
     const handleFinish = async (values) => {
-        console.log("Submit values:", values);
         try {
             if (editingCategory) {
                 await updateCategory(editingCategory.id, values);
@@ -94,17 +102,14 @@ const CategoriesPage = () => {
                 message.success('Thêm mới thành công!');
             }
             setIsModalOpen(false);
-            fetchData();
+            fetchData(); // Load lại dữ liệu sau khi lưu
         } catch (error) {
             let errorMsg = 'Có lỗi xảy ra!';
             if (error.response && error.response.data) {
-                if (typeof error.response.data === 'string') {
-                    errorMsg = error.response.data;
-                } else if (error.response.data.message) {
-                    errorMsg = error.response.data.message;
-                } else if (error.response.data.error) {
-                    errorMsg = error.response.data.error;
-                }
+                // Xử lý message từ backend trả về
+                errorMsg = typeof error.response.data === 'string'
+                    ? error.response.data
+                    : (error.response.data.message || error.response.data.error || JSON.stringify(error.response.data));
             }
             message.error(errorMsg);
         }
@@ -121,6 +126,7 @@ const CategoriesPage = () => {
     };
 
     const columns = [
+        // ... (Giữ nguyên columns) ...
         {
             title: 'Hình ảnh',
             dataIndex: 'image',
@@ -166,17 +172,8 @@ const CategoriesPage = () => {
             width: 120,
             render: (_, record) => (
                 <Space>
-                    <Button
-                        icon={<EditOutlined style={{ color: 'orange' }} />}
-                        onClick={() => handleEdit(record)}
-                    />
-                    <Popconfirm
-                        title="Bạn chắc chắn muốn xóa?"
-                        onConfirm={() => handleDelete(record.id)}
-                        okText="Xóa"
-                        cancelText="Hủy"
-                        okButtonProps={{ danger: true }}
-                    >
+                    <Button icon={<EditOutlined style={{ color: 'orange' }} />} onClick={() => handleEdit(record)} />
+                    <Popconfirm title="Xóa danh mục?" onConfirm={() => handleDelete(record.id)} okText="Xóa" cancelText="Hủy" okButtonProps={{ danger: true }}>
                         <Button danger icon={<DeleteOutlined />} />
                     </Popconfirm>
                 </Space>
@@ -189,14 +186,24 @@ const CategoriesPage = () => {
             <Card
                 title="Quản lý Danh mục"
                 extra={
-                    <Space>
-                        <Button icon={<ReloadOutlined />} onClick={fetchData} />
-                        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-                            Thêm mới
-                        </Button>
-                    </Space>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>Thêm mới</Button>
                 }
             >
+                {/* --- THANH TÌM KIẾM --- */}
+                <div style={{ marginBottom: 16, display: 'flex', gap: 10 }}>
+                    <Input.Search
+                        placeholder="Tìm theo tên danh mục hoặc thuộc tính..."
+                        onSearch={handleSearch}
+                        onChange={(e) => {
+                            if (e.target.value === '') handleSearch(''); // Reset khi xóa trắng
+                        }}
+                        enterButton
+                        allowClear
+                        style={{ width: 400 }}
+                    />
+                    <Button icon={<ReloadOutlined />} onClick={() => handleSearch(keyword)}>Làm mới</Button>
+                </div>
+
                 <Table
                     rowKey="id"
                     columns={columns}
@@ -214,16 +221,25 @@ const CategoriesPage = () => {
                 width={600}
             >
                 <Form form={form} layout="vertical" onFinish={handleFinish}>
+                    {/* --- VALIDATE ĐỘ DÀI TÊN --- */}
                     <Form.Item
                         name="name"
                         label="Tên danh mục"
-                        rules={[{ required: true, message: 'Vui lòng nhập tên!' }]}
+                        rules={[
+                            { required: true, message: 'Vui lòng nhập tên!' },
+                            { max: 100, message: 'Tên danh mục tối đa 100 ký tự!' }
+                        ]}
                     >
-                        <Input placeholder="VD: Trà sữa" />
+                        <Input placeholder="VD: Trà sữa" showCount maxLength={100} />
                     </Form.Item>
 
-                    <Form.Item name="description" label="Mô tả">
-                        <Input.TextArea rows={2} />
+                    {/* --- VALIDATE ĐỘ DÀI MÔ TẢ --- */}
+                    <Form.Item
+                        name="description"
+                        label="Mô tả"
+                        rules={[{ max: 100, message: 'Mô tả tối đa 100 ký tự!' }]}
+                    >
+                        <Input.TextArea rows={2} showCount maxLength={100} />
                     </Form.Item>
 
                     <Form.Item
@@ -235,7 +251,6 @@ const CategoriesPage = () => {
                         <Input />
                     </Form.Item>
 
-                    {/* --- CẬP NHẬT LABEL TẠI ĐÂY --- */}
                     <Form.Item label="Chọn ảnh từ máy (Max 5MB)">
                         <Upload
                             listType="picture-card"
@@ -256,12 +271,8 @@ const CategoriesPage = () => {
                     </Form.Item>
 
                     <Divider />
-
                     <div style={{ marginBottom: 16 }}>
                         <strong>Cấu hình thuộc tính sản phẩm:</strong>
-                        <div style={{ fontSize: 12, color: '#888' }}>
-                            Định nghĩa các thuộc tính (VD: Size, Mức đường, Mức đá...).
-                        </div>
                     </div>
 
                     <Form.List name="attributes">
@@ -269,13 +280,7 @@ const CategoriesPage = () => {
                             <>
                                 {fields.map(({ key, name, ...restField }) => (
                                     <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
-                                        <Form.Item
-                                            {...restField}
-                                            name={[name, 'id']}
-                                            hidden={true}
-                                        >
-                                            <Input />
-                                        </Form.Item>
+                                        <Form.Item {...restField} name={[name, 'id']} hidden={true}><Input /></Form.Item>
 
                                         <Form.Item
                                             {...restField}
@@ -286,22 +291,11 @@ const CategoriesPage = () => {
                                             <Input placeholder="Tên thuộc tính (VD: Size)" />
                                         </Form.Item>
 
-                                        <Form.Item
-                                            {...restField}
-                                            name={[name, 'dataType']}
-                                            initialValue="TEXT"
-                                            hidden={true}
-                                        >
-                                            <Input />
-                                        </Form.Item>
+                                        <Form.Item {...restField} name={[name, 'dataType']} initialValue="TEXT" hidden={true}><Input /></Form.Item>
 
-                                        <MinusCircleOutlined
-                                            onClick={() => remove(name)}
-                                            style={{ color: '#ff4d4f', fontSize: 18, cursor: 'pointer' }}
-                                        />
+                                        <MinusCircleOutlined onClick={() => remove(name)} style={{ color: '#ff4d4f', fontSize: 18, cursor: 'pointer' }} />
                                     </Space>
                                 ))}
-
                                 <Form.Item>
                                     <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
                                         Thêm thuộc tính mới
