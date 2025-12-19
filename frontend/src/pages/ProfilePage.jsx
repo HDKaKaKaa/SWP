@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { AuthContext } from '../context/AuthContext';
 import { getCustomerProfile, updateCustomerProfile } from '../services/customerService';
 import { uploadImage } from '../services/categoryService';
@@ -62,6 +63,61 @@ const ProfilePage = () => {
     const [searchText, setSearchText] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [searching, setSearching] = useState(false);
+    const safeFullName = (form.fullName || '').trim();
+    const safePhone = (form.phone || '').trim();
+    const safeEmail = (form.email || '').trim();
+
+    // ===== Validate/sanitize textbox (giống style ở CustomerIssueCreate) =====
+    const PROFILE_LIMITS = {
+        fullName: 25,
+        phone: 10,
+        email: 100,
+    };
+
+    const sanitizeByField = (name, value) => {
+        const v = String(value ?? '');
+        if (name === 'phone') {
+            // chỉ cho số, cho phép rỗng để user xoá rồi nhập lại
+            return v.replace(/\D/g, '').slice(0, PROFILE_LIMITS.phone);
+        }
+        if (name === 'fullName') return v.slice(0, PROFILE_LIMITS.fullName);
+        if (name === 'email') return v.slice(0, PROFILE_LIMITS.email);
+        return v;
+    };
+
+    const validateField = (name, value) => {
+        setErrors((prev) => {
+            const nextErrors = { ...prev };
+
+            if (name === 'fullName') {
+                const val = (value || '').trim();
+                if (!val) nextErrors.fullName = 'Vui lòng nhập họ tên.';
+                else if (val.length < 3) nextErrors.fullName = 'Họ tên phải từ 3 ký tự trở lên.';
+                else if (val.length > PROFILE_LIMITS.fullName)
+                    nextErrors.fullName = `Họ tên không được dài quá ${PROFILE_LIMITS.fullName} ký tự.`;
+                else nextErrors.fullName = undefined;
+            }
+
+            if (name === 'phone') {
+                const val = (value || '').trim();
+                if (!val) nextErrors.phone = 'Vui lòng nhập số điện thoại.';
+                else if (!phoneRegex.test(val)) nextErrors.phone = 'Số điện thoại không hợp lệ.';
+                else nextErrors.phone = undefined;
+            }
+
+            if (name === 'email') {
+                const val = (value || '').trim();
+                if (!val) nextErrors.email = undefined;
+                else if (val.length > PROFILE_LIMITS.email)
+                    nextErrors.email = `Email không được dài quá ${PROFILE_LIMITS.email} ký tự.`;
+                else if (!emailRegex.test(val)) nextErrors.email = 'Email không đúng định dạng.';
+                else nextErrors.email = undefined;
+            }
+
+            return nextErrors;
+        });
+    };
+
 
     // Tọa độ ban đầu cho MapModal (nếu đã có trong DB)
     const initialPosition = useMemo(() => {
@@ -194,10 +250,14 @@ const ProfilePage = () => {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
+        const nextValue = sanitizeByField(name, value);
+
         setForm((prev) => ({
             ...prev,
-            [name]: value,
+            [name]: nextValue,
         }));
+
+        // clear error khi user bắt đầu sửa
         setErrors((prev) => ({
             ...prev,
             [name]: undefined,
@@ -353,9 +413,9 @@ const ProfilePage = () => {
         setSaving(true);
         try {
             await updateCustomerProfile(user.id, {
-                fullName: form.fullName,
-                email: form.email,
-                phone: form.phone,
+                fullName: safeFullName,
+                email: safeEmail || null,
+                phone: safePhone,
                 image: avatarCloudUrl || form.image || null,
                 address: form.address,
                 latitude: form.latitude !== '' ? Number(form.latitude) : null,
@@ -439,9 +499,11 @@ const ProfilePage = () => {
 
     if (loading) {
         return (
-            <div className="profile-page">
-                <div className="profile-wrapper">
-                    <Skeleton active paragraph={{ rows: 6 }} />
+            <div className="profile-modern-page-container">
+                <div className="profile-modern-card">
+                    <div className="profile-modern-body">
+                        <Skeleton active paragraph={{ rows: 6 }} />
+                    </div>
                 </div>
             </div>
         );
@@ -450,226 +512,177 @@ const ProfilePage = () => {
     const displayName = form.fullName || form.username || 'Người dùng';
 
     return (
-        <div className="profile-page">
-            <div className="profile-wrapper">
-                <div className="profile-back-wrapper">
-                    <Button className="profile-back-btn" onClick={handleBack}>
-                        ← Quay về
-                    </Button>
-                </div>
-                {/* Header */}
-                <div className="profile-header">
-                    <div className="profile-header-left">
-                        <Title level={3} className="profile-page-title">
-                            Tài khoản của bạn
-                        </Title>
-                        <Text type="secondary" className="profile-page-subtitle">
-                            Cập nhật thông tin cá nhân và địa chỉ giao hàng mặc định.
-                        </Text>
-                    </div>
-                    <div className="profile-header-right">
-                        <Avatar size={56} icon={<UserOutlined />} src={ avatarPreview || form.image || undefined} />
-                        <div className="profile-avatar-upload">
-                            {/* input file hidden */}
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="image/jpeg,image/png,image/webp"
-                                style={{ display: 'none' }}
-                                onChange={handleAvatarFileSelected}
+        <div className="profile-modern-page-container">
+            <motion.div
+                className="profile-modern-card"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35 }}
+            >
+                {/* Header style theo RestaurantRegistration */}
+                <div className="profile-modern-header">
+                    <div className="profile-modern-header-inner">
+                        <Button className="profile-modern-back-btn" onClick={handleBack}>
+                            ← Quay về
+                        </Button>
+
+                        <div className="profile-modern-title">
+                            <h2>Tài khoản của bạn</h2>
+                            <p>Cập nhật thông tin cá nhân và địa chỉ giao hàng mặc định.</p>
+                        </div>
+
+                        <div className="profile-modern-user">
+                            <Avatar
+                                size={56}
+                                icon={<UserOutlined />}
+                                src={avatarPreview || form.image || undefined}
                             />
 
-                            <Button onClick={handlePickAvatar} loading={uploadingAvatar}>
-                                {(avatarPreview || form.image) ? 'Đổi ảnh' : 'Tải ảnh lên'}
-                            </Button>
-
-                            <Text type="secondary" className="profile-avatar-hint">
-                                Ảnh dưới 5MB (JPG/PNG/WEBP)
-                            </Text>
-                        </div>
-                        <div className="profile-header-info">
-                            <Text strong>{displayName}</Text>
-                            <div className="profile-header-tags">
-                                {form.role && <Tag color="orange">{form.role}</Tag>}
-                                {user && user.id && (
-                                    <Tag color="blue">ID: {user.id}</Tag>
-                                )}
+                            <div className="profile-modern-user-meta">
+                                <div className="profile-modern-avatar-actions">
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept="image/jpeg,image/png,image/webp"
+                                        style={{ display: 'none' }}
+                                        onChange={handleAvatarFileSelected}
+                                    />
+                                    <Button
+                                        className="profile-modern-avatar-btn"
+                                        onClick={handlePickAvatar}
+                                        loading={uploadingAvatar}
+                                    >
+                                        {(avatarPreview || form.image) ? 'Đổi ảnh' : 'Tải ảnh'}
+                                    </Button>
+                                    <span className="profile-modern-avatar-hint">
+                                      Ảnh dưới 5MB
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Layout 2 cột */}
-                <div className="profile-layout">
-                    {/* Cột trái: Form chính */}
-                    <div className="profile-main">
-                        {/* Thông tin đăng nhập */}
-                        <section className="profile-section">
-                            <div className="profile-section-header">
-                                <Title level={5}>Thông tin đăng nhập</Title>
-                                <Text type="secondary">
-                                    Một số trường được tạo khi đăng ký và không thể thay đổi.
-                                </Text>
+                <div className="profile-modern-body">
+                    {/* Thông tin đăng nhập */}
+                    <section className="profile-modern-section">
+                        <div className="profile-modern-section-title">Thông tin đăng nhập</div>
+                        <div className="profile-grid-2" style={{ marginTop: 14 }}>
+                            <div className="profile-form-group">
+                                <label>Tên đăng nhập</label>
+                                <Input value={form.username} disabled />
                             </div>
-                            <div className="profile-grid-2">
-                                <div className="profile-form-group">
-                                    <label>Tên đăng nhập</label>
-                                    <Input value={form.username} disabled />
-                                </div>
-                                {/*<div className="profile-form-group">*/}
-                                {/*    <label>Vai trò</label>*/}
-                                {/*    <Input value={form.role} disabled />*/}
-                                {/*</div>*/}
-                            </div>
-                        </section>
+                        </div>
+                    </section>
 
-                        {/* Thông tin cá nhân */}
-                        <section className="profile-section">
-                            <div className="profile-section-header">
-                                <Title level={5}>Thông tin cá nhân</Title>
-                            </div>
-                            <div className="profile-grid-2">
-                                <div className="profile-form-group">
+                    {/* Thông tin cá nhân */}
+                    <section className="profile-modern-section">
+                        <div className="profile-modern-section-title">Thông tin cá nhân</div>
+
+                        <div className="profile-grid-2" style={{ marginTop: 14 }}>
+                            <div className="profile-form-group">
+                                <div className="profile-label-row">
                                     <label>Họ và tên</label>
-                                    <Input
-                                        name="fullName"
-                                        value={form.fullName}
-                                        onChange={handleChange}
-                                        placeholder="Nhập họ tên đầy đủ"
-                                        prefix={<UserOutlined />}
-                                    />
-                                    {errors.fullName && (
-                                        <p className="profile-error-text">{errors.fullName}</p>
-                                    )}
+                                    <span className="profile-count">
+                  {(form.fullName || '').length}/{PROFILE_LIMITS.fullName}
+                </span>
                                 </div>
-                                <div className="profile-form-group">
-                                    <label>Số điện thoại</label>
-                                    <Input
-                                        name="phone"
-                                        value={form.phone}
-                                        onChange={handleChange}
-                                        placeholder="Nhập số điện thoại"
-                                        prefix={<PhoneOutlined />}
-                                    />
-                                    {errors.phone && (
-                                        <p className="profile-error-text">{errors.phone}</p>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="profile-grid-2">
-                                <div className="profile-form-group">
-                                    <label>Email</label>
-                                    <Input
-                                        name="email"
-                                        type="email"
-                                        value={form.email}
-                                        onChange={handleChange}
-                                        placeholder="Nhập email"
-                                        prefix={<MailOutlined />}
-                                    />
-                                    {errors.email && (
-                                        <p className="profile-error-text">{errors.email}</p>
-                                    )}
-                                </div>
-                            </div>
-                        </section>
-
-                        {/* Địa chỉ & Map – không còn input "Địa chỉ chi tiết", map lo hết */}
-                        <section className="profile-section">
-                            <div className="profile-section-header">
-                                <Title level={5}>Địa chỉ giao hàng</Title>
-                                <Text type="secondary">
-                                    Chọn vị trí trên bản đồ, hệ thống sẽ tự lấy địa chỉ.
-                                </Text>
+                                <Input
+                                    name="fullName"
+                                    value={form.fullName}
+                                    onChange={handleChange}
+                                    onBlur={(e) => validateField('fullName', e.target.value)}
+                                    placeholder="Nhập họ tên đầy đủ"
+                                    prefix={<UserOutlined />}
+                                    maxLength={PROFILE_LIMITS.fullName}
+                                    status={errors.fullName ? 'error' : ''}
+                                />
+                                {errors.fullName && (
+                                    <p className="profile-error-text">{errors.fullName}</p>
+                                )}
                             </div>
 
                             <div className="profile-form-group">
-                                <label>Vị trí trên bản đồ</label>
+                                <div className="profile-label-row">
+                                    <label>Số điện thoại</label>
+                                    <span className="profile-count">
+                  {(form.phone || '').length}/{PROFILE_LIMITS.phone}
+                </span>
+                                </div>
                                 <Input
-                                    readOnly
-                                    value={form.address || ''}
-                                    onClick={() => setIsMapOpen(true)}
-                                    placeholder="Nhấn để chọn vị trí trên bản đồ"
-                                    prefix={<EnvironmentOutlined />}
-                                    className="profile-map-input"
-                                    style={{
-                                        cursor: 'pointer',
-                                        backgroundColor: '#fafafa',
-                                        borderColor: errors.address ? '#ff4d4f' : undefined,
-                                    }}
+                                    name="phone"
+                                    value={form.phone}
+                                    onChange={handleChange}
+                                    onBlur={(e) => validateField('phone', e.target.value)}
+                                    placeholder="Nhập số điện thoại"
+                                    prefix={<PhoneOutlined />}
+                                    inputMode="numeric"
+                                    maxLength={PROFILE_LIMITS.phone}
+                                    status={errors.phone ? 'error' : ''}
                                 />
-                                {errors.address && (
-                                    <p className="profile-error-text">{errors.address}</p>
-                                )}
+                                {errors.phone && <p className="profile-error-text">{errors.phone}</p>}
                             </div>
-                        </section>
-
-                        {/* Nút lưu */}
-                        <div className="profile-actions">
-                            <Button
-                                type="primary"
-                                size="large"
-                                onClick={handleSubmit}
-                                loading={saving}
-                            >
-                                Lưu thay đổi
-                            </Button>
                         </div>
+
+                        <div className="profile-grid-2" style={{ marginTop: 14 }}>
+                            <div className="profile-form-group">
+                                <div className="profile-label-row">
+                                    <label>Email</label>
+                                    <span className="profile-count">
+                  {(form.email || '').length}/{PROFILE_LIMITS.email}
+                </span>
+                                </div>
+                                <Input
+                                    name="email"
+                                    type="email"
+                                    value={form.email}
+                                    onChange={handleChange}
+                                    onBlur={(e) => validateField('email', e.target.value)}
+                                    placeholder="Nhập email"
+                                    prefix={<MailOutlined />}
+                                    maxLength={PROFILE_LIMITS.email}
+                                    status={errors.email ? 'error' : ''}
+                                />
+                                {errors.email && <p className="profile-error-text">{errors.email}</p>}
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Địa chỉ giao hàng */}
+                    <section className="profile-modern-section">
+                        <div className="profile-modern-section-title">Địa chỉ giao hàng</div>
+                        <div className="profile-form-group" style={{ marginTop: 14 }}>
+                            <label>Vị trí trên bản đồ</label>
+                            <Input
+                                readOnly
+                                value={form.address || ''}
+                                onClick={() => setIsMapOpen(true)}
+                                placeholder="Nhấn để chọn vị trí trên bản đồ"
+                                prefix={<EnvironmentOutlined />}
+                                className="profile-map-input"
+                                style={{
+                                    cursor: 'pointer',
+                                    borderColor: errors.address ? '#ff4d4f' : undefined,
+                                }}
+                            />
+                            {errors.address && <p className="profile-error-text">{errors.address}</p>}
+                        </div>
+                    </section>
+
+                    <div className="profile-actions">
+                        <Button
+                            type="primary"
+                            size="large"
+                            className="profile-modern-save-btn"
+                            onClick={handleSubmit}
+                            loading={saving}
+                        >
+                            Lưu thay đổi
+                        </Button>
                     </div>
-
-                    {/* Cột phải: Tóm tắt */}
-                    <aside className="profile-side">
-                        <div className="profile-summary-card">
-                            <Title level={5}>Tóm tắt tài khoản</Title>
-                            <div className="profile-summary-row">
-                                <Text type="secondary">Họ tên</Text>
-                                <Text strong>{form.fullName || '—'}</Text>
-                            </div>
-                            <div className="profile-summary-row">
-                                <Text type="secondary">Số điện thoại</Text>
-                                <Text>
-                                    {form.phone ? (
-                                        <>
-                                            <PhoneOutlined style={{ marginRight: 4 }} />
-                                            {form.phone}
-                                        </>
-                                    ) : (
-                                        '—'
-                                    )}
-                                </Text>
-                            </div>
-                            <div className="profile-summary-row">
-                                <Text type="secondary">Email</Text>
-                                <Text>
-                                    {form.email ? (
-                                        <>
-                                            <MailOutlined style={{ marginRight: 4 }} />
-                                            {form.email}
-                                        </>
-                                    ) : (
-                                        '—'
-                                    )}
-                                </Text>
-                            </div>
-                            <div className="profile-summary-row">
-                                <Text type="secondary">Địa chỉ mặc định</Text>
-                                <Text>
-                                    {form.address ? (
-                                        <>
-                                            <EnvironmentOutlined style={{ marginRight: 4 }} />
-                                            {form.address}
-                                        </>
-                                    ) : (
-                                        'Chưa thiết lập'
-                                    )}
-                                </Text>
-                            </div>
-                        </div>
-                    </aside>
                 </div>
-            </div>
+            </motion.div>
 
-            {/* MapModal: dùng lại MapModal cũ, không show lat/long, map tự xử lý */}
             <MapModal
                 isOpen={isMapOpen}
                 onClose={() => setIsMapOpen(false)}

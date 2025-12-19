@@ -21,6 +21,11 @@ const CartPage = () => {
     const [updating, setUpdating] = useState(false);
     const [error, setError] = useState(null);
     const [note, setNote] = useState('');
+    const [noteError, setNoteError] = useState('');
+
+    // Validate textbox giống CustomerIssueCreate (maxLength + không nhận toàn khoảng trắng)
+    const NOTE_MAX_LENGTH = 300;
+
 
     const MAX_PER_PRODUCT = 100;
     const LARGE_ORDER_THRESHOLD = 10;
@@ -80,6 +85,20 @@ const CartPage = () => {
         }
 
         warnIfCrossLargeOrder(nextMap, allowWarn);
+    };
+
+    const handleNoteChange = (e) => {
+        let v = e.target.value ?? '';
+        if (v.length > NOTE_MAX_LENGTH) v = v.slice(0, NOTE_MAX_LENGTH);
+        setNote(v);
+        if (noteError) setNoteError('');
+    };
+
+    const handleNoteBlur = () => {
+        // nếu user chỉ nhập khoảng trắng => coi như rỗng
+        if ((note || '').trim() === '' && note !== '') {
+            setNote('');
+        }
     };
 
     const formatPrice = (v) => {
@@ -244,6 +263,13 @@ const CartPage = () => {
             return;
         }
         if (!hasItems) return;
+
+        const safeNote = (note || '').trim();
+        if (safeNote.length > NOTE_MAX_LENGTH) {
+            setNoteError(`Ghi chú không được quá ${NOTE_MAX_LENGTH} ký tự.`);
+            messageApi.error('Vui lòng kiểm tra lại ghi chú cho quán.');
+            return;
+        }
 
         // Flow: Cart -> Checkout -> PayOS
         navigate('/checkout', {
@@ -542,8 +568,24 @@ const CartPage = () => {
                                 rows={3}
                                 placeholder="Ví dụ: Không hành, ít đá, gọi trước khi giao..."
                                 value={note}
-                                onChange={(e) => setNote(e.target.value)}
+                                maxLength={NOTE_MAX_LENGTH}
+                                onChange={handleNoteChange}
+                                onBlur={handleNoteBlur}
                             />
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginTop: 6,
+                                fontSize: 12,
+                            }}>
+                              <span style={{ color: noteError ? '#d32' : '#666' }}>
+                                {noteError || ' '}
+                              </span>
+                              <span style={{ color: '#666' }}>
+                                {note.length}/{NOTE_MAX_LENGTH}
+                              </span>
+                            </div>
                         </section>
                     </aside>
                 </div>
