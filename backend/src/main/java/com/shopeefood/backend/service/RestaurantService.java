@@ -125,20 +125,33 @@ public class RestaurantService {
     }
 
     // Hàm lấy danh sách cho Landing Page
-    public Page<RestaurantLandingDTO> getActiveRestaurantsWithRating(String keyword, Pageable pageable) {
-        Restaurant.RestaurantStatus activeStatus = Restaurant.RestaurantStatus.ACTIVE;
-        Page<Restaurant> restaurantPage;
+    public Page<RestaurantLandingDTO> getActiveRestaurantsWithRating(
+            String keyword,
+            Double userLat,
+            Double userLng,
+            String sortBy,
+            Pageable pageable) {
 
-        // 1. Logic chọn hàm tìm kiếm
-        if (keyword != null && !keyword.trim().isEmpty()) {
-            // Nếu có keyword -> Gọi hàm Search Global (tìm sâu trong món, option...)
-            restaurantPage = restaurantRepository.searchGlobal(keyword.trim(), activeStatus, pageable);
-        } else {
-            // Nếu không có keyword -> Lấy tất cả quán Active
-            restaurantPage = restaurantRepository.findByStatus(activeStatus, pageable);
-        }
+        // --- SỬA LỖI Ở ĐÂY ---
+        // 1. TẠO BIẾN MỚI (EFFECTIVELY FINAL)
+        // Thay vì gán đè lên tham số (userLat = ...), ta tạo biến mới.
+        // Điều này giúp Java hiểu rằng giá trị này không đổi và có thể dùng an toàn
+        // trong Lambda (.map)
+        Double finalLat = (userLat == null) ? 0.0 : userLat;
+        Double finalLng = (userLng == null) ? 0.0 : userLng;
+        String finalSortBy = (sortBy == null || sortBy.isEmpty()) ? "newest" : sortBy;
 
-        // 2. Map Entity sang DTO (như cũ)
+        // 2. GỌI REPOSITORY VỚI BIẾN MỚI
+        // Lưu ý: Dùng finalLat, finalLng, finalSortBy thay vì biến cũ
+        Page<Restaurant> restaurantPage = restaurantRepository.searchRestaurantsAdvanced(
+                (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null,
+                Restaurant.RestaurantStatus.ACTIVE.name(),
+                finalLat,
+                finalLng,
+                finalSortBy,
+                pageable);
+
+        // 3. MAP ENTITY -> DTO
         return restaurantPage.map(restaurant -> {
             RestaurantLandingDTO dto = new RestaurantLandingDTO();
             dto.setId(restaurant.getId());
@@ -146,19 +159,39 @@ public class RestaurantService {
             dto.setAddress(restaurant.getAddress());
             dto.setCoverImage(restaurant.getCoverImage());
 
-            // Map Owner ID để Frontend điều hướng
             if (restaurant.getOwner() != null && restaurant.getOwner().getAccount() != null) {
                 dto.setOwnerAccountId(restaurant.getOwner().getAccount().getId());
             }
 
-            // Lấy Rating
             Double avgRating = feedbackRepository.getAverageRating(restaurant.getId());
             Long totalReviews = feedbackRepository.countByRestaurantId(restaurant.getId());
 
             dto.setAverageRating(avgRating != null ? avgRating : 0.0);
             dto.setTotalReviews(totalReviews != null ? totalReviews : 0L);
 
+            // TÍNH KHOẢNG CÁCH
+            // Lưu ý: Dùng finalLat và finalLng ở đây để tránh lỗi biên dịch
+            if (restaurant.getLatitude() != null && restaurant.getLongitude() != null) {
+                // Kiểm tra khác 0.0
+                if (finalLat != 0.0 && finalLng != 0.0) {
+                    double dist = calculateDistance(finalLat, finalLng, restaurant.getLatitude(),
+                            restaurant.getLongitude());
+                    dto.setDistance(dist);
+                }
+            }
+
             return dto;
         });
+    }
+
+    private double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+        final int R = 6371; // Bán kính trái đất (km)
+        double latDistance = Math.toRadians(lat2 - lat1);
+        double lonDistance = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                        * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c; // Trả về km
     }
 }

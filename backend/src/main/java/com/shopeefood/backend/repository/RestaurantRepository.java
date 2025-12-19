@@ -116,4 +116,50 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Integer>
 
         // Tìm kiếm theo tên và ACTIVE có phân trang
         Page<Restaurant> findByNameContainingAndStatus(String keyword, RestaurantStatus status, Pageable pageable);
+
+        /**
+         * TÌM KIẾM NÂNG CAO (NATIVE QUERY):
+         * 1. Tìm theo keyword (Tên quán, Món, Danh mục, Option)
+         * 2. Tính khoảng cách (Distance) từ User đến Quán
+         * 3. Sắp xếp (Sort) theo: Mới nhất, Gần nhất, Rating cao nhất
+         */
+        @Query(value = "SELECT r.* " + // <--- BỎ TỪ KHÓA DISTINCT Ở ĐÂY
+                        "FROM restaurants r " +
+                        "LEFT JOIN products p ON r.id = p.restaurant_id " +
+                        "LEFT JOIN categories c ON p.category_id = c.id " +
+                        "LEFT JOIN product_details d ON p.id = d.product_id " +
+                        "WHERE r.status = :status " +
+                        "AND (:keyword IS NULL OR :keyword = '' OR " +
+                        "    LOWER(r.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                        "    LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                        "    LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                        "    LOWER(d.value) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+
+                        "GROUP BY r.id " + // <--- THÊM DÒNG NÀY (Gom nhóm theo ID quán để loại bỏ trùng lặp)
+
+                        "ORDER BY " +
+                        "   CASE WHEN :sortBy = 'rating' THEN (SELECT COALESCE(AVG(f.rating), 0) FROM feedbacks f WHERE f.restaurant_id = r.id) END DESC, "
+                        +
+                        "   CASE WHEN :sortBy = 'distance' THEN (6371 * acos(cos(radians(:userLat)) * cos(radians(r.latitude)) * cos(radians(r.longitude) - radians(:userLng)) + sin(radians(:userLat)) * sin(radians(r.latitude)))) END ASC, "
+                        +
+                        "   r.created_at DESC ",
+
+                        // Count query vẫn giữ DISTINCT r.id vì nó chỉ đếm số lượng, không order by
+                        countQuery = "SELECT COUNT(DISTINCT r.id) FROM restaurants r " +
+                                        "LEFT JOIN products p ON r.id = p.restaurant_id " +
+                                        "LEFT JOIN categories c ON p.category_id = c.id " +
+                                        "LEFT JOIN product_details d ON p.id = d.product_id " +
+                                        "WHERE r.status = :status " +
+                                        "AND (:keyword IS NULL OR :keyword = '' OR " +
+                                        "    LOWER(r.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                                        "    LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                                        "    LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                                        "    LOWER(d.value) LIKE LOWER(CONCAT('%', :keyword, '%'))) ", nativeQuery = true)
+        Page<Restaurant> searchRestaurantsAdvanced(
+                        @Param("keyword") String keyword,
+                        @Param("status") String status,
+                        @Param("userLat") Double userLat,
+                        @Param("userLng") Double userLng,
+                        @Param("sortBy") String sortBy,
+                        Pageable pageable);
 }

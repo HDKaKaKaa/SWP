@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import '../css/LandingPage.css';
-import { Pagination, Rate, Skeleton } from 'antd';
-import { motion, AnimatePresence } from 'framer-motion'; // Thư viện animation
+import { Pagination, Rate, Skeleton, Select } from 'antd';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   FaSearch,
   FaMapMarkerAlt,
@@ -13,10 +13,12 @@ import {
   FaFire,
   FaLeaf,
 } from 'react-icons/fa';
+import useGeolocation from '../utils/useGeolocation';
 
 const LandingPage = () => {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
+  const { location: userLocation } = useGeolocation(true);
 
   const [restaurants, setRestaurants] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -24,51 +26,75 @@ const LandingPage = () => {
   const [keyword, setKeyword] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
 
+  const [sortBy, setSortBy] = useState('newest');
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const pageSize = 8;
 
   // --- API CALLS ---
-  const fetchRestaurants = useCallback(async (searchKey = '', page = 1) => {
-    setLoading(true);
-    try {
-      const res = await axios.get(`http://localhost:8080/api/restaurants`, {
-        params: {
-          keyword: searchKey,
+  const fetchRestaurants = useCallback(
+    async (searchKey, currentCat, sortOption, page = 1) => {
+      setLoading(true);
+      try {
+        // Tạo params gửi xuống Backend
+        const params = {
+          keyword: searchKey || (currentCat !== 'All' ? currentCat : ''),
           page: page - 1,
           size: pageSize,
-        },
-      });
-      setRestaurants(res.data.content);
-      setTotalItems(res.data.totalElements);
-      setCurrentPage(page);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+          sort: sortOption, // Gửi biến sort
+        };
+
+        // Nếu lấy được vị trí thì gửi kèm
+        if (userLocation) {
+          params.lat = userLocation.latitude;
+          params.lng = userLocation.longitude;
+        }
+
+        const res = await axios.get(`http://localhost:8080/api/restaurants`, {
+          params,
+        });
+
+        setRestaurants(res.data.content);
+        setTotalItems(res.data.totalElements);
+        setCurrentPage(page);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [userLocation]
+  );
 
   useEffect(() => {
-    fetchRestaurants('', 1);
+    // Gọi API khi thay đổi category, sort, hoặc có vị trí mới
+    fetchRestaurants(keyword, activeCategory, sortBy, 1);
+
+    // API lấy Categories (giữ nguyên)
     axios
       .get('http://localhost:8080/api/categories')
       .then((res) => setCategories(res.data))
       .catch((err) => console.error(err));
-  }, [fetchRestaurants]);
+  }, [fetchRestaurants, activeCategory, sortBy, userLocation]);
 
   // --- HANDLERS ---
   const handleSearch = (e) => {
     e.preventDefault();
     setActiveCategory('All');
-    fetchRestaurants(keyword, 1);
+    // Khi search, giữ nguyên kiểu sort hiện tại
+    fetchRestaurants(keyword, 'All', sortBy, 1);
   };
 
   const handleFilterCategory = (catName) => {
     setKeyword('');
     setActiveCategory(catName);
     fetchRestaurants(catName, 1);
+  };
+
+  const handleSortChange = (value) => {
+    setSortBy(value);
   };
 
   const handleRestaurantClick = (restaurant) => {
@@ -166,7 +192,6 @@ const LandingPage = () => {
 
       {/* 2. BODY CONTENT */}
       <div className="container-modern">
-        {/* Why Choose Us (Giống mẫu) */}
         <section className="features-section">
           <div className="feature-item">
             <div className="feature-icon orange">
@@ -192,13 +217,63 @@ const LandingPage = () => {
         </section>
 
         {/* Restaurant List Header */}
-        <div className="section-header-modern">
-          <h2>
-            {activeCategory === 'All'
-              ? 'Quán ngon phải thử'
-              : `Danh mục: ${activeCategory}`}
-          </h2>
-          <p>Danh sách các quán ăn được đánh giá cao nhất</p>
+        <div
+          className="section-header-modern"
+          style={{
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textAlign: 'center',
+            marginBottom: '40px',
+            flexWrap: 'wrap',
+            gap: '20px',
+            paddingBottom: '10px',
+          }}
+        >
+          <div>
+            <h2>
+              {activeCategory === 'All'
+                ? 'Quán ngon phải thử'
+                : `Danh mục: ${activeCategory}`}
+            </h2>
+            <p>Danh sách các quán ăn được đánh giá cao nhất</p>
+            {/* Cảnh báo nếu chọn sort gần nhất mà chưa bật định vị */}
+            {sortBy === 'distance' && !userLocation && (
+              <small style={{ color: '#ff4d4f' }}>
+                * Vui lòng bật định vị để sắp xếp theo khoảng cách
+              </small>
+            )}
+          </div>
+
+          {/* Sort Dropdown */}
+          <div
+            className="sort-wrapper"
+            style={{
+              position: 'absolute',
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+            }}
+          >
+            <span style={{ marginRight: 10, fontWeight: 500 }}>Sắp xếp:</span>
+            <Select
+              value={sortBy}
+              style={{ width: 160 }}
+              onChange={handleSortChange}
+              options={[
+                { value: 'newest', label: 'Mới nhất' },
+                { value: 'rating', label: 'Đánh giá cao' },
+                {
+                  value: 'distance',
+                  label: 'Gần tôi nhất',
+                  disabled: !userLocation,
+                },
+              ]}
+            />
+          </div>
         </div>
 
         {/* Restaurant Grid */}
@@ -241,11 +316,7 @@ const LandingPage = () => {
                   pageSize={pageSize}
                   total={totalItems}
                   onChange={(page) =>
-                    fetchRestaurants(
-                      keyword ||
-                        (activeCategory !== 'All' ? activeCategory : ''),
-                      page
-                    )
+                    fetchRestaurants(keyword, activeCategory, sortBy, page)
                   }
                   showSizeChanger={false}
                 />
@@ -258,14 +329,12 @@ const LandingPage = () => {
   );
 };
 
-// --- SUB COMPONENTS ---
-
 const RestaurantCard = ({ data, onClick }) => {
   return (
     <motion.div
       className="restaurant-card-modern"
       onClick={onClick}
-      whileHover={{ y: -10 }} // Hiệu ứng nhấc lên khi hover
+      whileHover={{ y: -10 }}
       transition={{ type: 'spring', stiffness: 300 }}
     >
       <div className="card-image-wrapper">
@@ -276,7 +345,28 @@ const RestaurantCard = ({ data, onClick }) => {
             e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
           }}
         />
-        <div className="card-badge">Yêu thích</div>
+        {data.distance && (
+          <div
+            className="card-distance-badge"
+            style={{
+              position: 'absolute',
+              top: 10,
+              right: 10,
+              background: 'rgba(0,0,0,0.7)',
+              color: '#fff',
+              padding: '5px 10px',
+              borderRadius: '20px',
+              fontSize: '0.8rem',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              zIndex: 10,
+            }}
+          >
+            <FaMapMarkerAlt size={12} /> {data.distance.toFixed(1)} km
+          </div>
+        )}
         <div className="card-overlay"></div>
       </div>
 
