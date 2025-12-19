@@ -110,8 +110,14 @@ public class IssueService {
 
         if ("ADMIN".equals(role)) return;
 
+        // helper: account có phải customer của order không?
+        boolean isOrderCustomer =
+                order.getCustomer() != null
+                        && order.getCustomer().getId() != null
+                        && accountId.equals(order.getCustomer().getId());
+
         if ("CUSTOMER".equals(role)) {
-            if (order.getCustomer() == null || !accountId.equals(order.getCustomer().getId())) {
+            if (!isOrderCustomer) {
                 throw new SecurityException("CUSTOMER can only create issue for their own order");
             }
             return;
@@ -126,11 +132,14 @@ public class IssueService {
         }
 
         if ("OWNER".equals(role)) {
+            // CASE 1: OWNER tạo issue như CUSTOMER (nếu chính họ là người đặt đơn)
+            if (isOrderCustomer) return;
+
+            // CASE 2: giữ logic cũ (owner-side) cho đơn thuộc quán của họ
             Integer ownerId = ownerAccountId(order.getRestaurant());
-            if (ownerId == null || !accountId.equals(ownerId)) {
-                throw new SecurityException("OWNER can only create issue for their restaurant orders");
-            }
-            return;
+            if (ownerId != null && accountId.equals(ownerId)) return;
+
+            throw new SecurityException("OWNER can only create issue for their own orders or their restaurant orders");
         }
 
         throw new SecurityException("Invalid role");
