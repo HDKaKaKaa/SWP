@@ -11,4 +11,5 @@ public class RestaurantLandingDTO {
     private Double averageRating;
     private Long totalReviews;
     private Integer ownerAccountId;
+    private Double distance;
 }

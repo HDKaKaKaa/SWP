@@ -96,16 +96,20 @@ public class RestaurantController {
         }
     }
 
-    // API: http://localhost:8080/api/restaurants?page=0&size=8&keyword=...
     @GetMapping
     public ResponseEntity<Page<RestaurantLandingDTO>> getAllRestaurants(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Double lat, // Nhận vĩ độ từ Frontend
+            @RequestParam(required = false) Double lng, // Nhận kinh độ từ Frontend
+            @RequestParam(required = false, defaultValue = "newest") String sort, // Nhận kiểu sort
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "8") int size) {
-        // Tạo đối tượng Pageable (Sắp xếp theo ngày tạo mới nhất)
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        Page<RestaurantLandingDTO> result = restaurantService.getActiveRestaurantsWithRating(keyword, pageable);
+        Pageable pageable = PageRequest.of(page, size); // Pageable chỉ dùng để phân trang
+
+        // Gọi Service với các tham số mới
+        Page<RestaurantLandingDTO> result = restaurantService.getActiveRestaurantsWithRating(keyword, lat, lng, sort,
+                pageable);
 
         return ResponseEntity.ok(result);
     }
