@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { getCart, updateCartItemByItemId } from '../services/cartService';
@@ -22,6 +22,66 @@ const CartPage = () => {
     const [error, setError] = useState(null);
     const [note, setNote] = useState('');
 
+    const MAX_PER_PRODUCT = 100;
+    const LARGE_ORDER_THRESHOLD = 10;
+
+    const [messageApi, contextHolder] = message.useMessage();
+    const largeOrderWarnedRef = useRef({}); // productId -> true
+    const prevQtyMapRef = useRef({});       // productId -> tổng qty trước đó
+    const initializedQtyRef = useRef(false); // tránh warn ngay khi load lần đầu
+
+    const buildQtyMapFromItems = (items = []) => {
+        const map = {};
+        (items || []).forEach((it) => {
+            if (!it?.productId) return;
+            const pid = String(it.productId);
+            map[pid] = (map[pid] || 0) + (Number(it.quantity) || 0);
+        });
+        return map;
+    };
+
+    const warnIfCrossLargeOrder = (nextQtyMap, allowWarn = true) => {
+        const prev = prevQtyMapRef.current || {};
+        const warned = largeOrderWarnedRef.current || {};
+
+        // reset flag nếu qty <= 10
+        Object.keys(warned).forEach((pid) => {
+            const q = Number(nextQtyMap[pid] ?? 0);
+            if (q <= LARGE_ORDER_THRESHOLD) delete warned[pid];
+        });
+
+        if (allowWarn) {
+            Object.entries(nextQtyMap).forEach(([pid, qRaw]) => {
+                const nextQ = Number(qRaw ?? 0);
+                const prevQ = Number(prev[pid] ?? 0);
+
+                if (prevQ <= LARGE_ORDER_THRESHOLD && nextQ > LARGE_ORDER_THRESHOLD && !warned[pid]) {
+                    warned[pid] = true;
+                    messageApi.open({
+                        type: 'warning',
+                        duration: 6,
+                        content: 'Bạn đang đặt số lượng lớn. Chủ quán sẽ gọi điện xác nhận đơn trước khi chuẩn bị.',
+                    });
+                }
+            });
+        }
+
+        prevQtyMapRef.current = nextQtyMap;
+    };
+
+    const syncCartState = (nextCart, allowWarn = false) => {
+        setCart(nextCart);
+        const nextMap = buildQtyMapFromItems(nextCart?.items || []);
+
+        if (!initializedQtyRef.current) {
+            prevQtyMapRef.current = nextMap;  // lần đầu: chỉ set mốc
+            initializedQtyRef.current = true;
+            return;
+        }
+
+        warnIfCrossLargeOrder(nextMap, allowWarn);
+    };
+
     const formatPrice = (v) => {
         if (v === null || v === undefined) return '0 đ';
         try {
@@ -42,6 +102,13 @@ const CartPage = () => {
                 : 0,
         [cart]
     );
+
+    const qtyMapByProduct = useMemo(() => buildQtyMapFromItems(cart?.items || []), [cart]);
+    const hasLargeOrder = useMemo(
+        () => Object.values(qtyMapByProduct).some((q) => Number(q || 0) > LARGE_ORDER_THRESHOLD),
+        [qtyMapByProduct]
+    );
+
 
     // ===== Helpers hiển thị options từ backend =====
     // Giả định CartItemResponse có field: options: Array<{ attributeName, value }>
@@ -88,7 +155,7 @@ const CartPage = () => {
                 setLoading(true);
                 setError(null);
                 const data = await getCart(user.id, restaurantId);
-                setCart(data);
+                syncCartState(data, false);
             } catch (err) {
                 console.error(err);
                 setError('Không tải được giỏ hàng. Vui lòng thử lại.');
@@ -107,7 +174,7 @@ const CartPage = () => {
 
            getCart(user.id, restaurantId)
                .then((data) => {
-                   setCart(data);
+                   syncCartState(data, false);
                })
                .catch((err) => {
                    console.error(err);
@@ -129,17 +196,25 @@ const CartPage = () => {
             return;
         }
         if (!restaurantId && !cart?.restaurantId) {
-            alert('Không xác định được nhà hàng. Vui lòng quay lại chọn món.');
+            messageApi.error('Không xác định được nhà hàng. Vui lòng quay lại chọn món.');
             return;
         }
 
         const currentQty = item.quantity || 0;
         const newQuantity = currentQty + delta;
-
         if (newQuantity < 0) return;
 
-        if (newQuantity > 10) {
-            message.warning('Bạn chỉ có thể đặt tối đa 10 phần cho một món.');
+        // Tổng theo productId (vì có thể nhiều combo/options cho cùng 1 món)
+        const pid = item?.productId;
+        const currentTotalOfProduct = (cart?.items || [])
+            .filter((it) => it?.productId === pid)
+            .reduce((sum, it) => sum + (Number(it.quantity) || 0), 0);
+
+        const nextTotalOfProduct =
+            currentTotalOfProduct - (Number(currentQty) || 0) + (Number(newQuantity) || 0);
+
+        if (nextTotalOfProduct > MAX_PER_PRODUCT) {
+            messageApi.warning(`Bạn chỉ có thể đặt tối đa ${MAX_PER_PRODUCT} phần cho một món.`);
             return;
         }
 
@@ -153,10 +228,11 @@ const CartPage = () => {
                 restaurantId: cart?.restaurantId || restaurantId || null,
             });
 
-            setCart(data);
+            // allowWarn=true: chỉ warn khi user “thay đổi món” ở CartPage
+            syncCartState(data, true);
         } catch (err) {
             console.error(err);
-            alert('Không cập nhật được số lượng. Vui lòng thử lại.');
+            messageApi.error('Không cập nhật được số lượng. Vui lòng thử lại.');
         } finally {
             setUpdating(false);
         }
@@ -203,6 +279,7 @@ const CartPage = () => {
     if (!user) {
         return (
             <div className="cart-page">
+                {contextHolder}
                 <div className="cart-wrapper">
                     <h1 className="cart-page-title">Xác nhận đơn hàng</h1>
                     <div className="cart-empty-card">
@@ -449,6 +526,11 @@ const CartPage = () => {
                             >
                                 Đặt đơn - {formatPrice(total)}
                             </button>
+                            {hasLargeOrder && (
+                                <div className="cart-large-order-note">
+                                    Đơn hàng số lượng lớn: quán có thể gọi điện xác nhận trước khi chuẩn bị.
+                                </div>
+                            )}
                         </section>
 
                         <section className="cart-note-card">
