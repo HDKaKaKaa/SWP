@@ -50,6 +50,10 @@ public class IssueService {
         return Set.of("DELIVERY", "SHIPPER_BEHAVIOR", "SAFETY").contains(c);
     }
 
+    private static boolean isRestaurantTarget(String targetType) {
+        return "RESTAURANT".equalsIgnoreCase(targetType);
+    }
+
     private void validateOtherFields(IssueCreateRequest req) {
         if (req.getCategory() == null || req.getCategory().trim().isEmpty()) {
             throw new IllegalArgumentException("category is required");
@@ -278,7 +282,28 @@ public class IssueService {
 
     @Transactional
     public Issue createIssueWithAttachments(CreateIssueWithAttachmentsRequest req) {
-        // Reuse logic createIssue hiện có bằng cách map lại:
+        if (req == null) throw new IllegalArgumentException("request body is required");
+
+        // 1) Nếu targetType=RESTAURANT => bắt buộc có ít nhất 1 attachmentUrl hợp lệ
+        if (isRestaurantTarget(req.getTargetType())) {
+            boolean hasAtLeastOneValid = false;
+
+            if (req.getAttachments() != null) {
+                for (IssueAttachmentRequest a : req.getAttachments()) {
+                    if (a == null) continue;
+                    if (a.getAttachmentUrl() != null && !a.getAttachmentUrl().trim().isEmpty()) {
+                        hasAtLeastOneValid = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!hasAtLeastOneValid) {
+                throw new IllegalArgumentException("attachments are required when targetType=RESTAURANT");
+            }
+        }
+
+        // 2) Reuse logic createIssue hiện có bằng cách map lại:
         IssueCreateRequest createReq = new IssueCreateRequest();
         createReq.setAccountId(req.getAccountId());
         createReq.setOrderId(req.getOrderId());
@@ -292,7 +317,7 @@ public class IssueService {
 
         Issue created = createIssue(createReq); // createIssue đã ghi NOTE + MESSAGE event
 
-        // add ATTACHMENT events ngay trong transaction này
+        // 3) add ATTACHMENT events ngay trong transaction này
         if (req.getAttachments() != null) {
             for (IssueAttachmentRequest a : req.getAttachments()) {
                 if (a == null) continue;
@@ -303,12 +328,10 @@ public class IssueService {
                 x.setAttachmentUrl(a.getAttachmentUrl());
                 x.setContent(a.getContent());
 
-                // gọi addAttachment đã fix orderId null
                 addAttachment(created.getId(), x);
             }
         }
 
-        // Nếu bất kỳ bước nào fail (issue_events fail) => throw => rollback => issue không tạo
         return created;
     }
 
@@ -451,6 +474,12 @@ public class IssueService {
         }
 
         String newStatus = req.getStatus().trim().toUpperCase(Locale.ROOT);
+
+        // đồng bộ: admin resolved -> closed
+        if ("ADMIN".equals(role) && "RESOLVED".equals(newStatus)) {
+            newStatus = "CLOSED";
+        }
+
         String oldStatus = issue.getStatus();
         issue.setStatus(newStatus);
 
@@ -525,13 +554,11 @@ public class IssueService {
             }
             amount = req.getAmount();
             issue.setAdminCreditAmount(amount);
+        } else {
+            issue.setAdminCreditAmount(null);
         }
 
-        if ("APPROVED".equals(decision)) {
-            issue.setStatus("RESOLVED");
-        } else {
-            issue.setStatus("REJECTED");
-        }
+        issue.setStatus("CLOSED");
         issue.setResolvedAt(LocalDateTime.now());
         issue.setResolvedReason(req.getNote());
 
@@ -592,8 +619,13 @@ public class IssueService {
             }
 
             String newStatus = req.getNewStatus().trim().toUpperCase(Locale.ROOT);
-            String oldStatus = issue.getStatus();
 
+            // đồng bộ: admin resolved -> closed
+            if ("ADMIN".equals(role) && "RESOLVED".equals(newStatus)) {
+                newStatus = "CLOSED";
+            }
+
+            String oldStatus = issue.getStatus();
             issue.setStatus(newStatus);
 
             if ("RESOLVED".equals(newStatus) || "CLOSED".equals(newStatus)) {
@@ -653,13 +685,11 @@ public class IssueService {
                 }
                 amount = req.getAdminCreditAmount();
                 issue.setAdminCreditAmount(amount);
-
-                issue.setStatus("RESOLVED");
             } else {
-                // REJECTED
-                issue.setStatus("REJECTED");
+                issue.setAdminCreditAmount(null);
             }
 
+            issue.setStatus("CLOSED");
             issue.setResolvedAt(LocalDateTime.now());
             // nếu muốn ghi reason thì dùng statusReason (dto hiện chưa có field note riêng cho adminCredit)
             issue.setResolvedReason(req.getStatusReason());

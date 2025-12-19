@@ -19,6 +19,59 @@ const { Option } = Select;
 const { Text, Title } = Typography;
 const { TextArea } = Input;
 
+// label thống nhất theo CustomerIssueCreate (KHÔNG có ngoặc)
+const TARGET_LABEL = {
+    SYSTEM: 'Hệ thống',
+    RESTAURANT: 'Quán ăn',
+    SHIPPER: 'Shipper',
+    ORDER: 'Đơn hàng',
+    OTHER: 'Khác',
+};
+
+// Nhóm DB (issue.category) - fallback khi không có otherCategory
+const BASE_CATEGORY_LABEL = {
+    FOOD: 'Chất lượng món ăn',
+    ITEM: 'Vấn đề món ăn',
+    RESTAURANT: 'Vấn đề quán',
+    MIXED: 'Nhiều vấn đề',
+    OTHER: 'Khác',
+};
+
+// Sub-code (issue.otherCategory) - hiển thị “đúng label”
+const SUBCATEGORY_LABEL = {
+    // SYSTEM
+    ACCOUNT_PROBLEM: 'Vấn đề tài khoản',
+    PAYMENT_PROBLEM: 'Vấn đề thanh toán',
+    APP_BUG: 'Lỗi website',
+
+    // RESTAURANT
+    FOOD_QUALITY: 'Chất lượng món ăn',
+    MISSING_ITEM: 'Thiếu món',
+    WRONG_ITEM: 'Sai món',
+    DAMAGED: 'Hư hỏng hoặc đổ vỡ',
+
+    // SHIPPER / ORDER (nếu có)
+    LATE_DELIVERY: 'Giao trễ',
+    SHIPPER_BEHAVIOR: 'Thái độ shipper',
+    ORDER_STATUS_WRONG: 'Trạng thái đơn không đúng',
+    CANNOT_CONTACT: 'Không liên hệ được',
+    DELIVERY_PROBLEM: 'Vấn đề giao nhận khác',
+};
+
+const toCategoryText = (cat, otherCategory) => {
+    const c = String(cat || '').toUpperCase();
+    const oc = String(otherCategory || '').trim();
+
+    // ưu tiên sub-code
+    if (oc && SUBCATEGORY_LABEL[oc]) return SUBCATEGORY_LABEL[oc];
+
+    // nếu OTHER và user nhập text
+    if (c === 'OTHER' && oc) return `Khác: ${oc}`;
+
+    // fallback theo nhóm DB
+    return BASE_CATEGORY_LABEL[c] || cat || '—';
+};
+
 // --- Component hiển thị trạng thái Issue ---
 const IssueStatusTag = ({ status }) => {
     let color = 'blue';
@@ -238,7 +291,9 @@ const OwnerIssues = () => {
             render: (_, record) => (
                 <Space direction="vertical" size={0}>
                     <Text strong>{record.title}</Text>
-                    <Text type="secondary" style={{ fontSize: '12px' }}>{record.category}</Text>
+                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                        {toCategoryText(record.category, record.otherCategory)}
+                    </Text>
                 </Space>
             ),
         },

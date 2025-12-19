@@ -9,6 +9,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.shopeefood.backend.entity.OrderItem;
+import com.shopeefood.backend.entity.OrderItemOption;
+import com.shopeefood.backend.entity.ProductDetail;
+import com.shopeefood.backend.repository.OrderItemRepository;
+
+
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -18,6 +24,7 @@ import java.util.*;
 public class VnpayService {
 
     private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
     private final TransactionRepository transactionRepository;
 
     @Value("${vnpay.tmn-code}")
@@ -43,6 +50,8 @@ public class VnpayService {
     public String createPaymentUrl(Integer orderId, String clientIp) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        validateOrderBeforeVnpay(order);
 
         BigDecimal total = order.getTotalAmount();
         if (total == null) total = BigDecimal.ZERO;
@@ -165,4 +174,44 @@ public class VnpayService {
     }
 
     public record ConfirmResult(boolean verified, Integer orderId, String message) {}
+
+    private void validateOrderBeforeVnpay(Order order) {
+        // Chỉ cho thanh toán khi chưa PAID
+        if ("PAID".equalsIgnoreCase(order.getStatus())) {
+            throw new RuntimeException("ORDER_ALREADY_PAID");
+        }
+
+        // Đơn phải có items
+        List<OrderItem> items = orderItemRepository.findByOrder(order);
+        if (items == null || items.isEmpty()) {
+            throw new RuntimeException("CART_EMPTY");
+        }
+
+        for (OrderItem item : items) {
+            // Product phải còn bán
+            if (item.getProduct() == null || Boolean.FALSE.equals(item.getProduct().getIsAvailable())) {
+                throw new RuntimeException("PRODUCT_NOT_AVAILABLE_IN_CART");
+            }
+
+            // Check options (nếu có)
+            if (item.getOptions() == null) continue;
+
+            for (OrderItemOption opt : item.getOptions()) {
+                ProductDetail d = opt.getProductDetail();
+                if (d == null) throw new RuntimeException("INVALID_CART_OPTION");
+
+                // Option bị xoá mềm => chặn tạo link VNPay
+                if (Boolean.TRUE.equals(d.getIsDeleted())) {
+                    throw new RuntimeException("CART_CONTAINS_DELETED_OPTIONS");
+                }
+
+                // Option phải thuộc đúng product của item
+                if (d.getProduct() == null || d.getProduct().getId() == null
+                        || item.getProduct() == null || item.getProduct().getId() == null
+                        || !item.getProduct().getId().equals(d.getProduct().getId())) {
+                    throw new RuntimeException("CART_OPTION_NOT_MATCH_PRODUCT");
+                }
+            }
+        }
+    }
 }
