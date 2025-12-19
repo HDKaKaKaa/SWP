@@ -44,6 +44,7 @@ import LiveMapPage from './pages/LiveMapPage.jsx';
 import OwnerIssues from './components/OwnerIssues.jsx';
 import OwnerDashboard from './components/OwnerDashboard.jsx';
 import CustomerStatsPage from './pages/CustomerStatsPage';
+import PrivateRoute from './components/PrivateRoute';
 
 const ClientLayoutWithFooter = () => (
   <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -68,59 +69,10 @@ function App() {
   return (
     <Routes>
       {/* ======================================================= */}
-      {/* NHÓM 1: ADMIN (Sử dụng MainLayout có Sidebar)           */}
+      {/* Public Routes */}
       {/* ======================================================= */}
-      <Route path="/admin" element={<MainLayout />}>
-        <Route index element={<AdminDashboard />} />
-        <Route
-          path="restaurant-approval"
-          element={<RestaurantApprovalPage />}
-        />
-        <Route path="restaurants" element={<RestaurantPage />} />
-        <Route path="categories" element={<CategoriesPage />} />
-        <Route path="orders" element={<OrdersPage />} />
-        <Route path="users" element={<AdminUsersPage />} />
-        <Route path="shippers" element={<ShipperManagementPage />} />
-        <Route path="issues" element={<AdminIssuesPage />} />
-        <Route path="map" element={<LiveMapPage />} />
-      </Route>
-
-      {/* ======================================================= */}
-      {/* NHÓM 2: SHIPPER (Sử dụng ShipperLayout có Sidebar)       */}
-      {/* ======================================================= */}
-      <Route path="/shipper" element={<ShipperLayout />}>
-        <Route index element={<ShipperDashboard />} />
-        <Route path="orders" element={<ShipperOrders />} />
-        <Route path="history" element={<ShipperHistory />} />
-        <Route path="history/:orderId" element={<ShipperOrderDetail />} />
-        <Route path="map" element={<ShipperMap />} />
-        <Route path="profile" element={<ShipperProfile />} />
-      </Route>
-
-      {/* ======================================================= */}
-      {/* NHÓM 3: KHÁCH HÀNG (Sử dụng Header & Footer cũ)         */}
-      {/* ======================================================= */}
-      {/* Ta tạo một Route không có path để bao bọc layout khách */}
       <Route element={<ClientLayoutWithFooter />}>
-        {/* Các trang con của khách hàng nằm trong này */}
         <Route path="/" element={<LandingPage />} />
-        <Route path="/restaurant/:id" element={<RestaurantDetail />} />
-
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/change-password" element={<ChangePasswordPage />} />
-        <Route path="/cart" element={<CartPage />} />
-        <Route path="/checkout" element={<CheckoutPage />} />
-        <Route path="/order-success" element={<OrderSuccessPage />} />
-        <Route path="/orders" element={<OrderDetailPage />} />
-        <Route path="/my-spending" element={<CustomerStatsPage />} />
-        <Route
-          path="/restaurant-registration"
-          element={<RestaurantRegistration />}
-        />
-        <Route path="/my-registrations" element={<MyRegistrations />} />
-        <Route path="/restaurant/edit/:id" element={<RestaurantEdit />} />
-        <Route path="/support/new" element={<CustomerIssueCreate />} />
-        <Route path="/support" element={<CustomerIssueHistory />} />
       </Route>
 
       <Route element={<AuthLayoutNoFooter />}>
@@ -128,18 +80,68 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       </Route>
-      {/* ======================================================= */}
-      {/* NHÓM 4: CỬA HÀNG (OWNER)                                 */}
-      {/* ======================================================= */}
 
-      <Route path="/owner" element={<OwnerLayout />}>
-        <Route index element={<OwnerDashboard />} />
-        <Route path="dashboard" element={<OwnerDashboard />} />
-        <Route path="products" element={<OwnerProducts />} />
-        <Route path="orders" element={<OwnerOrders />} />
-        <Route path="feedback" element={<OwnerFeedbackPage />} />
-        <Route path="issues" element={<OwnerIssues />} />
-        <Route path="restaurants" element={<OwnerRestaurantPage />} />
+      {/* ======================================================= */}
+      {/* Private Routes */}
+      {/* ======================================================= */}
+      <Route element={<PrivateRoute />}>
+        {/* ADMIN */}
+        <Route path="/admin" element={<MainLayout />}>
+          <Route index element={<AdminDashboard />} />
+          <Route
+            path="restaurant-approval"
+            element={<RestaurantApprovalPage />}
+          />
+          <Route path="restaurants" element={<RestaurantPage />} />
+          <Route path="categories" element={<CategoriesPage />} />
+          <Route path="orders" element={<OrdersPage />} />
+          <Route path="users" element={<AdminUsersPage />} />
+          <Route path="shippers" element={<ShipperManagementPage />} />
+          <Route path="issues" element={<AdminIssuesPage />} />
+          <Route path="map" element={<LiveMapPage />} />
+        </Route>
+
+        {/* SHIPPER */}
+        <Route path="/shipper" element={<ShipperLayout />}>
+          <Route index element={<ShipperDashboard />} />
+          <Route path="orders" element={<ShipperOrders />} />
+          <Route path="history" element={<ShipperHistory />} />
+          <Route path="history/:orderId" element={<ShipperOrderDetail />} />
+          <Route path="map" element={<ShipperMap />} />
+          <Route path="profile" element={<ShipperProfile />} />
+        </Route>
+
+        {/* CUSTOMER */}
+        <Route element={<ClientLayoutWithFooter />}>
+          <Route path="/restaurant/:id" element={<RestaurantDetail />} />
+
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/change-password" element={<ChangePasswordPage />} />
+          <Route path="/cart" element={<CartPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/order-success" element={<OrderSuccessPage />} />
+          <Route path="/orders" element={<OrderDetailPage />} />
+          <Route path="/my-spending" element={<CustomerStatsPage />} />
+          <Route
+            path="/restaurant-registration"
+            element={<RestaurantRegistration />}
+          />
+          <Route path="/my-registrations" element={<MyRegistrations />} />
+          <Route path="/restaurant/edit/:id" element={<RestaurantEdit />} />
+          <Route path="/support/new" element={<CustomerIssueCreate />} />
+          <Route path="/support" element={<CustomerIssueHistory />} />
+        </Route>
+
+        {/* OWNER */}
+        <Route path="/owner" element={<OwnerLayout />}>
+          <Route index element={<OwnerDashboard />} />
+          <Route path="dashboard" element={<OwnerDashboard />} />
+          <Route path="products" element={<OwnerProducts />} />
+          <Route path="orders" element={<OwnerOrders />} />
+          <Route path="feedback" element={<OwnerFeedbackPage />} />
+          <Route path="issues" element={<OwnerIssues />} />
+          <Route path="restaurants" element={<OwnerRestaurantPage />} />
+        </Route>
       </Route>
     </Routes>
   );
