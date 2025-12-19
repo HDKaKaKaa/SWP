@@ -21,7 +21,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { motion } from 'framer-motion';
-import '../css/RestaurantRegistration.css'; // Dùng chung CSS
+import '../css/RestaurantRegistration.css';
 
 const MyRegistrations = () => {
   const { user } = useContext(AuthContext);
@@ -94,6 +94,11 @@ const MyRegistrations = () => {
           color = 'success';
           icon = <CheckCircleOutlined />;
           text = 'Hoạt động';
+        }
+        if (status === 'CLOSE') {
+          color = 'default';
+          icon = <StopOutlined />;
+          text = 'Đã đóng';
         }
         if (status === 'REJECTED') {
           color = 'error';
