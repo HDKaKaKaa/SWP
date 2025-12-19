@@ -1,6 +1,7 @@
 package com.shopeefood.backend.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -11,9 +12,12 @@ public class EmailService {
     @Autowired
     private JavaMailSender mailSender;
 
+    @Value("${spring.mail.username}")
+    private String fromEmail;
+
     public void sendNewPasswordEmail(String toEmail, String newPassword) {
         SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom("hoangnguyen26804@gmail.com");
+        message.setFrom(fromEmail);
         message.setTo(toEmail);
         message.setSubject("Food Order - Cấp lại mật khẩu");
         message.setText("Xin chào,\n\nMật khẩu mới của bạn là: " + newPassword
