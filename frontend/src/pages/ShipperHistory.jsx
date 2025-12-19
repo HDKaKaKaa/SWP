@@ -128,6 +128,32 @@ const ShipperHistory = () => {
         return 'N/A';
     };
 
+    // Tính khoảng cách từ vị trí shipper lúc nhận hàng đến vị trí khách hàng
+    const calculateDistance = (order) => {
+        // Nếu không có tọa độ shipper hoặc tọa độ khách hàng
+        if (!order.shipperLat || !order.shipperLong || !order.shippingLat || !order.shippingLong) {
+            return 'N/A';
+        }
+        
+        // Công thức Haversine để tính khoảng cách
+        const R = 6371; // Bán kính Trái Đất (km)
+        const dLat = (order.shippingLat - order.shipperLat) * Math.PI / 180;
+        const dLon = (order.shippingLong - order.shipperLong) * Math.PI / 180;
+        const a = 
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(order.shipperLat * Math.PI / 180) * 
+            Math.cos(order.shippingLat * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const distance = R * c;
+        
+        // Hiển thị khoảng cách, nếu < 1km thì hiển thị bằng mét
+        if (distance < 1) {
+            return (distance * 1000).toFixed(0) + ' m';
+        }
+        return distance.toFixed(2) + ' km';
+    };
+
     // Format số tiền
     const formatMoney = (amount) => {
         return new Intl.NumberFormat('vi-VN', {
@@ -195,7 +221,7 @@ const ShipperHistory = () => {
         {
             title: 'Khoảng cách',
             key: 'distance',
-            render: () => <span style={{ whiteSpace: 'nowrap' }}>N/A</span>,
+            render: (_, record) => <span style={{ whiteSpace: 'nowrap' }}>{calculateDistance(record)}</span>,
             width: 110,
             align: 'center',
         },

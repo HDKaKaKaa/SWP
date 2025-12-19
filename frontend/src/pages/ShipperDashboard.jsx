@@ -447,28 +447,117 @@ const ShipperDashboard = () => {
                         <List
                             dataSource={paginatedAvailableOrders}
                             renderItem={(order) => (
-                                <List.Item
-                                    actions={[
-                                        <Button
-                                            type="primary"
-                                            onClick={() => handleAcceptOrder(order.id)}
-                                            disabled={shipperStatus !== 'ONLINE' || !shipperId}
-                                        >
-                                            Nhận đơn
-                                        </Button>
-                                    ]}
-                                >
-                                    <List.Item.Meta
-                                        title={`Đơn #${order.id} - ${order.restaurantName}`}
-                                        description={
-                                            <div>
-                                                <p><strong>Địa chỉ:</strong> {order.shippingAddress}</p>
-                                                <p><strong>Tổng tiền:</strong> {formatMoney(order.totalAmount)}</p>
-                                                <p><strong>Thanh toán:</strong> <Tag>{order.paymentMethod}</Tag></p>
-                                                <p><strong>Thời gian:</strong> {formatDate(order.createdAt)}</p>
+                                <List.Item style={{ padding: '16px 0' }}>
+                                    <Row gutter={16} style={{ width: '100%' }}>
+                                        {/* Mini Map bên trái - Click để xem bản đồ chi tiết */}
+                                        <Col span={12}>
+                                            <div
+                                                onClick={() => navigate(`/shipper/map?orderId=${order.id}`)}
+                                                style={{
+                                                    width: '100%',
+                                                    height: '250px',
+                                                    borderRadius: '8px',
+                                                    overflow: 'hidden',
+                                                    border: '1px solid #d9d9d9',
+                                                    cursor: 'pointer',
+                                                    position: 'relative'
+                                                }}
+                                                title="Click để xem bản đồ chi tiết"
+                                            >
+                                                {(order.shippingLat && order.shippingLong) || (order.restaurantLat && order.restaurantLong) ? (
+                                                    <iframe
+                                                        id={`map-available-${order.id}`}
+                                                        width="100%"
+                                                        height="100%"
+                                                        frameBorder="0"
+                                                        scrolling="no"
+                                                        style={{ border: 'none', pointerEvents: 'none' }}
+                                                        src={(() => {
+                                                            // Tính toán bbox để hiển thị cả restaurant và customer nếu có
+                                                            let minLat, maxLat, minLong, maxLong;
+                                                            const points = [];
+                                                            
+                                                            if (order.shippingLat && order.shippingLong) {
+                                                                points.push({ lat: order.shippingLat, long: order.shippingLong });
+                                                            }
+                                                            if (order.restaurantLat && order.restaurantLong) {
+                                                                points.push({ lat: order.restaurantLat, long: order.restaurantLong });
+                                                            }
+                                                            
+                                                            if (points.length > 0) {
+                                                                minLat = Math.min(...points.map(p => p.lat));
+                                                                maxLat = Math.max(...points.map(p => p.lat));
+                                                                minLong = Math.min(...points.map(p => p.long));
+                                                                maxLong = Math.max(...points.map(p => p.long));
+                                                                
+                                                                // Thêm padding
+                                                                const latPadding = (maxLat - minLat) * 0.2 || 0.01;
+                                                                const longPadding = (maxLong - minLong) * 0.2 || 0.01;
+                                                                
+                                                                return `https://www.openstreetmap.org/export/embed.html?bbox=${minLong - longPadding},${minLat - latPadding},${maxLong + longPadding},${maxLat + latPadding}&layer=mapnik`;
+                                                            }
+                                                            return '';
+                                                        })()}
+                                                    />
+                                                ) : (
+                                                    <div style={{
+                                                        width: '100%',
+                                                        height: '100%',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        backgroundColor: '#f5f5f5',
+                                                        color: '#999'
+                                                    }}>
+                                                        <div style={{ textAlign: 'center' }}>
+                                                            <EnvironmentOutlined style={{ fontSize: '32px', marginBottom: '8px' }} />
+                                                            <div>Không có tọa độ</div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {/* Overlay để hiển thị hint */}
+                                                <div style={{
+                                                    position: 'absolute',
+                                                    bottom: 8,
+                                                    right: 8,
+                                                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                                    color: 'white',
+                                                    padding: '4px 8px',
+                                                    borderRadius: '4px',
+                                                    fontSize: '12px',
+                                                    pointerEvents: 'none'
+                                                }}>
+                                                    Click để xem bản đồ
+                                                </div>
                                             </div>
-                                        }
-                                    />
+                                        </Col>
+                                        {/* Thông tin đơn hàng bên phải */}
+                                        <Col span={12}>
+                                            <div>
+                                                <List.Item.Meta
+                                                    title={`Đơn #${order.id} - ${order.restaurantName}`}
+                                                    description={
+                                                        <div>
+                                                            <p style={{ margin: '4px 0' }}><strong>Địa chỉ:</strong> {order.shippingAddress}</p>
+                                                            <p style={{ margin: '4px 0' }}><strong>Tổng tiền:</strong> {formatMoney(order.totalAmount)}</p>
+                                                            <p style={{ margin: '4px 0' }}><strong>Thanh toán:</strong> <Tag>{order.paymentMethod}</Tag></p>
+                                                            <p style={{ margin: '4px 0' }}><strong>Thời gian:</strong> {formatDate(order.createdAt)}</p>
+                                                        </div>
+                                                    }
+                                                />
+                                                <div style={{ marginTop: 12 }}>
+                                                    <Button
+                                                        type="primary"
+                                                        onClick={() => handleAcceptOrder(order.id)}
+                                                        disabled={shipperStatus !== 'ONLINE' || !shipperId}
+                                                        block
+                                                    >
+                                                        Nhận đơn
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </Col>
+                                    </Row>
                                 </List.Item>
                             )}
                             locale={{ emptyText: 'Không có đơn hàng nào' }}

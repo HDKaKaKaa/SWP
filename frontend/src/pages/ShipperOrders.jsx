@@ -244,12 +244,30 @@ const ShipperOrders = () => {
         return dayjs(dateString).format('DD/MM/YYYY HH:mm');
     };
 
-    // Tính khoảng cách (giả lập)
+    // Tính khoảng cách từ vị trí shipper lúc nhận hàng đến vị trí khách hàng
     const calculateDistance = (order) => {
-        if (order.shippingLat && order.shippingLong) {
-            return (Math.random() * 10 + 2).toFixed(1) + ' km';
+        // Nếu không có tọa độ shipper hoặc tọa độ khách hàng
+        if (!order.shipperLat || !order.shipperLong || !order.shippingLat || !order.shippingLong) {
+            return 'N/A';
         }
-        return 'N/A';
+        
+        // Công thức Haversine để tính khoảng cách
+        const R = 6371; // Bán kính Trái Đất (km)
+        const dLat = (order.shippingLat - order.shipperLat) * Math.PI / 180;
+        const dLon = (order.shippingLong - order.shipperLong) * Math.PI / 180;
+        const a = 
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(order.shipperLat * Math.PI / 180) * 
+            Math.cos(order.shippingLat * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const distance = R * c;
+        
+        // Hiển thị khoảng cách, nếu < 1km thì hiển thị bằng mét
+        if (distance < 1) {
+            return (distance * 1000).toFixed(0) + ' m';
+        }
+        return distance.toFixed(2) + ' km';
     };
 
     // Định nghĩa cột cho bảng
