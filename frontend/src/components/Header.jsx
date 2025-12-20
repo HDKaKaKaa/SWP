@@ -54,17 +54,8 @@ const Header = () => {
       type: 'divider',
     },
     {
-      key: '4',
-      label: 'Đăng ký quán ăn',
-      icon: <ShopOutlined />,
-      onClick: () => navigate('/restaurant-registration'),
-    },
-    {
-      type: 'divider',
-    },
-    {
       key: 'history-reg',
-      label: 'Lịch sử đăng ký quán',
+      label: 'Nhà hàng của tôi',
       icon: <SaveOutlined />,
       onClick: () => navigate('/my-registrations'),
     },

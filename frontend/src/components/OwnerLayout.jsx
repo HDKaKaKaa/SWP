@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useContext } from 'react';
 import { Layout, Menu, theme, Dropdown, Space } from 'antd';
-import {
+import {HomeOutlined,
     PieChartOutlined, ShopOutlined, FileTextOutlined, CommentOutlined, IssuesCloseOutlined, UserOutlined, LogoutOutlined, DashOutlined, DownOutlined
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
@@ -64,6 +64,8 @@ const OwnerLayout = () => {
         { key: '/owner/orders', icon: <FileTextOutlined />, label: 'Đơn hàng' },
         { key: '/owner/feedback', icon: <CommentOutlined />, label: 'Đánh giá' },
         { key: '/owner/issues', icon: <IssuesCloseOutlined />, label: 'Sự cố' },
+        { type: 'divider' },
+        { key: '/', icon: <HomeOutlined />, label: 'Về trang chủ', danger: true },
     ];
 
     const menuProps = {

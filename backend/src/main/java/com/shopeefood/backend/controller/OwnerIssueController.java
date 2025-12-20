@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.shopeefood.backend.dto.IssueDecisionRequest;
 import com.shopeefood.backend.dto.IssueEventRequest;
-import com.shopeefood.backend.entity.Issue;
+import com.shopeefood.backend.dto.IssueResponseDTO; 
 import com.shopeefood.backend.entity.IssueEvent;
 import com.shopeefood.backend.service.OwnerIssueService;
 
@@ -32,10 +32,10 @@ public class OwnerIssueController {
     private OwnerIssueService issueService;
 
     /**
-     * Lấy danh sách khiếu nại có phân trang và lọc
+     * Lấy danh sách khiếu nại có phân trang và lọc - Trả về DTO
      */
     @GetMapping
-    public ResponseEntity<Page<Issue>> getIssues(
+    public ResponseEntity<Page<IssueResponseDTO>> getIssues(
             @RequestParam Integer ownerId,
             @RequestParam(required = false) Integer restaurantId,
             @RequestParam(required = false) String status,
@@ -43,8 +43,10 @@ public class OwnerIssueController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        // Sắp xếp theo updatedAt mới nhất để chủ cửa hàng thấy cái mới xử lý lên đầu
+        // Sắp xếp theo updatedAt mới nhất
         Pageable pageable = PageRequest.of(page, size, Sort.by("updatedAt").descending());
+        
+        // Gọi Service (đã trả về Page<IssueResponseDTO>)
         return ResponseEntity.ok(issueService.findAll(ownerId, restaurantId, status, search, pageable));
     }
 
@@ -57,18 +59,20 @@ public class OwnerIssueController {
     }
 
     /**
-     * Xử lý hành động: Gửi tin nhắn, Hoàn tiền hoặc Từ chối
+     * Gửi tin nhắn phản hồi
      */
     @PostMapping("/{id}/events")
     public ResponseEntity<IssueEvent> postEvent(
             @PathVariable Integer id,
             @RequestBody IssueEventRequest request) {
-        // Logic status đã được đóng gói trong issueService.addEvent
         return ResponseEntity.ok(issueService.addEvent(id, request));
     }
 
+    /**
+     * Chốt quyết định (Duyệt/Từ chối hoàn tiền) - Trả về DTO
+     */
     @PostMapping("/{id}/decision")
-    public ResponseEntity<Issue> handleDecision(
+    public ResponseEntity<IssueResponseDTO> handleDecision(
             @PathVariable Integer id,
             @RequestBody IssueDecisionRequest request) { 
         return ResponseEntity.ok(issueService.handleDecision(id, request));

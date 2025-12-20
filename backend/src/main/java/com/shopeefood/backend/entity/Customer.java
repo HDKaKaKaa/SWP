@@ -19,6 +19,7 @@ public class Customer {
     @OneToOne(fetch = FetchType.LAZY)
     @MapsId
     @JoinColumn(name = "account_id")
+    @JsonBackReference
     private Account account;
     
     // Các trường khác có thể null thì không cần bắt buộc set ngay

@@ -82,7 +82,7 @@ export default function OwnerOrders() {
     const [toDate, setToDate] = useState(null);
     const [pagination, setPagination] = useState({
         current: 1,
-        pageSize: 10,
+        pageSize: 5,
         total: 0,
     });
 
@@ -234,13 +234,13 @@ export default function OwnerOrders() {
     }, [fetchOrders]);
     // Định nghĩa cột cho Ant Design Table
     const columns = [
-        {
-            title: 'STT',
-            key: 'stt',
-            width: 60,
-            render: (text, record, index) => (pagination.current - 1) * pagination.pageSize + index + 1,
-            align: 'center',
-        },
+        // {
+        //     title: 'STT',
+        //     key: 'stt',
+        //     width: 60,
+        //     render: (text, record, index) => (pagination.current - 1) * pagination.pageSize + index + 1,
+        //     align: 'center',
+        // },
         {
             title: 'Mã đơn',
             dataIndex: 'orderNumber',
@@ -248,6 +248,7 @@ export default function OwnerOrders() {
             sorter: true,
             width: 100,
             align: 'center',
+            fixed: 'left',
         },
         {
             title: 'Đơn hàng',
@@ -261,7 +262,6 @@ export default function OwnerOrders() {
             title: 'Ghi chú',
             dataIndex: 'note',
             key: 'note',
-            ellipsis: true,
             render: (note) => note || <span className="text-muted">—</span>,
             align: 'center',
         },
@@ -325,6 +325,7 @@ export default function OwnerOrders() {
             key: 'status',
             render: (status) => <OrderStatusTag status={status} />,
             align: 'center',
+            fixed: 'right',
             width: 110,
         },
         {
@@ -332,6 +333,7 @@ export default function OwnerOrders() {
             key: 'action',
             align: 'center',
             width: 120,
+            fixed: 'right',
             render: (text, record) => (
                 <Space direction="vertical" size={4}>
                     {(record.status === "PAID" || record.status === "PENDING") && (
