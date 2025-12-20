@@ -175,20 +175,29 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
                         @Param("endDate") LocalDateTime endDate,
                         @Param("restaurantId") Integer restaurantId);
 
-        @Query("SELECT DISTINCT o FROM Order o " +
-                "LEFT JOIN FETCH o.customer c " +
-                "LEFT JOIN FETCH o.restaurant r " +
-                "LEFT JOIN FETCH o.shipper s " +
-                "LEFT JOIN FETCH s.account " +
-                "LEFT JOIN FETCH o.orderItems oi " +
-                "WHERE o.status IN :statuses " +
-                "AND (CAST(:startDate AS timestamp) IS NULL OR o.createdAt >= :startDate) " +
-                "AND (CAST(:endDate AS timestamp) IS NULL OR o.createdAt <= :endDate) " +
-                "ORDER BY o.createdAt DESC")
-        List<Order> findOrdersWithDetails(
-                @Param("statuses") List<String> statuses,
-                @Param("startDate") LocalDateTime startDate,
-                @Param("endDate") LocalDateTime endDate);
+    @Query("SELECT DISTINCT o FROM Order o " +
+            "LEFT JOIN FETCH o.customer acc " +          // acc là Account
+            "LEFT JOIN Customer cust ON cust.accountId = acc.id " + // Join bảng Customer để lấy FullName
+            "LEFT JOIN FETCH o.restaurant r " +
+            "LEFT JOIN FETCH o.shipper s " +
+            "LEFT JOIN FETCH s.account " +
+            "LEFT JOIN FETCH o.orderItems oi " +
+            "WHERE o.status IN :statuses " +
+            "AND (CAST(:startDate AS timestamp) IS NULL OR o.createdAt >= :startDate) " +
+            "AND (CAST(:endDate AS timestamp) IS NULL OR o.createdAt <= :endDate) " +
+            "AND (:searchKey IS NULL OR (" +
+            "   LOWER(o.orderNumber) LIKE :searchKey OR " +      // Tìm theo Mã đơn
+            "   LOWER(cust.fullName) LIKE :searchKey OR " +      // Tìm theo Tên khách
+            "   LOWER(acc.phone) LIKE :searchKey OR " +          // Tìm theo SĐT khách
+            "   LOWER(r.name) LIKE :searchKey OR " +             // Tìm theo Tên quán
+            "   LOWER(r.phone) LIKE :searchKey " +               // Tìm theo SĐT quán
+            ")) " +
+            "ORDER BY o.createdAt DESC")
+    List<Order> findOrdersWithDetails(
+            @Param("searchKey") String searchKey, // <--- THÊM THAM SỐ NÀY
+            @Param("statuses") List<String> statuses,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate);
 
         @Query("SELECT o FROM Order o WHERE o.customer.id = :customerId " +
                         "AND o.status = 'COMPLETED' " +

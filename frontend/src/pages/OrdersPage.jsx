@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Card, Table, Tag, Space, DatePicker, Select, Button, Typography, Row, Col, message,
-    Drawer, Descriptions, Timeline, Divider, Tooltip, Rate, Checkbox
+    Drawer, Descriptions, Timeline, Divider, Tooltip, Rate, Checkbox, Input
 } from 'antd';
 import {
     ReloadOutlined, EyeOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined,
-    PhoneOutlined, WarningOutlined
+    PhoneOutlined, WarningOutlined, UserOutlined, ShopOutlined, SearchOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import axios from 'axios';
@@ -23,6 +23,7 @@ const OrdersPage = () => {
     const [orders, setOrders] = useState([]);
     const [dateRange, setDateRange] = useState([dayjs().startOf('day'), dayjs().endOf('day')]);
     const [statusFilter, setStatusFilter] = useState('ALL');
+    const [keyword, setKeyword] = useState(''); // [NEW] State từ khóa tìm kiếm
 
     // State cho Checkbox "All"
     const [isAll, setIsAll] = useState(false);
@@ -39,10 +40,14 @@ const OrdersPage = () => {
             // 1. LUÔN LUÔN lấy status từ state người dùng chọn
             params.status = statusFilter;
 
+            // [NEW] Gửi từ khóa tìm kiếm xuống BE
+            if (keyword && keyword.trim() !== '') {
+                params.keyword = keyword.trim();
+            }
+
             // 2. Xử lý thời gian
             if (isAll) {
                 // Nếu tick "Hiện tất cả" -> Gửi khoảng thời gian "từ cổ chí kim"
-                // Để Back-end trả về toàn bộ lịch sử
                 params.startDate = '2000-01-01';
                 params.endDate = dayjs().format('YYYY-MM-DD');
             } else {
@@ -61,18 +66,27 @@ const OrdersPage = () => {
         } finally {
             setLoading(false);
         }
-    }, [dateRange, statusFilter, isAll]); // Dependency giữ nguyên
+    }, [dateRange, statusFilter, isAll, keyword]); // [NEW] Thêm keyword vào dependency
+
     useEffect(() => {
         fetchOrders();
     }, [fetchOrders]);
+
     const handleRefresh = () => {
         fetchOrders();
     };
+
+    // [NEW] Xử lý tìm kiếm
+    const handleSearch = (value) => {
+        setKeyword(value);
+        // useEffect sẽ tự gọi lại fetchOrders khi keyword thay đổi
+    };
+
     // Handler cho Checkbox
     const handleCheckboxAll = (e) => {
         setIsAll(e.target.checked);
         if (e.target.checked) {
-            setStatusFilter('ALL'); // Reset filter status về ALL khi chọn xem tất cả
+            setStatusFilter('ALL');
         }
     };
     const handleOpenDrawer = (order) => {
@@ -83,6 +97,7 @@ const OrdersPage = () => {
         setDrawerVisible(false);
         setSelectedOrder(null);
     };
+
     // --- COMPONENT HIỂN THỊ THỜI GIAN GIAO (Logic 20 Phút) ---
     const DeliveryTimeCell = ({ status, shippedAt, completedAt }) => {
         const [now, setNow] = useState(dayjs());
@@ -100,7 +115,7 @@ const OrdersPage = () => {
         const diffMinutes = end.diff(start, 'minute');
         // Logic cảnh báo 20 phút
         const isOverdue = diffMinutes > 20;
-        // Nếu đã hoàn thành thì hiện màu xanh, nếu đang giao mà lố giờ thì hiện màu đỏ
+
         if (status === 'COMPLETED') {
             return <Tag color="success">{diffMinutes} phút</Tag>;
         }
@@ -108,99 +123,93 @@ const OrdersPage = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, justifyContent: 'center' }}>
                 {isOverdue ? (
                     <Tag color="#cf1322" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <WarningOutlined spin /> Quá thời gian ({diffMinutes}p)
+                        <WarningOutlined spin /> {diffMinutes} phút
                     </Tag>
                 ) : (
-                    <Tag color="processing">{diffMinutes} / 20 phút</Tag>
+                    <Tag color="processing">{diffMinutes}/20 phút</Tag>
                 )}
             </div>
         );
     };
+
     // Helper render trạng thái
     const renderStatusTag = (status) => {
         let color = 'default';
         let text = status;
         switch (status) {
             case 'PENDING': color = 'gold'; text = 'Chờ duyệt'; break;
-            case 'PREPARING': color = 'orange'; text = 'Đang chuẩn bị'; break;
+            case 'PREPARING': color = 'orange'; text = 'Chuẩn bị'; break;
             case 'SHIPPING': color = 'processing'; text = 'Đang giao'; break;
             case 'COMPLETED': color = 'success'; text = 'Hoàn thành'; break;
             case 'CANCELLED': color = 'error'; text = 'Đã hủy'; break;
-            case 'REFUNDED': color = 'purple'; text = 'Đã hoàn tiền'; break; // <--- THÊM MỚI
+            case 'REFUNDED': color = 'purple'; text = 'Hoàn tiền'; break;
             default: break;
         }
-        return <Tag color={color} style={{minWidth: 90, textAlign: 'center'}}>{text}</Tag>;
+        return <Tag color={color} style={{width: '100%', textAlign: 'center', margin: 0}}>{text}</Tag>;
     };
-    const formatDate = (dateStr) => dateStr ? dayjs(dateStr).format('DD/MM/YYYY HH:mm:ss') : '';
+
+    const formatDate = (dateStr) => dateStr ? dayjs(dateStr).format('DD/MM/YYYY HH:mm') : '';
     const formatCurrency = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
-    // --- ĐỊNH NGHĨA CỘT CHO BẢNG CHÍNH (Đã chỉnh width và layout) ---
+
+    // --- [NEW] CẤU HÌNH CỘT (DÙNG % ĐỂ VỪA KHÍT MÀN HÌNH) ---
     const columns = [
         {
-            title: 'Mã đơn', // Đổi tên tiêu đề cho phù hợp
-            dataIndex: 'orderNumber', // <--- SỬA: Lấy từ orderNumber thay vì id
-            key: 'orderNumber',
-            width: 140, // Tăng width lên xíu vì mã string dài hơn số
-            fixed: 'left',
-            align: 'center',
+            title: 'Mã đơn',
+            dataIndex: 'orderNumber',
+            width: '14%', // Dùng %
+            // Đã gộp ngày tạo vào cột này để tiết kiệm chỗ
             render: (text, record) => (
-                <a onClick={() => handleOpenDrawer(record)}>
-                    {/* Nếu orderNumber null thì fallback về id */}
-                    <b>{text || `#${record.id}`}</b>
-                </a>
+                <div style={{cursor: 'pointer'}} onClick={() => handleOpenDrawer(record)}>
+                    <div style={{fontWeight: 600, color: '#1677ff'}}>{text || `#${record.id}`}</div>
+                    <div style={{fontSize: 11, color: '#888'}}>{dayjs(record.createdAt).format('DD/MM HH:mm')}</div>
+                </div>
             ),
         },
-        {
-            title: 'Thời gian đặt',
-            dataIndex: 'createdAt',
-            key: 'createdAt',
-            width: 130,
-            render: (dateStr) => <div style={{fontSize: 12}}>{dayjs(dateStr).format('DD/MM/YY HH:mm')}</div>,
-        },
+        // Đã bỏ cột "Thời gian đặt" riêng lẻ
         {
             title: 'Khách hàng & Quán',
             key: 'customerRestaurant',
-            width: 220, // Tăng độ rộng
+            width: '26%',
             render: (_, record) => (
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <div>
-                        <Text strong>{record.customerName || 'Khách lẻ'}</Text>
+                        <UserOutlined style={{color: '#1677ff', marginRight: 4}} />
+                        <Text strong style={{fontSize: 13}}>{record.customerName || 'Khách lẻ'}</Text>
                         {record.customerPhone && (
-                            <span style={{ fontSize: 11, color: '#666', marginLeft: 6 }}>
-                                <PhoneOutlined /> {record.customerPhone}
+                            <span style={{ fontSize: 11, color: '#666', marginLeft: 4 }}>
+                                - {record.customerPhone}
                             </span>
                         )}
                     </div>
-                    <div style={{ marginTop: 4, borderTop: '1px dashed #eee', paddingTop: 4 }}>
-                        <Text type="secondary" style={{ fontSize: 12 }} ellipsis={{ tooltip: record.restaurantName }}>
-                            {record.restaurantName}
-                        </Text>
+                    <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <ShopOutlined style={{color: '#fa8c16', marginRight: 4}} />
+                        <Tooltip title={record.restaurantName}>
+                            <Text style={{ fontSize: 12 }}>{record.restaurantName}</Text>
+                        </Tooltip>
                     </div>
                 </div>
             ),
         },
-        // --- CỘT THÔNG TIN SHIPPER ---
         {
             title: 'Shipper',
             key: 'shipper',
-            width: 180,
+            width: '18%',
             render: (_, record) => record.shipperName ? (
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <Text strong style={{fontSize: 13}}>{record.shipperName}</Text>
-                    {record.shipperPhone ? (
+                <div>
+                    <div style={{fontSize: 13, fontWeight: 500}}>{record.shipperName}</div>
+                    {record.shipperPhone && (
                         <div style={{ fontSize: 11, color: '#1677ff' }}>
-                            <PhoneOutlined /> {record.shipperPhone}
+                            {record.shipperPhone}
                         </div>
-                    ) : (
-                        <Text type="secondary" style={{ fontSize: 11 }}>{record.shipperEmail}</Text>
                     )}
                 </div>
-            ) : <Text type="secondary" italic style={{fontSize: 12}}>Chưa nhận</Text>,
+            ) : <Text type="secondary" italic style={{fontSize: 11}}>Chưa nhận</Text>,
         },
         {
-            title: 'Thời gian giao hàng',
+            title: 'Thời gian giao',
             key: 'deliveryTime',
             align: 'center',
-            width: 160,
+            width: '12%',
             render: (_, record) => (
                 <DeliveryTimeCell
                     status={record.status}
@@ -210,37 +219,16 @@ const OrdersPage = () => {
             ),
         },
         {
-            title: 'Đánh giá',
-            key: 'rating',
-            width: 140,
-            align: 'center',
-            render: (_, record) => {
-                if (record.status !== 'COMPLETED') return <span style={{color: '#ccc'}}>-</span>;
-                if (!record.rating) return <span style={{color: '#999', fontSize: 11}}>Chưa đánh giá</span>;
-
-                return (
-                    <Tooltip title={record.comment || "Không có lời nhắn"}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <div style={{ whiteSpace: 'nowrap' }}>
-                                <Rate disabled defaultValue={record.rating} style={{ fontSize: 12 }} />
-                            </div>
-                            <div style={{fontSize: 10, color: '#888'}}>({record.rating} sao)</div>
-                        </div>
-                    </Tooltip>
-                );
-            }
-        },
-        {
             title: 'Tổng tiền',
             key: 'total',
-            width: 120,
+            width: '15%',
             align: 'right',
             render: (_, record) => (
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <Text strong style={{ color: '#cf1322' }}>
+                <div>
+                    <div style={{ color: '#cf1322', fontWeight: 600 }}>
                         {formatCurrency(record.totalAmount)}
-                    </Text>
-                    <Tag style={{ width: 'fit-content', marginTop: 4, fontSize: 10, alignSelf: 'flex-end' }}>
+                    </div>
+                    <Tag style={{ fontSize: 10, margin: 0, marginTop: 2 }}>
                         {record.paymentMethod}
                     </Tag>
                 </div>
@@ -250,17 +238,15 @@ const OrdersPage = () => {
             title: 'Trạng thái',
             dataIndex: 'status',
             key: 'status',
-            width: 120,
+            width: '10%',
             align: 'center',
-            fixed: 'right', // Cố định cột trạng thái
             render: (status) => renderStatusTag(status),
         },
         {
             title: '',
             key: 'action',
             align: 'center',
-            width: 60,
-            fixed: 'right',
+            width: '5%',
             render: (_, record) => (
                 <Button
                     type="text"
@@ -271,6 +257,7 @@ const OrdersPage = () => {
             ),
         },
     ];
+
     // --- ĐỊNH NGHĨA CỘT CHO BẢNG CHI TIẾT MÓN ĂN ---
     const itemColumns = [
         {
@@ -307,54 +294,67 @@ const OrdersPage = () => {
             render: (_, record) => formatCurrency(record.price * record.quantity)
         }
     ];
+
     return (
-        <div>
-            <Card bordered={false} bodyStyle={{ padding: '0 0 20px 0' }}>
-                <Title level={3} style={{ margin: 0 }}>QUẢN LÝ ĐƠN HÀNG</Title>
+        <div style={{ padding: 20 }}>
+            <Card bordered={false} bodyStyle={{ padding: '10px 24px' }}>
+                <Title level={4} style={{ margin: 0 }}>QUẢN LÝ ĐƠN HÀNG</Title>
             </Card>
-            <Card bordered={false}>
-                {/* --- THANH CÔNG CỤ BỘ LỌC --- */}
-                <div style={{ marginBottom: 24, display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center' }}>
-                    {/* Checkbox Hiện tất cả */}
-                    <Checkbox checked={isAll} onChange={handleCheckboxAll} style={{ fontWeight: 500 }}>
-                        Hiện tất cả
-                    </Checkbox>
-                    <div style={{ flex: 1, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                        <RangePicker
-                            style={{ width: 260 }}
-                            format="DD/MM/YYYY"
-                            value={dateRange}
-                            onChange={(dates) => setDateRange(dates)}
-                            allowClear={false}
-                            disabled={isAll} // Disable nếu chọn All
-                            ranges={{
-                                'Hôm nay': [dayjs().startOf('day'), dayjs().endOf('day')],
-                                'Tuần này': [dayjs().startOf('week'), dayjs().endOf('week')],
-                                'Tháng này': [dayjs().startOf('month'), dayjs().endOf('month')],
-                            }}
-                        />
-                        <Select
-                            defaultValue="ALL"
-                            style={{ width: 180 }}
-                            value={statusFilter}
-                            onChange={setStatusFilter}
-                        >
-                            <Option value="ALL">Tất cả trạng thái</Option>
-                            <Option value="PENDING">Chờ duyệt</Option>
-                            <Option value="PREPARING">Đang chuẩn bị</Option>
-                            <Option value="SHIPPING">Đang giao</Option>
-                            <Option value="COMPLETED">Hoàn thành</Option>
-                            <Option value="CANCELLED">Đã hủy</Option>
-                            <Option value="REFUNDED">Đã hoàn tiền</Option>
-                        </Select>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
+
+            <Card bordered={false} style={{marginTop: 16}}>
+                {/* --- [MODIFIED] THANH CÔNG CỤ BỘ LỌC --- */}
+                <div style={{ marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+
+                    {/* 1. Ô Tìm Kiếm */}
+                    <Input.Search
+                        placeholder="Tìm Mã đơn, Tên/SĐT Khách hoặc Quán..."
+                        allowClear
+                        enterButton
+                        onSearch={handleSearch}
+                        style={{ width: 320 }}
+                        onChange={(e) => {
+                            if (e.target.value === '') handleSearch('');
+                        }}
+                    />
+
+                    {/* 2. Chọn Ngày */}
+                    <RangePicker
+                        style={{ width: 240 }}
+                        format="DD/MM/YYYY"
+                        value={dateRange}
+                        onChange={(dates) => setDateRange(dates)}
+                        allowClear={false}
+                        disabled={isAll}
+                        placeholder={['Từ ngày', 'Đến ngày']}
+                    />
+
+                    {/* 3. Chọn Trạng Thái */}
+                    <Select
+                        defaultValue="ALL"
+                        style={{ width: 160 }}
+                        value={statusFilter}
+                        onChange={setStatusFilter}
+                    >
+                        <Option value="ALL">Tất cả trạng thái</Option>
+                        <Option value="PENDING">Chờ duyệt</Option>
+                        <Option value="PREPARING">Đang chuẩn bị</Option>
+                        <Option value="SHIPPING">Đang giao</Option>
+                        <Option value="COMPLETED">Hoàn thành</Option>
+                        <Option value="CANCELLED">Đã hủy</Option>
+                        <Option value="REFUNDED">Đã hoàn tiền</Option>
+                    </Select>
+
+                    {/* 4. Checkbox Tất cả */}
+                    <Checkbox checked={isAll} onChange={handleCheckboxAll}>Hiện tất cả các đơn hàng</Checkbox>
+
+                    <div style={{ flex: 1, textAlign: 'right' }}>
                         <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
                             Làm mới
                         </Button>
                     </div>
                 </div>
-                {/* --- BẢNG DỮ LIỆU CHÍNH --- */}
+
+                {/* --- [MODIFIED] BẢNG DỮ LIỆU CHÍNH --- */}
                 <Table
                     columns={columns}
                     dataSource={orders}
@@ -365,10 +365,11 @@ const OrdersPage = () => {
                         showSizeChanger: false,
                         showTotal: (total) => `Tổng ${total} đơn hàng`
                     }}
-                    scroll={{ x: 'max-content' }} // QUAN TRỌNG: Giúp bảng tự co giãn đẹp, không khoảng trống
-                    size="middle"
+                    size="small" // Dùng size nhỏ để gọn hơn
+                    // Đã bỏ scroll={{ x: 'max-content' }} để bảng tự co giãn full màn hình
                 />
             </Card>
+
             {/* --- DRAWER CHI TIẾT ĐƠN HÀNG --- */}
             <Drawer
                 title={selectedOrder ? `Chi tiết đơn hàng ${selectedOrder.orderNumber || '#' + selectedOrder.id}` : "Chi tiết"}

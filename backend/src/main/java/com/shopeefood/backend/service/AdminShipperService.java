@@ -94,6 +94,7 @@ public class AdminShipperService {
         return orders.stream().map(order -> {
             ShipperOrderHistoryDTO dto = new ShipperOrderHistoryDTO();
             dto.setOrderId(order.getId());
+            dto.setOrderNumber(order.getOrderNumber());
             dto.setShippedAt(order.getShippedAt());
             dto.setCompletedAt(order.getCompletedAt());
             dto.setShippingFee(order.getShippingFee());

@@ -40,11 +40,15 @@ public class AdminOrderService {
 
     // Hàm lấy danh sách đơn hàng (Sửa lại dùng Specification)
     @Transactional(readOnly = true)
-    public List<OrderDTO> getOrders(String status, LocalDate startDate, LocalDate endDate) {
+    public List<OrderDTO> getOrders(String keyword, String status, LocalDate startDate, LocalDate endDate) {
 
         // 1. Xử lý ngày tháng
         LocalDateTime startDateTime = (startDate != null) ? startDate.atStartOfDay() : null;
         LocalDateTime endDateTime = (endDate != null) ? endDate.atTime(LocalTime.MAX) : null;
+        // Xử lý keyword: nếu có thì thêm % để tìm kiếm gần đúng
+        String searchKey = (keyword != null && !keyword.trim().isEmpty())
+                ? "%" + keyword.trim().toLowerCase() + "%"
+                : null;
 
         // 2. Xử lý logic trạng thái
         List<String> targetStatuses;
@@ -57,7 +61,7 @@ public class AdminOrderService {
         }
 
         // 3. Gọi Query với danh sách trạng thái
-        List<Order> orders = orderRepository.findOrdersWithDetails(targetStatuses, startDateTime, endDateTime);
+        List<Order> orders = orderRepository.findOrdersWithDetails(searchKey, targetStatuses, startDateTime, endDateTime);
 
         // --- Các phần xử lý Feedback, Customer Name, Map DTO giữ nguyên như cũ ---
 
