@@ -36,17 +36,24 @@ const OrdersPage = () => {
         try {
             const params = {};
 
-            // Nếu tick "All", status = "ALL", ngày tháng = null (để BE lấy hết)
+            // 1. LUÔN LUÔN lấy status từ state người dùng chọn
+            params.status = statusFilter;
+
+            // 2. Xử lý thời gian
             if (isAll) {
-                params.status = "ALL";
-                // Không gửi startDate/endDate để backend hiểu là lấy toàn bộ lịch sử
+                // Nếu tick "Hiện tất cả" -> Gửi khoảng thời gian "từ cổ chí kim"
+                // Để Back-end trả về toàn bộ lịch sử
+                params.startDate = '2000-01-01';
+                params.endDate = dayjs().format('YYYY-MM-DD');
             } else {
-                params.status = statusFilter;
+                // Nếu không tick -> Lấy theo DatePicker
                 if (dateRange && dateRange[0] && dateRange[1]) {
                     params.startDate = dateRange[0].format('YYYY-MM-DD');
                     params.endDate = dateRange[1].format('YYYY-MM-DD');
                 }
             }
+
+            console.log("Params gửi đi:", params);
             const response = await axios.get(API_URL, { params });
             setOrders(response.data);
         } catch (error) {
@@ -54,7 +61,7 @@ const OrdersPage = () => {
         } finally {
             setLoading(false);
         }
-    }, [dateRange, statusFilter, isAll]);
+    }, [dateRange, statusFilter, isAll]); // Dependency giữ nguyên
     useEffect(() => {
         fetchOrders();
     }, [fetchOrders]);
@@ -119,6 +126,7 @@ const OrdersPage = () => {
             case 'SHIPPING': color = 'processing'; text = 'Đang giao'; break;
             case 'COMPLETED': color = 'success'; text = 'Hoàn thành'; break;
             case 'CANCELLED': color = 'error'; text = 'Đã hủy'; break;
+            case 'REFUNDED': color = 'purple'; text = 'Đã hoàn tiền'; break; // <--- THÊM MỚI
             default: break;
         }
         return <Tag color={color} style={{minWidth: 90, textAlign: 'center'}}>{text}</Tag>;
@@ -128,13 +136,18 @@ const OrdersPage = () => {
     // --- ĐỊNH NGHĨA CỘT CHO BẢNG CHÍNH (Đã chỉnh width và layout) ---
     const columns = [
         {
-            title: 'ID',
-            dataIndex: 'id',
-            key: 'id',
-            width: 70, // Fix width
-            fixed: 'left', // Cố định cột ID khi scroll ngang
+            title: 'Mã đơn', // Đổi tên tiêu đề cho phù hợp
+            dataIndex: 'orderNumber', // <--- SỬA: Lấy từ orderNumber thay vì id
+            key: 'orderNumber',
+            width: 140, // Tăng width lên xíu vì mã string dài hơn số
+            fixed: 'left',
             align: 'center',
-            render: (text, record) => <a onClick={() => handleOpenDrawer(record)}><b>#{text}</b></a>,
+            render: (text, record) => (
+                <a onClick={() => handleOpenDrawer(record)}>
+                    {/* Nếu orderNumber null thì fallback về id */}
+                    <b>{text || `#${record.id}`}</b>
+                </a>
+            ),
         },
         {
             title: 'Thời gian đặt',
@@ -325,7 +338,6 @@ const OrdersPage = () => {
                             style={{ width: 180 }}
                             value={statusFilter}
                             onChange={setStatusFilter}
-                            disabled={isAll} // Disable nếu chọn All
                         >
                             <Option value="ALL">Tất cả trạng thái</Option>
                             <Option value="PENDING">Chờ duyệt</Option>
@@ -333,6 +345,7 @@ const OrdersPage = () => {
                             <Option value="SHIPPING">Đang giao</Option>
                             <Option value="COMPLETED">Hoàn thành</Option>
                             <Option value="CANCELLED">Đã hủy</Option>
+                            <Option value="REFUNDED">Đã hoàn tiền</Option>
                         </Select>
                     </div>
                     <div style={{ textAlign: 'right' }}>
@@ -358,7 +371,7 @@ const OrdersPage = () => {
             </Card>
             {/* --- DRAWER CHI TIẾT ĐƠN HÀNG --- */}
             <Drawer
-                title={selectedOrder ? `Chi tiết đơn hàng #${selectedOrder.id}` : "Chi tiết"}
+                title={selectedOrder ? `Chi tiết đơn hàng ${selectedOrder.orderNumber || '#' + selectedOrder.id}` : "Chi tiết"}
                 placement="right"
                 width={650}
                 onClose={handleCloseDrawer}
@@ -433,11 +446,14 @@ const OrdersPage = () => {
                         {/* Lịch sử đơn hàng (Timeline) */}
                         <Divider orientation="left" style={{marginTop: 30}}>Lịch sử đơn hàng</Divider>
                         <Timeline style={{ marginTop: 20, paddingLeft: 20 }}>
+                            {/* 1. Lúc nào cũng có: Đặt hàng thành công */}
                             <Timeline.Item dot={<ClockCircleOutlined style={{fontSize: 16}} />} color="blue">
                                 <Text strong>Đặt hàng thành công</Text>
                                 <br />
                                 <Text type="secondary">{formatDate(selectedOrder.createdAt)}</Text>
                             </Timeline.Item>
+
+                            {/* 2. Nhà hàng nhận đơn */}
                             {selectedOrder.restaurantAcceptedAt && (
                                 <Timeline.Item color="orange">
                                     <Text strong>Nhà hàng đã nhận đơn</Text>
@@ -446,6 +462,7 @@ const OrdersPage = () => {
                                 </Timeline.Item>
                             )}
 
+                            {/* 3. Shipper nhận đơn */}
                             {selectedOrder.shippedAt && (
                                 <Timeline.Item color="blue">
                                     <Text strong>Shipper đã nhận & bắt đầu giao</Text>
@@ -454,19 +471,38 @@ const OrdersPage = () => {
                                 </Timeline.Item>
                             )}
 
-                            {selectedOrder.status === 'COMPLETED' && selectedOrder.completedAt && (
+                            {/* 4. Case: HOÀN THÀNH */}
+                            {selectedOrder.status === 'COMPLETED' && (
                                 <Timeline.Item dot={<CheckCircleOutlined style={{fontSize: 16}} />} color="green">
                                     <Text strong>Giao hàng thành công</Text>
                                     <br />
-                                    <Text type="secondary">{formatDate(selectedOrder.completedAt)}</Text>
+                                    <Text type="secondary">
+                                        {selectedOrder.completedAt ? formatDate(selectedOrder.completedAt) : ''}
+                                    </Text>
                                 </Timeline.Item>
                             )}
 
-                            {selectedOrder.status === 'CANCELLED' && selectedOrder.completedAt && (
+                            {/* 5. Case: ĐÃ HỦY (SỬA LẠI: Không bắt buộc completedAt phải có giá trị mới hiện) */}
+                            {selectedOrder.status === 'CANCELLED' && (
                                 <Timeline.Item dot={<CloseCircleOutlined style={{fontSize: 16}} />} color="red">
                                     <Text strong>Đơn hàng đã bị hủy</Text>
                                     <br />
-                                    <Text type="secondary">{formatDate(selectedOrder.completedAt)}</Text>
+                                    {selectedOrder.completedAt ? (
+                                        <Text type="secondary">{formatDate(selectedOrder.completedAt)}</Text>
+                                    ) : (
+                                        <Text type="secondary" italic>(Không có thời gian cụ thể)</Text>
+                                    )}
+                                </Timeline.Item>
+                            )}
+
+                            {/* 6. Case: ĐÃ HOÀN TIỀN (Thêm mới cho đủ bộ) */}
+                            {selectedOrder.status === 'REFUNDED' && (
+                                <Timeline.Item dot={<WarningOutlined style={{fontSize: 16}} />} color="purple">
+                                    <Text strong>Đơn hàng đã hoàn tiền</Text>
+                                    <br />
+                                    <Text type="secondary">
+                                        {selectedOrder.completedAt ? formatDate(selectedOrder.completedAt) : ''}
+                                    </Text>
                                 </Timeline.Item>
                             )}
                         </Timeline>

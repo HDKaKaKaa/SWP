@@ -179,19 +179,19 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
 
         // --- QUERY SỬA LỖI (ĐÃ BỎ JOIN FETCH c.account) ---
         @Query("SELECT DISTINCT o FROM Order o " +
-                        "LEFT JOIN FETCH o.customer c " +
-                        "LEFT JOIN FETCH o.restaurant r " +
-                        "LEFT JOIN FETCH o.shipper s " +
-                        "LEFT JOIN FETCH s.account " +
-                        "LEFT JOIN FETCH o.orderItems oi " +
-                        "WHERE (:status = 'ALL' OR o.status = :status) " +
-                        "AND (CAST(:startDate AS timestamp) IS NULL OR o.createdAt >= :startDate) " +
-                        "AND (CAST(:endDate AS timestamp) IS NULL OR o.createdAt <= :endDate) " +
-                        "ORDER BY o.createdAt DESC")
+                "LEFT JOIN FETCH o.customer c " +
+                "LEFT JOIN FETCH o.restaurant r " +
+                "LEFT JOIN FETCH o.shipper s " +
+                "LEFT JOIN FETCH s.account " +
+                "LEFT JOIN FETCH o.orderItems oi " +
+                "WHERE o.status IN :statuses " +
+                "AND (CAST(:startDate AS timestamp) IS NULL OR o.createdAt >= :startDate) " +
+                "AND (CAST(:endDate AS timestamp) IS NULL OR o.createdAt <= :endDate) " +
+                "ORDER BY o.createdAt DESC")
         List<Order> findOrdersWithDetails(
-                        @Param("status") String status,
-                        @Param("startDate") LocalDateTime startDate,
-                        @Param("endDate") LocalDateTime endDate);
+                @Param("statuses") List<String> statuses,
+                @Param("startDate") LocalDateTime startDate,
+                @Param("endDate") LocalDateTime endDate);
 
         @Query("SELECT o FROM Order o WHERE o.customer.id = :customerId " +
                         "AND o.status = 'COMPLETED' " +
