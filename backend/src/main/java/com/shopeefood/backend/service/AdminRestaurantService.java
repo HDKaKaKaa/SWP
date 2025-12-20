@@ -2,8 +2,10 @@ package com.shopeefood.backend.service;
 
 import com.shopeefood.backend.dto.ProductDTO;
 import com.shopeefood.backend.dto.RestaurantDTO;
+import com.shopeefood.backend.entity.Account;
 import com.shopeefood.backend.entity.Product;
 import com.shopeefood.backend.entity.Restaurant;
+import com.shopeefood.backend.repository.AccountRepository;
 import com.shopeefood.backend.repository.OrderRepository;
 import com.shopeefood.backend.repository.ProductRepository;
 import com.shopeefood.backend.repository.RestaurantRepository;
@@ -26,6 +28,8 @@ public class AdminRestaurantService {
     private OrderRepository orderRepository; // <--- Inject thêm cái này
     @Autowired
     private ProductRepository productRepository;
+    @Autowired
+    private AccountRepository accountRepository;
 
 
     // 1. Lấy danh sách quán đang chờ duyệt (PENDING)
@@ -73,6 +77,15 @@ public class AdminRestaurantService {
         }
 
         restaurantRepository.save(restaurant);
+        // Nếu duyệt, cập nhật role của chủ quán thành "OWNER" (nếu chưa phải)
+        if (isApproved && restaurant.getOwner() != null && restaurant.getOwner().getAccount() != null) {
+            Account acc = restaurant.getOwner().getAccount();
+            String role = acc.getRole() == null ? "" : acc.getRole().toUpperCase();
+            if (!"OWNER".equals(role)) {
+                acc.setRole("OWNER");
+                accountRepository.save(acc);
+            }
+        }
 
     }
 
