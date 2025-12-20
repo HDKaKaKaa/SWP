@@ -11,14 +11,14 @@ import {
     Space,
     message,
     Divider,
-    Tag,
+    Tag, Modal,
 } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 
 import { useAuth } from '../context/AuthContext';
 import { getCustomerOrders } from '../services/orderService';
 import { uploadImage } from '../services/categoryService';
-import { createIssue, addIssueAttachment } from '../services/issueService';
+import { createIssue } from '../services/issueService';
 
 import '../css/CustomerIssueCreate.css';
 
@@ -26,68 +26,67 @@ const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 const TARGET_OPTIONS = [
-    { value: 'SYSTEM', label: 'Hỗ trợ hệ thống / Báo lỗi' },
-    { value: 'RESTAURANT', label: 'Khiếu nại Quán ăn' },
-    { value: 'SHIPPER', label: 'Khiếu nại Shipper' },
-    { value: 'ORDER', label: 'Vấn đề đơn hàng' },
-    { value: 'OTHER', label: 'Khác (Other)' },
+    { value: 'SYSTEM', label: 'Hệ thống' },
+    { value: 'RESTAURANT', label: 'Quán ăn' },
+    { value: 'SHIPPER', label: 'Shipper' },
+    { value: 'ORDER', label: 'Đơn hàng' },
+    { value: 'OTHER', label: 'Khác' },
 ];
 
 const CATEGORY_BY_TARGET = {
     SYSTEM: [
-        { value: 'APP_BUG', label: 'Lỗi website' },
-        { value: 'PAYMENT_PROBLEM', label: 'Vấn đề thanh toán' },
         { value: 'ACCOUNT_PROBLEM', label: 'Vấn đề tài khoản' },
-        { value: 'PROMOTION_PROBLEM', label: 'Vấn đề khuyến mãi' },
-        { value: 'OTHER', label: 'Khác (Other)' },
+        { value: 'PAYMENT_PROBLEM', label: 'Vấn đề thanh toán' },
+        { value: 'APP_BUG', label: 'Lỗi website' },
+        { value: 'OTHER', label: 'Khác' },
     ],
     RESTAURANT: [
         { value: 'FOOD_QUALITY', label: 'Chất lượng món ăn' },
         { value: 'MISSING_ITEM', label: 'Thiếu món' },
         { value: 'WRONG_ITEM', label: 'Sai món' },
-        { value: 'DAMAGED', label: 'Hư hỏng/đổ vỡ' },
-        { value: 'OTHER', label: 'Khác (Other)' },
+        { value: 'DAMAGED', label: 'Hư hỏng hoặc đổ vỡ' },
+        { value: 'OTHER', label: 'Khác' },
     ],
     SHIPPER: [
         { value: 'LATE_DELIVERY', label: 'Giao trễ' },
         { value: 'SHIPPER_BEHAVIOR', label: 'Thái độ shipper' },
-        { value: 'DAMAGED', label: 'Hư hỏng/đổ vỡ trong quá trình giao' },
-        { value: 'OTHER', label: 'Khác (Other)' },
+        { value: 'DAMAGED', label: 'Hư hỏng hoặc đổ vỡ khi giao' },
+        { value: 'OTHER', label: 'Khác' },
     ],
     ORDER: [
-        { value: 'ORDER_STATUS_WRONG', label: 'Trạng thái đơn sai' },
+        { value: 'ORDER_STATUS_WRONG', label: 'Trạng thái đơn không đúng' },
         { value: 'CANNOT_CONTACT', label: 'Không liên hệ được' },
-        { value: 'DELIVERY_PROBLEM', label: 'Vấn đề giao nhận (khác)' },
-        { value: 'OTHER', label: 'Khác (Other)' },
+        { value: 'DELIVERY_PROBLEM', label: 'Vấn đề giao nhận khác' },
+        { value: 'OTHER', label: 'Khác' },
     ],
-    OTHER: [
-        { value: 'OTHER', label: 'Khác (Other)' },
-    ],
+    OTHER: [{ value: 'OTHER', label: 'Khác' }],
 };
 
-const mapCategoryToDb = (uiCategory, targetType) => {
-    if (!uiCategory) return 'OTHER';
+const mapSubCategoryToDbCategory = (targetType, uiCategory) => {
+    const tt = String(targetType || '').toUpperCase();
+    const uc = String(uiCategory || '').toUpperCase();
 
-    // giữ OTHER
-    if (uiCategory === 'OTHER') return 'OTHER';
+    if (tt === 'SYSTEM') return 'SYSTEM';
+    if (tt === 'OTHER') return 'OTHER';
 
-    // SHIPPER
-    if (uiCategory === 'SHIPPER_BEHAVIOR') return 'SHIPPER_BEHAVIOR';
-    if (uiCategory === 'LATE_DELIVERY') return 'DELIVERY';
+    if (tt === 'RESTAURANT') {
+        if (uc === 'FOOD_QUALITY') return 'FOOD';
+        if (['MISSING_ITEM', 'WRONG_ITEM', 'DAMAGED'].includes(uc)) return 'ITEM';
+        // "Khác" trong nhóm quán/món ăn vẫn cho OWNER xử lý
+        if (uc === 'OTHER') return 'RESTAURANT';
+        return 'RESTAURANT';
+    }
 
-    // RESTAURANT
-    if (uiCategory === 'FOOD_QUALITY') return 'FOOD';
-    if (uiCategory === 'MISSING_ITEM' || uiCategory === 'WRONG_ITEM') return 'ITEM';
-
-    // ORDER/DELIVERY
-    if (uiCategory === 'DAMAGED') return targetType === 'RESTAURANT' ? 'ITEM' : 'DELIVERY';
-    if (uiCategory === 'ORDER_STATUS_WRONG' || uiCategory === 'CANNOT_CONTACT' || uiCategory === 'DELIVERY_PROBLEM')
+    if (tt === 'SHIPPER') {
+        if (uc === 'SHIPPER_BEHAVIOR') return 'SHIPPER_BEHAVIOR';
         return 'DELIVERY';
+    }
 
-    // SYSTEM
-    if (targetType === 'SYSTEM') return 'SYSTEM';
+    if (tt === 'ORDER') {
+        return 'DELIVERY';
+    }
 
-    return 'OTHER';
+    return uc || 'OTHER';
 };
 
 const CustomerIssueCreate = () => {
@@ -103,7 +102,22 @@ const CustomerIssueCreate = () => {
     const [fileList, setFileList] = useState([]);
     const [attachmentUrls, setAttachmentUrls] = useState([]);
 
-    // watch values (phải khai báo trước khi dùng trong useMemo/useEffect)
+    const [previewOpen, setPreviewOpen] = useState(false);
+    const [previewImage, setPreviewImage] = useState('');
+    const [previewTitle, setPreviewTitle] = useState('');
+
+    const handlePreview = async (file) => {
+        const url = file.url || file.thumbUrl || file?.response?.url;
+        if (url) {
+            setPreviewImage(url);
+            setPreviewOpen(true);
+            setPreviewTitle(file.name || 'Ảnh minh chứng');
+            return;
+        }
+        message.warning('Không thể preview ảnh này.');
+    };
+
+    // watch values
     const selectedTargetType = Form.useWatch('targetType', form);
     const selectedOrderId = Form.useWatch('orderId', form);
     const selectedCategory = Form.useWatch('category', form);
@@ -152,9 +166,8 @@ const CustomerIssueCreate = () => {
         return (orders || []).find((o) => o.id === selectedOrderId) || null;
     }, [orders, selectedOrderId]);
 
-    // Khi đổi targetType: reset các field phụ thuộc + ẩn order nếu không cần
+    // Khi đổi targetType: reset các field phụ thuộc
     useEffect(() => {
-        // reset category khi đổi target để tránh category "lạc quẻ"
         form.setFieldsValue({
             category: undefined,
             otherCategory: undefined,
@@ -163,23 +176,29 @@ const CustomerIssueCreate = () => {
             orderId: needsOrder ? form.getFieldValue('orderId') : undefined,
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedTargetType]); // dùng selectedTargetType thôi để tránh loop
+    }, [selectedTargetType]);
 
     useEffect(() => {
         if (selectedTargetType === 'OTHER') {
             form.setFieldsValue({
                 category: 'OTHER',
-                otherCategory: undefined,
                 targetNote: undefined,
                 orderId: undefined,
                 targetId: undefined,
+            });
+        }
+        if (selectedTargetType === 'SYSTEM') {
+            form.setFieldsValue({
+                category: form.getFieldValue('category') || 'ACCOUNT_PROBLEM',
+                targetId: undefined,
+                targetNote: undefined,
+                orderId: undefined,
             });
         }
     }, [selectedTargetType, form]);
 
     // Auto-fill targetId theo targetType khi có order
     useEffect(() => {
-        // nếu không cần order => targetId luôn null
         if (!needsOrder) {
             form.setFieldsValue({ targetId: null });
             return;
@@ -231,9 +250,31 @@ const CustomerIssueCreate = () => {
         try {
             setUploading(true);
             const url = await uploadImage(file);
+
+            // lưu url để submit
             setAttachmentUrls((prev) => [...prev, url]);
+
+            // gắn url vào fileList để antd preview được
+            setFileList((prev) =>
+                prev.map((f) => {
+                    if (f.uid === file.uid) {
+                        return {
+                            ...f,
+                            status: 'done',
+                            url,       // preview sẽ dùng url này
+                            thumbUrl: url,
+                            response: { url },
+                        };
+                    }
+                    return f;
+                })
+            );
+
             onSuccess?.({ url });
         } catch (error) {
+            setFileList((prev) =>
+                prev.map((f) => (f.uid === file.uid ? { ...f, status: 'error' } : f))
+            );
             onError?.(error);
             message.error('Upload ảnh thất bại.');
         } finally {
@@ -256,13 +297,11 @@ const CustomerIssueCreate = () => {
             return;
         }
 
-        // nếu needsOrder thì bắt buộc orderId
         if (needsOrder && !values.orderId) {
             message.error('Vui lòng chọn đơn hàng.');
             return;
         }
 
-        //  nếu khiếu nại shipper thì order phải có shipperId
         if (values.targetType === 'SHIPPER' && needsOrder) {
             const shipperFromOrder =
                 selectedOrder?.shipperId ??
@@ -272,54 +311,68 @@ const CustomerIssueCreate = () => {
                 null;
 
             if (!shipperFromOrder) {
-                console.log('shipperFromOrder', shipperFromOrder);
                 message.error('Đơn hàng này chưa có shipper, không thể khiếu nại shipper.');
                 return;
             }
         }
 
-        //  OTHER validation
-        if (values.targetType !== 'OTHER') {
-            if (values.category === 'OTHER' && !(values.otherCategory || '').trim()) {
-                message.error('Vui lòng nhập danh mục khác (Other).');
-                return;
-            }
+        // Xác định uiCategory 1 lần DUY NHẤT
+        const uiCategory =
+            String(values.targetType || '').toUpperCase() === 'OTHER'
+                ? 'OTHER'
+                : (values.category || '');
+
+        // Chỉ bắt buộc chọn danh mục khi KHÔNG phải OTHER
+        if (String(values.targetType || '').toUpperCase() !== 'OTHER' && !uiCategory) {
+            message.error('Vui lòng chọn danh mục.');
+            return;
+        }
+
+        // OTHER => bắt buộc nhập otherCategory (đúng theo BE)
+        if (String(uiCategory || '').toUpperCase() === 'OTHER' && !(values.otherCategory || '').trim()) {
+            message.error('Vui lòng nhập danh mục khác.');
+            return;
+        }
+
+        // FE validate ảnh minh chứng: chỉ bắt buộc cho RESTAURANT (khớp BE)
+        const mustHaveAttachment = String(values.targetType || '').toUpperCase() === 'RESTAURANT';
+        if (mustHaveAttachment && attachmentUrls.length === 0) {
+            message.error('Vui lòng upload ít nhất 1 ảnh minh chứng.');
+            return;
         }
 
         try {
             setSubmitting(true);
 
-            const dbCategory = mapCategoryToDb(values.category, values.targetType);
+            const dbCategory = mapSubCategoryToDbCategory(values.targetType, uiCategory);
+
+            const dbOtherCategory =
+                String(uiCategory || '').toUpperCase() === 'OTHER'
+                    ? (values.otherCategory || '').trim()
+                    : (uiCategory || null);
 
             const payload = {
                 accountId: user.id,
                 orderId: needsOrder ? values.orderId : null,
 
                 targetType: values.targetType,
-                targetId: (needsOrder && values.targetType !== 'OTHER') ? (values.targetId || null) : null,
+                targetId: needsOrder ? (values.targetId ?? null) : null,
                 targetNote: null,
 
-                category:
-                    values.targetType === 'SYSTEM'
-                        ? 'SYSTEM'
-                        : (values.targetType === 'OTHER' ? 'OTHER' : dbCategory),
-                otherCategory:
-                    (dbCategory === 'OTHER' && values.category === 'OTHER' && values.targetType !== 'OTHER')
-                        ? (values.otherCategory || '').trim()
-                        : null,
+                category: dbCategory,
+                otherCategory: dbOtherCategory,
 
                 title: values.title?.trim(),
                 description: values.description?.trim(),
             };
 
-            const created = await createIssue({
+            await createIssue({
                 ...payload,
                 attachments: attachmentUrls.map((url) => ({
                     attachmentUrl: url,
                     content: 'Bằng chứng',
                 })),
             });
-
 
             message.success('Đã gửi yêu cầu hỗ trợ/khiếu nại.');
             navigate('/support');
@@ -341,13 +394,6 @@ const CustomerIssueCreate = () => {
             <Card className="issue-create-card">
                 <div className="issue-create-header">
                     <Title level={3} className="issue-create-title">Yêu cầu hỗ trợ / Khiếu nại</Title>
-                    <Text type="secondary">
-                        {needsOrder ? (
-                            <>Bạn chỉ có thể tạo khiếu nại cho đơn hàng <Tag color="green">COMPLETED</Tag>.</>
-                        ) : (
-                            <>Gửi yêu cầu hỗ trợ hệ thống không cần chọn đơn hàng.</>
-                        )}
-                    </Text>
                 </div>
 
                 <Divider />
@@ -357,10 +403,10 @@ const CustomerIssueCreate = () => {
                     layout="vertical"
                     onFinish={onSubmit}
                     initialValues={{
-                        targetType: 'SYSTEM', // chọn đối tượng trước
+                        targetType: 'SYSTEM',
+                        category: 'ACCOUNT_PROBLEM',
                     }}
                 >
-                    {/* 1) Chọn đối tượng trước */}
                     <Form.Item
                         label="Bạn muốn hỗ trợ / khiếu nại về"
                         name="targetType"
@@ -369,11 +415,10 @@ const CustomerIssueCreate = () => {
                         <Select options={TARGET_OPTIONS} />
                     </Form.Item>
 
-                    {/* 2) Chỉ hiện chọn order khi needsOrder */}
                     {needsOrder && (
                         <>
                             <Form.Item
-                                label="Chọn đơn hàng (COMPLETED)"
+                                label="Chọn đơn hàng"
                                 name="orderId"
                                 rules={[{ required: true, message: 'Vui lòng chọn đơn hàng' }]}
                             >
@@ -397,7 +442,6 @@ const CustomerIssueCreate = () => {
                         </>
                     )}
 
-                    {/* 3) Category filter theo targetType */}
                     {selectedTargetType !== 'OTHER' && (
                         <div className="issue-create-grid">
                             <Form.Item
@@ -418,9 +462,9 @@ const CustomerIssueCreate = () => {
                         </div>
                     )}
 
-                    {selectedCategory === 'OTHER' && selectedTargetType !== 'OTHER' && (
+                    {(selectedTargetType === 'OTHER' || selectedCategory === 'OTHER') && (
                         <Form.Item
-                            label="Danh mục khác (Other)"
+                            label={selectedTargetType === 'OTHER' ? 'Bạn muốn hỗ trợ về vấn đề gì' : 'Danh mục khác'}
                             name="otherCategory"
                             rules={[{ required: true, message: 'Vui lòng nhập danh mục khác' }]}
                         >
@@ -445,17 +489,32 @@ const CustomerIssueCreate = () => {
                         name="description"
                         rules={[{ required: true, message: 'Vui lòng nhập mô tả' }]}
                     >
-                        <TextArea rows={5} placeholder="Mô tả rõ vấn đề để được hỗ trợ nhanh hơn" maxLength={1000} showCount />
+                        <TextArea
+                            rows={5}
+                            autoSize={{ minRows: 5}}
+                            placeholder="Mô tả rõ vấn đề để được hỗ trợ nhanh hơn"
+                            maxLength={1000}
+                            showCount
+                        />
                     </Form.Item>
 
                     <Form.Item label="Ảnh minh chứng (tối đa 3 ảnh, < 5MB/ảnh)">
                         <Upload.Dragger
                             multiple
                             maxCount={3}
+                            listType="picture-card"
+                            onPreview={handlePreview}
                             fileList={fileList}
                             beforeUpload={beforeUpload}
                             customRequest={handleCustomUpload}
-                            onChange={({ fileList: fl }) => setFileList(fl)}
+                            onChange={({ fileList: fl }) => {
+                                setFileList((prev) =>
+                                    fl.map((f) => {
+                                        const old = prev.find((x) => x.uid === f.uid);
+                                        return old ? { ...f, url: f.url || old.url, thumbUrl: f.thumbUrl || old.thumbUrl, response: f.response || old.response } : f;
+                                    })
+                                );
+                            }}
                             onRemove={handleRemoveFile}
                             accept="image/*"
                             className="issue-create-uploader"
@@ -464,16 +523,18 @@ const CustomerIssueCreate = () => {
                                 <InboxOutlined />
                             </p>
                             <p className="ant-upload-text">Kéo thả ảnh vào đây hoặc click để chọn ảnh</p>
-                            <p className="ant-upload-hint">
-                                Ảnh sẽ được upload lên Cloudinary (thông qua API /api/upload/image).
-                            </p>
                         </Upload.Dragger>
                     </Form.Item>
+                    <Modal
+                        open={previewOpen}
+                        title={previewTitle}
+                        footer={null}
+                        onCancel={() => setPreviewOpen(false)}
+                    >
+                        <img alt="preview" style={{ width: '100%' }} src={previewImage} />
+                    </Modal>
 
                     <Space className="issue-create-actions">
-                        <Button onClick={() => navigate('/support')} disabled={submitting || uploading}>
-                            Xem lịch sử
-                        </Button>
                         <Button type="primary" htmlType="submit" loading={submitting} disabled={uploading}>
                             Gửi yêu cầu
                         </Button>
@@ -481,6 +542,7 @@ const CustomerIssueCreate = () => {
                 </Form>
             </Card>
         </div>
+
     );
 };
 

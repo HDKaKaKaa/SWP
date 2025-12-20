@@ -25,6 +25,81 @@ import '../css/CustomerIssueHistory.css';
 
 const { Title, Text } = Typography;
 
+const TARGET_LABEL = {
+    SYSTEM: 'Hệ thống',
+    RESTAURANT: 'Quán ăn',
+    SHIPPER: 'Shipper',
+    ORDER: 'Đơn hàng',
+    OTHER: 'Khác',
+};
+
+// DB group fallback
+const BASE_CATEGORY_LABEL = {
+    SYSTEM: 'Hệ thống',
+    DELIVERY: 'Giao hàng',
+    SHIPPER_BEHAVIOR: 'Thái độ shipper',
+    FOOD: 'Chất lượng món ăn',
+    ITEM: 'Vấn đề món ăn',
+    RESTAURANT: 'Vấn đề quán',
+    MIXED: 'Nhiều vấn đề',
+    OTHER: 'Khác',
+};
+
+// sub-code (otherCategory)
+const SUBCATEGORY_LABEL = {
+    // SYSTEM
+    ACCOUNT_PROBLEM: 'Vấn đề tài khoản',
+    PAYMENT_PROBLEM: 'Vấn đề thanh toán',
+    APP_BUG: 'Lỗi ứng dụng hoặc website',
+    PROMOTION_PROBLEM: 'Khuyến mãi và ưu đãi',
+
+    // RESTAURANT
+    FOOD_QUALITY: 'Chất lượng món ăn',
+    MISSING_ITEM: 'Thiếu món',
+    WRONG_ITEM: 'Sai món',
+    DAMAGED: 'Hư hỏng hoặc đổ vỡ',
+
+    // SHIPPER / ORDER
+    LATE_DELIVERY: 'Giao trễ',
+    SHIPPER_BEHAVIOR: 'Thái độ shipper',
+    ORDER_STATUS_WRONG: 'Trạng thái đơn không đúng',
+    CANNOT_CONTACT: 'Không liên hệ được',
+    DELIVERY_PROBLEM: 'Vấn đề giao nhận khác',
+};
+
+const toCategoryText = (cat, otherCategory) => {
+    const c = String(cat || '').toUpperCase();
+    const oc = String(otherCategory || '').trim();
+
+    if (oc && SUBCATEGORY_LABEL[oc]) return SUBCATEGORY_LABEL[oc];
+    if (c === 'OTHER' && oc) return `Khác: ${oc}`;
+    return BASE_CATEGORY_LABEL[c] || cat || '—';
+};
+
+const toTargetText = (t) => TARGET_LABEL[String(t || '').toUpperCase()] || t || '—';
+
+const STATUS_LABEL = {
+    OPEN: 'Mới tạo',
+    NEED_ADMIN_ACTION: 'Cần Admin',
+    NEED_OWNER_ACTION: 'Cần Owner',
+    NEED_SHIPPER_RESPONSE: 'Chờ Shipper',
+    IN_PROGRESS: 'Đang xử lý',
+    RESOLVED: 'Đã giải quyết',
+    CLOSED: 'Đã đóng',
+    REJECTED: 'Từ chối',
+};
+
+const eventTypeLabel = (t) => {
+    const s = String(t || '').toUpperCase();
+    if (s === 'NOTE') return 'Ghi chú';
+    if (s === 'MESSAGE') return 'Tin nhắn';
+    if (s === 'ATTACHMENT') return 'Đính kèm';
+    if (s === 'STATUS_CHANGE') return 'Cập nhật trạng thái';
+    if (s === 'ADMIN_CREDIT') return 'Admin hoàn tiền';
+    if (s === 'OWNER_REFUND') return 'Owner hoàn tiền';
+    return s || 'EVENT';
+};
+
 const statusTag = (st) => {
     const s = (st || '').toUpperCase();
     if (s === 'OPEN') return <Tag color="processing">Đang xử lý</Tag>;
@@ -37,12 +112,12 @@ const statusTag = (st) => {
 
 const targetTag = (t) => {
     const s = (t || '').toUpperCase();
-    if (s === 'SYSTEM') return <Tag color="red">Hệ thống</Tag>
-    if (s === 'SHIPPER') return <Tag color="blue">Shipper</Tag>;
-    if (s === 'RESTAURANT') return <Tag color="geekblue">Quán</Tag>;
-    if (s === 'ORDER') return <Tag color="purple">Đơn hàng</Tag>;
-    if (s === 'OTHER') return <Tag color="default">Other</Tag>;
-    return <Tag>{t || '—'}</Tag>;
+    if (s === 'SYSTEM') return <Tag color="red">{toTargetText(s)}</Tag>;
+    if (s === 'SHIPPER') return <Tag color="blue">{toTargetText(s)}</Tag>;
+    if (s === 'RESTAURANT') return <Tag color="geekblue">{toTargetText(s)}</Tag>;
+    if (s === 'ORDER') return <Tag color="purple">{toTargetText(s)}</Tag>;
+    if (s === 'OTHER') return <Tag color="default">{toTargetText(s)}</Tag>;
+    return <Tag>{toTargetText(t)}</Tag>;
 };
 
 const fmtDate = (d) => (d ? dayjs(d).format('DD/MM/YYYY HH:mm') : '—');
@@ -59,6 +134,7 @@ const CustomerIssuesHistory = () => {
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailIssue, setDetailIssue] = useState(null);
     const [detailEvents, setDetailEvents] = useState([]);
+    const [detailOrderSummary, setDetailOrderSummary] = useState(null);
 
     const fetchIssues = async () => {
         if (!user?.id) return;
@@ -87,24 +163,31 @@ const CustomerIssuesHistory = () => {
             const code = (it.code || '').toLowerCase();
             const title = (it.title || '').toLowerCase();
             const category = (it.category || '').toLowerCase();
+            const orderNumber = (it.orderNumber || '').toLowerCase();
             const orderId = (it.orderId != null ? String(it.orderId) : '').toLowerCase();
-            return code.includes(s) || title.includes(s) || category.includes(s) || orderId.includes(s);
+            return code.includes(s) || title.includes(s) || category.includes(s) || orderNumber.includes(s) || orderId.includes(s);
         });
     }, [issues, q]);
 
     const openDetail = async (issue) => {
         if (!user?.id) return;
+
         try {
             setDetailOpen(true);
             setDetailLoading(true);
+
             const data = await getIssueDetail(issue.id, user.id);
 
-            // Backend returns { issue, events }
+            // Backend returns { issue, events, orderSummary }
             const issueObj = data?.issue || data?.data?.issue || data;
             const eventsArr = data?.events || data?.issueEvents || data?.data?.events || [];
 
+            // SYSTEM/OTHER sẽ là null, vẫn OK
+            const os = data?.orderSummary || data?.data?.orderSummary || null;
+
             setDetailIssue(issueObj);
             setDetailEvents(Array.isArray(eventsArr) ? eventsArr : []);
+            setDetailOrderSummary(os);
         } catch (e) {
             console.error(e);
             message.error('Không thể tải chi tiết yêu cầu.');
@@ -127,14 +210,6 @@ const CustomerIssuesHistory = () => {
             ),
         },
         {
-            title: 'Đơn',
-            dataIndex: 'orderId',
-            key: 'orderId',
-            width: 90,
-            align: 'center',
-            render: (v) => <Text>#{v}</Text>,
-        },
-        {
             title: 'Đối tượng',
             dataIndex: 'targetType',
             key: 'targetType',
@@ -145,10 +220,10 @@ const CustomerIssuesHistory = () => {
             title: 'Danh mục',
             dataIndex: 'category',
             key: 'category',
-            width: 170,
-            render: (v, r) => (
+            width: 220,
+            render: (_, r) => (
                 <div className="issue-category-cell">
-                    <Text>{v === 'OTHER' ? (r.otherCategory || 'OTHER') : (v || '—')}</Text>
+                    <Text>{toCategoryText(r.category, r.otherCategory)}</Text>
                 </div>
             ),
         },
@@ -233,8 +308,8 @@ const CustomerIssuesHistory = () => {
             </Card>
 
             <Modal
-                bodyStyle={{ maxHeight: '70vh', overflowY: 'auto' }}
                 open={detailOpen}
+                className="issue-detail-modal"
                 title={detailIssue?.code || (detailIssue ? `Issue #${detailIssue.id}` : 'Chi tiết yêu cầu')}
                 onCancel={() => setDetailOpen(false)}
                 footer={null}
@@ -248,7 +323,11 @@ const CustomerIssuesHistory = () => {
                             <Descriptions bordered size="small" column={2}>
                                 <Descriptions.Item label="Trạng thái">{statusTag(detailIssue?.status)}</Descriptions.Item>
                                 <Descriptions.Item label="Đối tượng">{targetTag(detailIssue?.targetType)}</Descriptions.Item>
-                                <Descriptions.Item label="Đơn hàng">#{detailIssue?.orderId}</Descriptions.Item>
+                                <Descriptions.Item label="Đơn hàng">
+                                    {detailOrderSummary?.orderNumber
+                                        ? detailOrderSummary.orderNumber
+                                        : (detailIssue?.orderNumber || (detailIssue?.orderId ? `#${detailIssue.orderId}` : '—'))}
+                                </Descriptions.Item>
                                 <Descriptions.Item label="Danh mục">
                                     {detailIssue?.category === 'OTHER'
                                         ? (detailIssue?.otherCategory || 'OTHER')
@@ -278,14 +357,18 @@ const CustomerIssuesHistory = () => {
                                     children: (
                                         <div className="issue-timeline-item">
                                             <div className="issue-timeline-top">
-                                                <Text strong>{(ev.eventType || '').toUpperCase()}</Text>
+                                                <Text strong>{eventTypeLabel(ev.eventType)}</Text>
                                                 <Text type="secondary">{fmtDate(ev.createdAt)}</Text>
                                             </div>
                                             <Text>{ev.content || ''}</Text>
                                             {(ev.oldValue || ev.newValue) && (
                                                 <div className="issue-timeline-change">
-                                                    <Tag>old: {ev.oldValue || '—'}</Tag>
-                                                    <Tag>new: {ev.newValue || '—'}</Tag>
+                                                    <Tag>
+                                                        old: {STATUS_LABEL[ev.oldValue] || toCategoryText(ev.oldValue, null) || ev.oldValue || '—'}
+                                                    </Tag>
+                                                    <Tag>
+                                                        new: {STATUS_LABEL[ev.newValue] || toCategoryText(ev.newValue, null) || ev.newValue || '—'}
+                                                    </Tag>
                                                 </div>
                                             )}
                                         </div>

@@ -12,6 +12,7 @@ import {
   DashOutlined,
   ShoppingCartOutlined,
   SaveOutlined,
+  CustomerServiceOutlined,
 } from '@ant-design/icons';
 
 const Header = () => {
@@ -71,18 +72,9 @@ const Header = () => {
       type: 'divider',
     },
     {
-      key: 'support',
-      label: 'Yêu cầu hỗ trợ / Khiếu nại',
-      icon: <ProfileOutlined />,
-      onClick: () => navigate('/support/new'),
-    },
-    {
-      type: 'divider',
-    },
-    {
-      key: 'support-history',
-      label: 'Lịch sử yêu cầu hỗ trợ',
-      icon: <ShoppingCartOutlined />,
+      key: 'support-center',
+      label: 'Hỗ trợ / Khiếu nại',
+      icon: <CustomerServiceOutlined />,
       onClick: () => navigate('/support'),
     },
     {
