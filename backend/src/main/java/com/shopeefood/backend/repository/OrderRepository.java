@@ -80,22 +80,18 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
 
         // Tìm đơn theo mã đơn/ngày tạo đơn, trạng thái, nhà hàng,...
         @Query("SELECT o FROM Order o " +
-                        "JOIN o.customer acc " + // Join với Account để lấy phone
-                        "JOIN Customer c ON acc.id = c.accountId " + // Join với Customer để lấy fullName
+                        "LEFT JOIN o.customer c " +
+                        "LEFT JOIN c.customerProfile cp " +
                         "WHERE o.restaurant.owner.id = :ownerId " +
                         "AND (:restaurantId IS NULL OR o.restaurant.id = :restaurantId) " +
                         "AND (o.status IN :statusList) " +
-                        "AND (" +
-                        ":searchPattern IS NULL OR " +
-                        "LOWER(o.orderNumber) LIKE :searchPattern OR " + // Mã đơn hàng
-                        "LOWER(c.fullName) LIKE :searchPattern OR " + // Tên khách hàng
-                        "LOWER(acc.phone) LIKE :searchPattern OR " + // Số điện thoại
-                        "LOWER(o.status) LIKE :searchPattern OR " + // Trạng thái
-                        "LOWER(o.note) LIKE :searchPattern" + // Ghi chú
-                        ") " +
+                        "AND (:searchPattern IS NULL OR " +
+                        "     LOWER(o.orderNumber) LIKE :searchPattern OR " +
+                        "     LOWER(cp.fullName) LIKE :searchPattern OR " +
+                        "     LOWER(o.note) LIKE :searchPattern) " +
                         "AND (CAST(:from AS timestamp) IS NULL OR o.createdAt >= :from) " +
                         "AND (CAST(:to AS timestamp) IS NULL OR o.createdAt <= :to)")
-        Page<Order> findOrderIdsByOwnerAndRestaurant( 
+        Page<Order> findOrderIdsByOwnerAndRestaurant(
                         @Param("ownerId") Integer ownerId,
                         @Param("restaurantId") Integer restaurantId,
                         @Param("searchPattern") String searchPattern,
@@ -108,9 +104,9 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
         @Query("SELECT DISTINCT o FROM Order o " +
                         "LEFT JOIN FETCH o.orderItems oi " +
                         "LEFT JOIN FETCH o.customer c " +
+                        "LEFT JOIN FETCH c.customerProfile cp " + // FETCH thêm Profile của Customer
                         "LEFT JOIN FETCH o.restaurant r " +
-                        "WHERE o.id IN :orderIds " +
-                        "ORDER BY o.createdAt DESC")
+                        "WHERE o.id IN :orderIds")
         List<Order> findOrdersWithDetailsByIds(@Param("orderIds") List<Integer> orderIds);
 
         @Query("SELECT COUNT(o) FROM Order o WHERE o.restaurant.id = :restaurantId " +
@@ -156,7 +152,9 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
         // Gọi sau khi cập nhập status
         @Query("SELECT o FROM Order o " +
                         "LEFT JOIN FETCH o.orderItems oi " +
-                        "LEFT JOIN o.customer c " +
+                        "LEFT JOIN FETCH oi.product " +
+                        "LEFT JOIN FETCH o.customer " +
+                        "LEFT JOIN FETCH o.restaurant " +
                         "WHERE o.id = :orderId")
         Optional<Order> findByIdWithDetails(@Param("orderId") Integer orderId);
 
@@ -177,7 +175,6 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
                         @Param("endDate") LocalDateTime endDate,
                         @Param("restaurantId") Integer restaurantId);
 
-        // --- QUERY SỬA LỖI (ĐÃ BỎ JOIN FETCH c.account) ---
         @Query("SELECT DISTINCT o FROM Order o " +
                         "LEFT JOIN FETCH o.customer c " +
                         "LEFT JOIN FETCH o.restaurant r " +

@@ -16,6 +16,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   StopOutlined,
+  PlusOutlined,
 } from '@ant-design/icons';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -185,15 +186,31 @@ const MyRegistrations = () => {
       >
         <div
           className="modern-header"
-          style={{ padding: '20px', background: 'white' }}
+          style={{ padding: '20px', background: 'white', justifyContent: 'space-between', alignItems: 'center', display: 'flex' }}
         >
           {/* Header riêng cho bảng: nền trắng, chữ cam */}
-          <h2 style={{ color: '#ff6b35', fontSize: '24px', textAlign: 'left' }}>
-            Lịch sử đăng ký quán
-          </h2>
-          <p style={{ color: '#888', textAlign: 'left', margin: 0 }}>
-            Theo dõi trạng thái các quán ăn của bạn
-          </p>
+          <div>
+            <h2 style={{ color: '#ff6b35', fontSize: '24px', textAlign: 'left' }}>
+              Lịch sử đăng ký quán
+            </h2>
+            <p style={{ color: '#888', textAlign: 'left', margin: 0 }}>
+              Theo dõi trạng thái các quán ăn của bạn
+            </p>
+          </div>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => navigate('/restaurant-registration')}
+            style={{
+              background: '#ff6b35',
+              borderColor: '#ff6b35',
+              borderRadius: '8px',
+              fontWeight: 'bold',
+              boxShadow: '0 4px 10px rgba(255, 107, 53, 0.3)',
+            }}
+          >
+            ĐĂNG KÝ QUÁN MỚI
+          </Button>
         </div>
         <div style={{ padding: '0 20px 40px 20px' }}>
           <Table

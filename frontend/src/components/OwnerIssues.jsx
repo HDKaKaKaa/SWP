@@ -274,15 +274,16 @@ const OwnerIssues = () => {
         { title: 'Mã Issue', dataIndex: 'code', render: (text) => <Text strong color="blue">{text}</Text>, width: 100 },
         {
             title: 'Đơn hàng',
-            render: (_, r) => <Text copyable>{r.order?.orderNumber || `#${r.orderId}`}</Text>,
+            render: (_, r) => <Text copyable>{r.orderNumber || 'N/A'}</Text>,
             align: 'center'
         },
+
         {
             title: 'Khách hàng',
             render: (_, record) => (
                 <Space direction="vertical" size={0}>
-                    <Text strong>{record.order?.customerName?.fullName || 'N/A'}</Text>
-                    <Text type="secondary" style={{ fontSize: '12px' }}>{record.order?.customer?.phone}</Text>
+                    <Text strong>{record.customerFullName || 'N/A'}</Text>
+                    <Text type="secondary" style={{ fontSize: '12px' }}>{record.customerPhone}</Text>
                 </Space>
             ),
         },
@@ -390,10 +391,10 @@ const OwnerIssues = () => {
                         <Card size="small" style={{ backgroundColor: '#fffbe6', marginBottom: 20 }}>
                             <div style={{ marginBottom: 20, padding: '0 10px' }}>
                                 <Space direction="vertical" style={{ width: '100%' }}>
-                                    <div><Text type="secondary">Khách hàng: </Text><Text strong>{selectedIssue.order?.customerName?.fullName || 'N/A'}</Text></div>
-                                    <div><Text type="secondary">Số điện thoại: </Text><Text strong style={{ color: '#1890ff' }}>{selectedIssue.order?.customer?.phone || 'N/A'}</Text></div>
-                                    <div><Text type="secondary">Mã đơn hàng: </Text><Text strong>#{selectedIssue.order?.orderNumber}</Text></div>
-                                    <div><Text type="secondary">Tổng đơn: </Text><Text strong style={{ color: '#f5222d' }}>{selectedIssue.order?.totalAmount?.toLocaleString()}đ</Text></div>
+                                    <div><Text type="secondary">Khách hàng: </Text><Text strong>{selectedIssue.customerFullName || 'N/A'}</Text></div>
+                                    <div><Text type="secondary">Số điện thoại: </Text><Text strong style={{ color: '#1890ff' }}>{selectedIssue.customerPhone || 'N/A'}</Text></div>
+                                    <div><Text type="secondary">Mã đơn hàng: </Text><Text strong>#{selectedIssue.orderNumber}</Text></div>
+                                    <div><Text type="secondary">Tổng đơn: </Text><Text strong style={{ color: '#f5222d' }}>{selectedIssue.totalAmount?.toLocaleString()}đ</Text></div>
                                     <div><Text type="secondary">Trạng thái hiện tại: </Text><IssueStatusTag status={selectedIssue.status} /></div>
                                 </Space>
                             </div>
