@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import com.shopeefood.backend.dto.TopCustomerDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -208,4 +209,17 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
                         @Param("endDate") LocalDateTime endDate);
 
         long countByShipperAccountIdAndStatus(Integer shipperId, String status);
+
+    @Query("SELECT new com.shopeefood.backend.dto.TopCustomerDTO(" +
+            "c.fullName, " +
+            "a.phone, " +
+            "COUNT(o), " +
+            "SUM(o.totalAmount)) " +
+            "FROM Order o " +
+            "JOIN o.customer a " + // a là Account
+            "JOIN Customer c ON c.accountId = a.id " + // c là Customer info
+            "WHERE o.status = 'COMPLETED' " +
+            "GROUP BY c.fullName, a.phone " +
+            "ORDER BY SUM(o.totalAmount) DESC")
+    List<TopCustomerDTO> findTop3Spenders(Pageable pageable);
 }
