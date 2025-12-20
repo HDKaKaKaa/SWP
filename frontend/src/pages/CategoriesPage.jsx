@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Table, Button, Modal, Form, Input, Space, message, Popconfirm, Card, Image, Upload, Tag, Divider
+    Table, Button, Modal, Form, Input, Space, message, Card, Image, Upload, Tag, Divider
 } from 'antd';
 import {
-    PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, MinusCircleOutlined, SearchOutlined
+    PlusOutlined, EditOutlined, ReloadOutlined, MinusCircleOutlined
 } from '@ant-design/icons';
 import {
-    getAllCategories, createCategory, updateCategory, deleteCategory, uploadImage
+    getAllCategories, createCategory, updateCategory, uploadImage
 } from '../services/categoryService';
 
 const CategoriesPage = () => {
@@ -115,18 +115,7 @@ const CategoriesPage = () => {
         }
     };
 
-    const handleDelete = async (id) => {
-        try {
-            await deleteCategory(id);
-            message.success('Xóa thành công!');
-            fetchData();
-        } catch (error) {
-            message.error('Xóa thất bại (Danh mục đang được sử dụng).');
-        }
-    };
-
     const columns = [
-        // ... (Giữ nguyên columns) ...
         {
             title: 'Hình ảnh',
             dataIndex: 'image',
@@ -173,9 +162,7 @@ const CategoriesPage = () => {
             render: (_, record) => (
                 <Space>
                     <Button icon={<EditOutlined style={{ color: 'orange' }} />} onClick={() => handleEdit(record)} />
-                    <Popconfirm title="Xóa danh mục?" onConfirm={() => handleDelete(record.id)} okText="Xóa" cancelText="Hủy" okButtonProps={{ danger: true }}>
-                        <Button danger icon={<DeleteOutlined />} />
-                    </Popconfirm>
+                    {/* Đã xóa nút Delete và Popconfirm tại đây */}
                 </Space>
             ),
         },

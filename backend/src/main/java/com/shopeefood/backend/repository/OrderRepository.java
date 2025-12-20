@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import com.shopeefood.backend.dto.TopCustomerDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -175,20 +176,29 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
                         @Param("endDate") LocalDateTime endDate,
                         @Param("restaurantId") Integer restaurantId);
 
-        @Query("SELECT DISTINCT o FROM Order o " +
-                        "LEFT JOIN FETCH o.customer c " +
-                        "LEFT JOIN FETCH o.restaurant r " +
-                        "LEFT JOIN FETCH o.shipper s " +
-                        "LEFT JOIN FETCH s.account " +
-                        "LEFT JOIN FETCH o.orderItems oi " +
-                        "WHERE (:status = 'ALL' OR o.status = :status) " +
-                        "AND (CAST(:startDate AS timestamp) IS NULL OR o.createdAt >= :startDate) " +
-                        "AND (CAST(:endDate AS timestamp) IS NULL OR o.createdAt <= :endDate) " +
-                        "ORDER BY o.createdAt DESC")
-        List<Order> findOrdersWithDetails(
-                        @Param("status") String status,
-                        @Param("startDate") LocalDateTime startDate,
-                        @Param("endDate") LocalDateTime endDate);
+    @Query("SELECT DISTINCT o FROM Order o " +
+            "LEFT JOIN FETCH o.customer acc " +          // acc là Account
+            "LEFT JOIN Customer cust ON cust.accountId = acc.id " + // Join bảng Customer để lấy FullName
+            "LEFT JOIN FETCH o.restaurant r " +
+            "LEFT JOIN FETCH o.shipper s " +
+            "LEFT JOIN FETCH s.account " +
+            "LEFT JOIN FETCH o.orderItems oi " +
+            "WHERE o.status IN :statuses " +
+            "AND (CAST(:startDate AS timestamp) IS NULL OR o.createdAt >= :startDate) " +
+            "AND (CAST(:endDate AS timestamp) IS NULL OR o.createdAt <= :endDate) " +
+            "AND (:searchKey IS NULL OR (" +
+            "   LOWER(o.orderNumber) LIKE :searchKey OR " +      // Tìm theo Mã đơn
+            "   LOWER(cust.fullName) LIKE :searchKey OR " +      // Tìm theo Tên khách
+            "   LOWER(acc.phone) LIKE :searchKey OR " +          // Tìm theo SĐT khách
+            "   LOWER(r.name) LIKE :searchKey OR " +             // Tìm theo Tên quán
+            "   LOWER(r.phone) LIKE :searchKey " +               // Tìm theo SĐT quán
+            ")) " +
+            "ORDER BY o.createdAt DESC")
+    List<Order> findOrdersWithDetails(
+            @Param("searchKey") String searchKey, // <--- THÊM THAM SỐ NÀY
+            @Param("statuses") List<String> statuses,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate);
 
         @Query("SELECT o FROM Order o WHERE o.customer.id = :customerId " +
                         "AND o.status = 'COMPLETED' " +
@@ -199,4 +209,17 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
                         @Param("endDate") LocalDateTime endDate);
 
         long countByShipperAccountIdAndStatus(Integer shipperId, String status);
+
+    @Query("SELECT new com.shopeefood.backend.dto.TopCustomerDTO(" +
+            "c.fullName, " +
+            "a.phone, " +
+            "COUNT(o), " +
+            "SUM(o.totalAmount)) " +
+            "FROM Order o " +
+            "JOIN o.customer a " + // a là Account
+            "JOIN Customer c ON c.accountId = a.id " + // c là Customer info
+            "WHERE o.status = 'COMPLETED' " +
+            "GROUP BY c.fullName, a.phone " +
+            "ORDER BY SUM(o.totalAmount) DESC")
+    List<TopCustomerDTO> findTop3Spenders(Pageable pageable);
 }

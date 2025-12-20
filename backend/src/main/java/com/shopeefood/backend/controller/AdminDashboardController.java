@@ -3,6 +3,7 @@ package com.shopeefood.backend.controller;
 import com.shopeefood.backend.dto.AdminDashboardStatsDTO;
 import com.shopeefood.backend.dto.ChartDataDTO;
 import com.shopeefood.backend.dto.RevenueAnalysisDTO;
+import com.shopeefood.backend.dto.TopCustomerDTO;
 import com.shopeefood.backend.service.AdminDashboardService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -56,5 +57,11 @@ public class AdminDashboardController {
             return Map.of("id", r.getId(), "name", r.getName());
         }).toList();
         return ResponseEntity.ok(list);
+    }
+
+    // API 5: Lấy Top 3 khách hàng chi tiêu nhiều nhất
+    @GetMapping("/top-customers")
+    public ResponseEntity<List<TopCustomerDTO>> getTopCustomers() {
+        return ResponseEntity.ok(dashboardService.getTop3Customers());
     }
 }

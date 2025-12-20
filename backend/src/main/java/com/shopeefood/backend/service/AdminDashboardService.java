@@ -4,11 +4,13 @@ import com.shopeefood.backend.dto.AdminDashboardStatsDTO;
 
 import com.shopeefood.backend.dto.ChartDataDTO;
 import com.shopeefood.backend.dto.RevenueAnalysisDTO;
+import com.shopeefood.backend.dto.TopCustomerDTO;
 import com.shopeefood.backend.entity.Restaurant;
 import com.shopeefood.backend.repository.OrderRepository;
 import com.shopeefood.backend.repository.RestaurantRepository;
 import com.shopeefood.backend.repository.ShipperRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -122,5 +124,9 @@ public class AdminDashboardService {
     // 4. Tìm nhà hàng cho Dropdown
     public List<Restaurant> searchRestaurants(String keyword) {
         return restaurantRepository.findByNameContainingIgnoreCase(keyword);
+    }
+    // 5. Lấy Top 3 Khách hàng
+    public List<TopCustomerDTO> getTop3Customers() {
+        return orderRepository.findTop3Spenders(PageRequest.of(0, 3));
     }
 }

@@ -34,24 +34,43 @@ public class AdminOrderService {
     @Autowired
     private FeedbackRepository feedbackRepository;
 
+    private static final List<String> VIEWABLE_STATUSES = Arrays.asList(
+            "PENDING", "PREPARING", "SHIPPING", "COMPLETED", "CANCELLED", "REFUNDED"
+    );
+
     // Hàm lấy danh sách đơn hàng (Sửa lại dùng Specification)
     @Transactional(readOnly = true)
-    public List<OrderDTO> getOrders(String status, LocalDate startDate, LocalDate endDate) {
+    public List<OrderDTO> getOrders(String keyword, String status, LocalDate startDate, LocalDate endDate) {
 
         // 1. Xử lý ngày tháng
         LocalDateTime startDateTime = (startDate != null) ? startDate.atStartOfDay() : null;
         LocalDateTime endDateTime = (endDate != null) ? endDate.atTime(LocalTime.MAX) : null;
+        // Xử lý keyword: nếu có thì thêm % để tìm kiếm gần đúng
+        String searchKey = (keyword != null && !keyword.trim().isEmpty())
+                ? "%" + keyword.trim().toLowerCase() + "%"
+                : null;
 
-        // 2. Gọi Query Tối ưu
-        List<Order> orders = orderRepository.findOrdersWithDetails(status, startDateTime, endDateTime);
+        // 2. Xử lý logic trạng thái
+        List<String> targetStatuses;
+        if (status == null || "ALL".equalsIgnoreCase(status)) {
+            // Nếu là ALL, chỉ lấy danh sách cho phép (loại bỏ CART, REJECTED...)
+            targetStatuses = VIEWABLE_STATUSES;
+        } else {
+            // Nếu chọn cụ thể, chỉ lấy trạng thái đó
+            targetStatuses = Collections.singletonList(status);
+        }
 
-        // 3. Lấy danh sách ID đơn hàng hoàn thành để lấy Feedback
+        // 3. Gọi Query với danh sách trạng thái
+        List<Order> orders = orderRepository.findOrdersWithDetails(searchKey, targetStatuses, startDateTime, endDateTime);
+
+        // --- Các phần xử lý Feedback, Customer Name, Map DTO giữ nguyên như cũ ---
+
+        // (Giữ nguyên code phần lấy Feedback và Customer Name map...)
         List<Integer> completedOrderIds = orders.stream()
                 .filter(o -> "COMPLETED".equals(o.getStatus()))
                 .map(Order::getId)
                 .collect(Collectors.toList());
 
-        // Batch Fetch Feedback
         Map<Integer, Feedback> feedbackMap;
         if (!completedOrderIds.isEmpty()) {
             feedbackMap = feedbackRepository.findByOrderIdIn(completedOrderIds)
@@ -61,7 +80,6 @@ public class AdminOrderService {
             feedbackMap = new HashMap<>();
         }
 
-        // 4. Lấy map Customer Name (Tối ưu N+1 cho tên khách hàng)
         List<Integer> customerAccountIds = orders.stream()
                 .map(o -> o.getCustomer() != null ? o.getCustomer().getId() : null)
                 .filter(Objects::nonNull)
@@ -77,7 +95,6 @@ public class AdminOrderService {
             customerNameMap = new HashMap<>();
         }
 
-        // 5. Map sang DTO
         List<OrderDTO> orderDTOs = new ArrayList<>();
         for (Order order : orders) {
             OrderDTO dto = new OrderDTO(order);

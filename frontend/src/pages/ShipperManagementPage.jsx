@@ -246,7 +246,10 @@ const ShipperManagementPage = () => {
             render: (_, record) => (
                 <div>
                     <div style={{marginBottom: 8, borderBottom: '1px dashed #eee', paddingBottom: 4}}>
-                        Mã đơn: <b>#{record.orderId}</b> - <span style={{color: '#cf1322', fontWeight: 'bold'}}>{formatCurrency(record.totalAmount)}</span>
+                        {/* SỬA TẠI ĐÂY: Hiển thị orderNumber, fallback về orderId nếu null */}
+                        Mã đơn: <b>{record.orderNumber || `#${record.orderId}`}</b>
+                        {' - '}
+                        <span style={{color: '#cf1322', fontWeight: 'bold'}}>{formatCurrency(record.totalAmount)}</span>
                     </div>
 
                     <div style={{maxHeight: '120px', overflowY: 'auto'}}>
@@ -264,7 +267,7 @@ const ShipperManagementPage = () => {
             )
         },
         {
-            title: 'Lộ trình',
+            title: 'Khách Hàng',
             key: 'route',
             width: 220,
             render: (_, record) => (
