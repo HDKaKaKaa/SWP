@@ -10,6 +10,7 @@ import java.util.List;
 @NoArgsConstructor
 public class ShipperOrderHistoryDTO {
     private Integer orderId;
+    private String orderNumber;
     private LocalDateTime shippedAt;
     private LocalDateTime completedAt;
     private BigDecimal shippingFee;

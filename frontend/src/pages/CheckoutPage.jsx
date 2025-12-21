@@ -21,6 +21,13 @@ const CheckoutPage = () => {
     const [restaurantId] = useState(initialRestaurantId || null);
     const [note] = useState(initialNote || '');
 
+    const NOTE_MAX_LENGTH = 300;
+    const safeNote = useMemo(() => {
+        const n = (note || '').trim();
+        return n.length > NOTE_MAX_LENGTH ? n.slice(0, NOTE_MAX_LENGTH) : n;
+    }, [note]);
+
+
     const [cart, setCart] = useState(null);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
@@ -266,7 +273,7 @@ const CheckoutPage = () => {
             setProcessing(true);
             setError(null);
 
-            await updateOrderNote(orderId, note)
+            await updateOrderNote(orderId, safeNote)
 
             const data = await createVnpayPaymentUrl(orderId);
             if (data && data.paymentUrl) {

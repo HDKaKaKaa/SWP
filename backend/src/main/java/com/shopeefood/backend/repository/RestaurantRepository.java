@@ -162,4 +162,7 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Integer>
                         @Param("userLng") Double userLng,
                         @Param("sortBy") String sortBy,
                         Pageable pageable);
+
+        @Query("SELECT DISTINCT r.owner.accountId FROM Restaurant r WHERE r.owner IS NOT NULL")
+        List<Integer> findDistinctOwnerAccountIds();
 }

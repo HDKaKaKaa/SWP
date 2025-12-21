@@ -524,6 +524,18 @@
     box-shadow: 0 0 0 2px rgba(216, 132, 68, 0.15);
 }
 
+/* ===== Hide scrollbar but keep scroll ===== */
+.cart-note-input {
+    overflow: auto;              /* vẫn cuộn được */
+    scrollbar-width: none;       /* Firefox */
+    -ms-overflow-style: none;    /* IE/Edge cũ */
+}
+
+.cart-note-input::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+}
+
 /* Error text */
 
 .cart-error-text {

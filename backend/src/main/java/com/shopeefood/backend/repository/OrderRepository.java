@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import com.shopeefood.backend.dto.TopCustomerDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -80,22 +81,18 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
 
         // Tìm đơn theo mã đơn/ngày tạo đơn, trạng thái, nhà hàng,...
         @Query("SELECT o FROM Order o " +
-                        "JOIN o.customer acc " + // Join với Account để lấy phone
-                        "JOIN Customer c ON acc.id = c.accountId " + // Join với Customer để lấy fullName
+                        "LEFT JOIN o.customer c " +
+                        "LEFT JOIN c.customerProfile cp " +
                         "WHERE o.restaurant.owner.id = :ownerId " +
                         "AND (:restaurantId IS NULL OR o.restaurant.id = :restaurantId) " +
                         "AND (o.status IN :statusList) " +
-                        "AND (" +
-                        ":searchPattern IS NULL OR " +
-                        "LOWER(o.orderNumber) LIKE :searchPattern OR " + // Mã đơn hàng
-                        "LOWER(c.fullName) LIKE :searchPattern OR " + // Tên khách hàng
-                        "LOWER(acc.phone) LIKE :searchPattern OR " + // Số điện thoại
-                        "LOWER(o.status) LIKE :searchPattern OR " + // Trạng thái
-                        "LOWER(o.note) LIKE :searchPattern" + // Ghi chú
-                        ") " +
+                        "AND (:searchPattern IS NULL OR " +
+                        "     LOWER(o.orderNumber) LIKE :searchPattern OR " +
+                        "     LOWER(cp.fullName) LIKE :searchPattern OR " +
+                        "     LOWER(o.note) LIKE :searchPattern) " +
                         "AND (CAST(:from AS timestamp) IS NULL OR o.createdAt >= :from) " +
                         "AND (CAST(:to AS timestamp) IS NULL OR o.createdAt <= :to)")
-        Page<Order> findOrderIdsByOwnerAndRestaurant( 
+        Page<Order> findOrderIdsByOwnerAndRestaurant(
                         @Param("ownerId") Integer ownerId,
                         @Param("restaurantId") Integer restaurantId,
                         @Param("searchPattern") String searchPattern,
@@ -108,9 +105,9 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
         @Query("SELECT DISTINCT o FROM Order o " +
                         "LEFT JOIN FETCH o.orderItems oi " +
                         "LEFT JOIN FETCH o.customer c " +
+                        "LEFT JOIN FETCH c.customerProfile cp " + // FETCH thêm Profile của Customer
                         "LEFT JOIN FETCH o.restaurant r " +
-                        "WHERE o.id IN :orderIds " +
-                        "ORDER BY o.createdAt DESC")
+                        "WHERE o.id IN :orderIds")
         List<Order> findOrdersWithDetailsByIds(@Param("orderIds") List<Integer> orderIds);
 
         @Query("SELECT COUNT(o) FROM Order o WHERE o.restaurant.id = :restaurantId " +
@@ -156,7 +153,9 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
         // Gọi sau khi cập nhập status
         @Query("SELECT o FROM Order o " +
                         "LEFT JOIN FETCH o.orderItems oi " +
-                        "LEFT JOIN o.customer c " +
+                        "LEFT JOIN FETCH oi.product " +
+                        "LEFT JOIN FETCH o.customer " +
+                        "LEFT JOIN FETCH o.restaurant " +
                         "WHERE o.id = :orderId")
         Optional<Order> findByIdWithDetails(@Param("orderId") Integer orderId);
 
@@ -177,21 +176,29 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
                         @Param("endDate") LocalDateTime endDate,
                         @Param("restaurantId") Integer restaurantId);
 
-        // --- QUERY SỬA LỖI (ĐÃ BỎ JOIN FETCH c.account) ---
-        @Query("SELECT DISTINCT o FROM Order o " +
-                        "LEFT JOIN FETCH o.customer c " +
-                        "LEFT JOIN FETCH o.restaurant r " +
-                        "LEFT JOIN FETCH o.shipper s " +
-                        "LEFT JOIN FETCH s.account " +
-                        "LEFT JOIN FETCH o.orderItems oi " +
-                        "WHERE (:status = 'ALL' OR o.status = :status) " +
-                        "AND (CAST(:startDate AS timestamp) IS NULL OR o.createdAt >= :startDate) " +
-                        "AND (CAST(:endDate AS timestamp) IS NULL OR o.createdAt <= :endDate) " +
-                        "ORDER BY o.createdAt DESC")
-        List<Order> findOrdersWithDetails(
-                        @Param("status") String status,
-                        @Param("startDate") LocalDateTime startDate,
-                        @Param("endDate") LocalDateTime endDate);
+    @Query("SELECT DISTINCT o FROM Order o " +
+            "LEFT JOIN FETCH o.customer acc " +          // acc là Account
+            "LEFT JOIN Customer cust ON cust.accountId = acc.id " + // Join bảng Customer để lấy FullName
+            "LEFT JOIN FETCH o.restaurant r " +
+            "LEFT JOIN FETCH o.shipper s " +
+            "LEFT JOIN FETCH s.account " +
+            "LEFT JOIN FETCH o.orderItems oi " +
+            "WHERE o.status IN :statuses " +
+            "AND (CAST(:startDate AS timestamp) IS NULL OR o.createdAt >= :startDate) " +
+            "AND (CAST(:endDate AS timestamp) IS NULL OR o.createdAt <= :endDate) " +
+            "AND (:searchKey IS NULL OR (" +
+            "   LOWER(o.orderNumber) LIKE :searchKey OR " +      // Tìm theo Mã đơn
+            "   LOWER(cust.fullName) LIKE :searchKey OR " +      // Tìm theo Tên khách
+            "   LOWER(acc.phone) LIKE :searchKey OR " +          // Tìm theo SĐT khách
+            "   LOWER(r.name) LIKE :searchKey OR " +             // Tìm theo Tên quán
+            "   LOWER(r.phone) LIKE :searchKey " +               // Tìm theo SĐT quán
+            ")) " +
+            "ORDER BY o.createdAt DESC")
+    List<Order> findOrdersWithDetails(
+            @Param("searchKey") String searchKey, // <--- THÊM THAM SỐ NÀY
+            @Param("statuses") List<String> statuses,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate);
 
         @Query("SELECT o FROM Order o WHERE o.customer.id = :customerId " +
                         "AND o.status = 'COMPLETED' " +
@@ -202,4 +209,17 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
                         @Param("endDate") LocalDateTime endDate);
 
         long countByShipperAccountIdAndStatus(Integer shipperId, String status);
+
+    @Query("SELECT new com.shopeefood.backend.dto.TopCustomerDTO(" +
+            "c.fullName, " +
+            "a.phone, " +
+            "COUNT(o), " +
+            "SUM(o.totalAmount)) " +
+            "FROM Order o " +
+            "JOIN o.customer a " + // a là Account
+            "JOIN Customer c ON c.accountId = a.id " + // c là Customer info
+            "WHERE o.status = 'COMPLETED' " +
+            "GROUP BY c.fullName, a.phone " +
+            "ORDER BY SUM(o.totalAmount) DESC")
+    List<TopCustomerDTO> findTop3Spenders(Pageable pageable);
 }

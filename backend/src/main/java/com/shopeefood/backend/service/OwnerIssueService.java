@@ -10,7 +10,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.shopeefood.backend.dto.IssueDecisionRequest;
 import com.shopeefood.backend.dto.IssueEventRequest;
+import com.shopeefood.backend.dto.IssueResponseDTO;
 import com.shopeefood.backend.entity.Issue;
 import com.shopeefood.backend.entity.IssueEvent;
 import com.shopeefood.backend.entity.Order;
@@ -32,10 +34,11 @@ public class OwnerIssueService {
     private OrderRepository orderRepository;
 
     /**
-     * Tìm kiếm và lọc danh sách Khiếu nại
+     * Tìm kiếm và lọc danh sách Khiếu nại - Đã sửa lỗi mapping DTO
      */
-    public Page<Issue> findAll(Integer ownerId, Integer restaurantId, String status, String search, Pageable pageable) {
-        return issueRepository.findAll((root, query, cb) -> {
+    public Page<IssueResponseDTO> findAll(Integer ownerId, Integer restaurantId, String status, String search,
+            Pageable pageable) {
+        Page<Issue> issuePage = issueRepository.findAll((root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("assignedOwnerId"), ownerId));
 
@@ -51,28 +54,31 @@ public class OwnerIssueService {
             if (search != null && !search.isEmpty()) {
                 String pattern = "%" + search.toLowerCase() + "%";
                 predicates.add(cb.or(
-                        cb.like(cb.lower(root.get("code")), pattern), // Mã Issue (ISS-...)
-                        cb.like(cb.lower(root.get("order").get("code")), pattern), // Mã Đơn hàng (ORD-...)
-                        cb.like(cb.lower(root.get("order").get("customerName").get("fullName")), pattern), // Tên khách
-                                                                                                           // hàng
-                        cb.like(root.get("order").get("customer").get("phone"), pattern) // Số điện thoại khách
-                ));
+                        cb.like(cb.lower(root.get("code")), pattern),
+                        cb.like(cb.lower(root.get("order").get("orderNumber")), pattern),
+                        cb.like(cb.lower(root.get("order").get("customerName").get("fullName")), pattern)));
             }
+
+            // Tối ưu fetch dữ liệu
             if (query.getResultType() != Long.class) {
                 root.fetch("order", JoinType.LEFT).fetch("customerName", JoinType.LEFT);
                 root.fetch("order", JoinType.LEFT).fetch("customer", JoinType.LEFT);
             }
             return cb.and(predicates.toArray(Predicate[]::new));
         }, pageable);
-    }
 
-    public List<IssueEvent> getEventsByIssue(Integer issueId) {
-        return eventRepository.findByIssueIdOrderByCreatedAtAsc(issueId);
+        // FIX: Trả về bản map sang DTO để tránh lỗi tuần hoàn
+        return issuePage.map(IssueResponseDTO::new);
     }
 
     /**
-     * Thêm phản hồi
+     * Lấy lịch sử sự kiện của khiếu nại
      */
+    public List<IssueEvent> getEventsByIssue(Integer issueId) {
+        // FIX: Gọi đúng repository để lấy danh sách event theo issueId
+        return eventRepository.findByIssueIdOrderByCreatedAtAsc(issueId);
+    }
+
     @Transactional
     public IssueEvent addEvent(Integer issueId, IssueEventRequest req) {
         Issue issue = issueRepository.findById(issueId)
@@ -93,8 +99,11 @@ public class OwnerIssueService {
         return eventRepository.save(event);
     }
 
+    /**
+     * Xử lý quyết định của chủ quán - Trả về DTO để an toàn
+     */
     @Transactional
-    public Issue handleDecision(Integer issueId, com.shopeefood.backend.dto.IssueDecisionRequest req) {
+    public IssueResponseDTO handleDecision(Integer issueId, IssueDecisionRequest req) {
         Issue issue = issueRepository.findById(issueId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khiếu nại ID: " + issueId));
 
@@ -104,7 +113,6 @@ public class OwnerIssueService {
         String decision = (req.getDecision() == null ? "" : req.getDecision().trim().toUpperCase());
         String reason = (req.getResolvedReason() != null) ? req.getResolvedReason().trim() : "";
 
-        // Mọi kết quả đều dẫn tới việc ĐÓNG khiếu nại
         issue.setStatus("CLOSED");
         issue.setResolvedAt(LocalDateTime.now());
         issue.setUpdatedAt(LocalDateTime.now());
@@ -114,10 +122,8 @@ public class OwnerIssueService {
             issue.setOwnerRefundAmount(req.getAmount());
             issue.setResolvedReason(!reason.isEmpty() ? reason : "Chủ quán đã duyệt hoàn tiền.");
 
-            // Cập nhật trạng thái Đơn hàng sang REFUNDED
             order.setStatus("REFUNDED");
             orderRepository.save(order);
-
         } else if ("REJECTED".equals(decision)) {
             if (reason.isEmpty()) {
                 throw new IllegalArgumentException("Bạn phải nhập lý do khi từ chối khiếu nại.");
@@ -134,10 +140,11 @@ public class OwnerIssueService {
         event.setAccountRole("OWNER");
         event.setEventType("OWNER_REFUND");
         event.setContent(issue.getResolvedReason());
-        event.setAmount(issue.getOwnerRefundAmount()); // Sẽ là 0 nếu Reject
-        event.setNewValue(decision); // Lưu "APPROVED" hoặc "REJECTED"
+        event.setAmount(issue.getOwnerRefundAmount());
+        event.setNewValue(decision);
         eventRepository.save(event);
 
-        return issueRepository.save(issue);
+        Issue savedIssue = issueRepository.save(issue);
+        return new IssueResponseDTO(savedIssue);
     }
 }

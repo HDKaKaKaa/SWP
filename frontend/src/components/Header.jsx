@@ -12,6 +12,7 @@ import {
   DashOutlined,
   ShoppingCartOutlined,
   SaveOutlined,
+  CustomerServiceOutlined,
 } from '@ant-design/icons';
 
 const Header = () => {
@@ -53,17 +54,8 @@ const Header = () => {
       type: 'divider',
     },
     {
-      key: '4',
-      label: 'Đăng ký quán ăn',
-      icon: <ShopOutlined />,
-      onClick: () => navigate('/restaurant-registration'),
-    },
-    {
-      type: 'divider',
-    },
-    {
       key: 'history-reg',
-      label: 'Lịch sử đăng ký quán',
+      label: 'Nhà hàng của tôi',
       icon: <SaveOutlined />,
       onClick: () => navigate('/my-registrations'),
     },
@@ -71,18 +63,9 @@ const Header = () => {
       type: 'divider',
     },
     {
-      key: 'support',
-      label: 'Yêu cầu hỗ trợ / Khiếu nại',
-      icon: <ProfileOutlined />,
-      onClick: () => navigate('/support/new'),
-    },
-    {
-      type: 'divider',
-    },
-    {
-      key: 'support-history',
-      label: 'Lịch sử yêu cầu hỗ trợ',
-      icon: <ShoppingCartOutlined />,
+      key: 'support-center',
+      label: 'Hỗ trợ / Khiếu nại',
+      icon: <CustomerServiceOutlined />,
       onClick: () => navigate('/support'),
     },
     {

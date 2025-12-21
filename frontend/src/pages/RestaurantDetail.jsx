@@ -74,6 +74,19 @@ const RestaurantDetail = () => {
     const prevQtyMapRef = useRef({}); // productId -> qty trước đó
     const [messageApi, contextHolder] = message.useMessage();
 
+    // ===== ProductDetail soft delete =====
+    // Quy ước: option (ProductDetail) bị xoá mềm => không cho hiển thị/không cho chọn
+    const isDeletedDetail = (d) => d?.isDeleted === true;
+    // (Nếu BE của bạn trả 1/"true" thì đổi thành: d?.isDeleted === true || d?.isDeleted === 1 || d?.isDeleted === "true"
+
+    const getActiveDetails = (product) =>
+        Array.isArray(product?.details) ? product.details.filter((d) => !isDeletedDetail(d)) : [];
+
+    const hasOnlyDeletedDetails = (product) => {
+        const raw = Array.isArray(product?.details) ? product.details : [];
+        return raw.length > 0 && getActiveDetails(product).length === 0;
+    };
+
     const maybeWarnLargeOrder = (productId, nextQty) => {
         const pid = String(productId);
         const q = Number(nextQty ?? 0);
@@ -298,19 +311,16 @@ const RestaurantDetail = () => {
 
     // Group product.details theo attribute
     const buildOptionGroups = (product) => {
-        if (!product || !product.details || product.details.length === 0) return [];
+        const details = getActiveDetails(product);
+        if (!details.length) return [];
+
         const map = {}; // attributeId -> { attribute, options: [] }
 
-        product.details.forEach((d) => {
-            if (!d || !d.attribute) return;
-            const attrId = d.attribute.id;
-            if (!map[attrId]) {
-                map[attrId] = {
-                    attribute: d.attribute,
-                    options: [],
-                };
-            }
-            map[attrId].options.push(d);
+        details.forEach((d) => {
+            const attr = d?.attribute;
+            if (!attr?.id) return;
+            if (!map[attr.id]) map[attr.id] = { attribute: attr, options: [] };
+            map[attr.id].options.push(d);
         });
 
         return Object.values(map);
@@ -320,8 +330,7 @@ const RestaurantDetail = () => {
         // Tạm thời: nếu name chứa "topping" (không phân biệt hoa thường) thì cho chọn nhiều
         if (!attribute?.name) return false;
         const name = attribute.name.toLowerCase();
-        if (name.includes('topping')) return true;
-        return false;
+        return !!name.includes('topping');
     };
 
     // Xác định attribute group nào là "bắt buộc"
@@ -346,57 +355,61 @@ const RestaurantDetail = () => {
     const openOptionModal = (product) => {
         if (!product) return;
 
+        if (hasOnlyDeletedDetails(product)) {
+            messageApi.error('Món này đang được cập nhật tuỳ chọn. Vui lòng chọn món khác.');
+            return;
+        }
+
         const groups = buildOptionGroups(product);
+        if (!groups.length) {
+            messageApi.error('Món này hiện không có tuỳ chọn hợp lệ. Vui lòng chọn món khác.');
+            return;
+        }
+
+        // Sanity check: group bắt buộc phải có options
+        for (const g of groups) {
+            if (isRequiredAttributeGroup(g) && (!g.options || g.options.length === 0)) {
+                messageApi.error(`Món này đang thiếu tuỳ chọn "${g.attribute?.name || ''}". Vui lòng chọn món khác.`);
+                return;
+            }
+        }
+
         const saved = loadProductOptions(product.id);
 
         const initialSelections = {};
 
+        // init rỗng theo group hiện tại
+        groups.forEach((g) => {
+            const attrId = g.attribute.id;
+            const multi = isMultiAttribute(g.attribute);
+            initialSelections[attrId] = { type: multi ? 'multi' : 'single', values: [] };
+        });
+
         if (saved?.selections?.length) {
-            // map từ saved -> tmpSelections
+            // restore CHỈ group bắt buộc + option còn tồn tại
             saved.selections.forEach((sel) => {
                 const { attributeId, detailId } = sel;
-
-                // Tìm group ứng với attribute
                 const group = groups.find((g) => g.attribute.id === attributeId);
                 if (!group) return;
+                if (!isRequiredAttributeGroup(group)) return;
 
-                // Nếu group này KHÔNG bắt buộc (isRequired = false, hoặc topping)
-                // => không auto chọn lại từ localStorage
-                if (!isRequiredAttributeGroup(group)) {
-                    return;
-                }
+                const stillExists = (group.options || []).some((d) => d.id === detailId);
+                if (!stillExists) return;
 
-                const attr = group.attribute;
-                const multi = isMultiAttribute(attr);
-
-                if (!initialSelections[attributeId]) {
-                    initialSelections[attributeId] = {
-                        type: multi ? 'multi' : 'single',
-                        values: [],
-                    };
-                }
-
-                if (multi) {
-                    initialSelections[attributeId].values.push(detailId);
-                } else {
-                    initialSelections[attributeId].values = [detailId];
-                }
-            });
-        } else {
-            // Nếu chưa có lưu gì: cho mặc định chọn option đầu tiên mỗi group
-            groups.forEach((g) => {
-                const attrId = g.attribute.id;
-                const multi = isMultiAttribute(g.attribute);
-                const required = isRequiredAttributeGroup(g);
-
-                initialSelections[attrId] = {
-                    type: multi ? 'multi' : 'single',
-                    values: multi
-                        ? []
-                        : (required && g.options[0] ? [g.options[0].id] : []),
-                };
+                const multi = isMultiAttribute(group.attribute);
+                if (multi) initialSelections[attributeId].values.push(detailId);
+                else initialSelections[attributeId].values = [detailId];
             });
         }
+
+        // Fallback: required group mà chưa có chọn gì -> auto pick option đầu tiên
+        groups.forEach((g) => {
+            if (!isRequiredAttributeGroup(g)) return;
+            const attrId = g.attribute.id;
+            if (!initialSelections[attrId]?.values?.length && g.options?.[0]) {
+                initialSelections[attrId].values = [g.options[0].id];
+            }
+        });
 
         setOptionProduct(product);
         setTmpSelections(initialSelections);
@@ -868,6 +881,8 @@ const RestaurantDetail = () => {
                             <div className="menu-list">
                                 {products.map((p) => {
                                     const qty = cartQuantities[p.id] || 0;
+                                    const hasOptions = getActiveDetails(p).length > 0;
+                                    const isOptionMisconfigured = hasOnlyDeletedDetails(p);
                                     const showImage = p.image && !brokenImages[p.id];
 
                                     const isSoldOut =
@@ -911,14 +926,21 @@ const RestaurantDetail = () => {
                                                 {isSoldOut ? (
                                                     <span className="menu-item-soldout-label">Hết món</span>
                                                 ) : user && !canOrder ? (
-                                                    // Đã đăng nhập nhưng role không được phép đặt món -> ẩn nút, chỉ hiện label
                                                     <span className="menu-item-soldout-label">Không thể đặt món</span>
+                                                ) : qty === 0 && isOptionMisconfigured ? (
+                                                    <button
+                                                        type="button"
+                                                        className="btn-add-primary"
+                                                        disabled
+                                                        title="Tuỳ chọn của món đang được cập nhật"
+                                                    >
+                                                        Đang cập nhật
+                                                    </button>
                                                 ) : qty === 0 ? (
                                                     <button
                                                         type="button"
                                                         className="btn-add-primary"
                                                         onClick={() => {
-                                                            const hasOptions = p.details && p.details.length > 0;
                                                             if (hasOptions) openOptionModal(p);
                                                             else handleAddToCart(p);
                                                         }}
@@ -953,7 +975,6 @@ const RestaurantDetail = () => {
                                                             className="menu-qty-btn"
                                                             onClick={() => {
                                                                 const productItems = cartItemsByProduct[p.id] || [];
-                                                                const hasOptions = p.details && p.details.length > 0;
 
                                                                 if (!hasOptions) {
                                                                     handleChangeQuantity(p, +1);
@@ -965,7 +986,6 @@ const RestaurantDetail = () => {
                                                                     return;
                                                                 }
 
-                                                                // Có ít nhất 1 combo → mở modal quản lý
                                                                 openDecreaseModal(p);
                                                             }}
                                                             disabled={addingProductId === p.id}

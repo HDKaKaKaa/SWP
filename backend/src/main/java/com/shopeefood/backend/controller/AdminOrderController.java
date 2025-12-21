@@ -23,6 +23,7 @@ public class AdminOrderController {
     // VD: /api/admin/orders?status=SHIPPING&startDate=2023-12-01&endDate=2023-12-03
     @GetMapping
     public ResponseEntity<List<OrderDTO>> getOrders(
+            @RequestParam(required = false) String keyword,
             @RequestParam(required = false, defaultValue = "ALL") String status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
@@ -32,7 +33,7 @@ public class AdminOrderController {
             startDate = LocalDate.now();
             endDate = LocalDate.now();
         }
-        List<OrderDTO> orders = orderService.getOrders(status, startDate, endDate);
+        List<OrderDTO> orders = orderService.getOrders(keyword, status, startDate, endDate);
         return ResponseEntity.ok(orders);
     }
 

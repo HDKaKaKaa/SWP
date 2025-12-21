@@ -14,9 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -92,16 +90,23 @@ public class CartService {
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new RuntimeException("Product not found"));
 
+        // Product phải thuộc đúng restaurant
+        if (product.getRestaurant() == null || product.getRestaurant().getId() == null
+                || !restaurantId.equals(product.getRestaurant().getId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "PRODUCT_NOT_IN_RESTAURANT");
+        }
+
+        // Product phải đang available
+        if (Boolean.FALSE.equals(product.getIsAvailable())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "PRODUCT_NOT_AVAILABLE");
+        }
+
         int quantity = (request.getQuantity() != null && request.getQuantity() > 0)
                 ? request.getQuantity()
                 : 1;
 
         // ==== Load các ProductDetail (options) từ detailIds ====
-        List<Integer> detailIds = request.getDetailIds();
-        List<ProductDetail> selectedDetails = java.util.Collections.emptyList();
-        if (detailIds != null && !detailIds.isEmpty()) {
-            selectedDetails = productDetailRepository.findAllById(detailIds);
-        }
+        List<ProductDetail> selectedDetails = loadAndValidateSelectedDetails(product, request.getDetailIds());
 
         BigDecimal finalUnitPrice = calculateFinalUnitPrice(product, selectedDetails);
 
@@ -542,4 +547,30 @@ public class CartService {
         }
         return null;
     }
+
+    private List<ProductDetail> loadAndValidateSelectedDetails(Product product, List<Integer> detailIds) {
+        if (detailIds == null || detailIds.isEmpty()) return java.util.Collections.emptyList();
+
+        // Load details
+        List<ProductDetail> details = productDetailRepository.findAllById(detailIds);
+
+        // Nếu thiếu id nào đó
+        if (details.size() != detailIds.size()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "PRODUCT_DETAIL_NOT_FOUND");
+        }
+
+        // Validate: detail phải thuộc đúng product + không bị xoá mềm
+        for (ProductDetail d : details) {
+            if (Boolean.TRUE.equals(d.getIsDeleted())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "PRODUCT_DETAIL_DELETED");
+            }
+            if (d.getProduct() == null || d.getProduct().getId() == null
+                    || !product.getId().equals(d.getProduct().getId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "DETAIL_NOT_BELONG_TO_PRODUCT");
+            }
+        }
+
+        return details;
+    }
+
 }

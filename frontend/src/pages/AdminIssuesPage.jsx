@@ -23,7 +23,7 @@ import {
     SendOutlined,
     DollarOutlined,
 } from '@ant-design/icons';
-
+import { getAdminUserDetail } from '../services/adminService';
 import { useAuth } from '../context/AuthContext';
 import {
     listIssues,
@@ -31,7 +31,6 @@ import {
     adminCreditDecision,
     replyAction,
 } from '../services/issueService';
-
 import '../css/AdminIssuesPage.css';
 
 const { Title, Text } = Typography;
@@ -47,18 +46,6 @@ const STATUS_META = {
     IN_PROGRESS: { color: 'blue', label: 'Đang xử lý' },
 };
 
-const CATEGORY_LABEL = {
-    FOOD: 'Chất lượng món',
-    ITEM: 'Vấn đề món / thiếu / sai',
-    RESTAURANT: 'Vấn đề quán ăn',
-    DELIVERY: 'Vấn đề giao hàng',
-    SHIPPER_BEHAVIOR: 'Thái độ shipper',
-    SAFETY: 'An toàn',
-    MIXED: 'Nhiều vấn đề',
-    SYSTEM: 'Hệ thống',
-    OTHER: 'Khác',
-};
-
 const TARGET_LABEL = {
     SYSTEM: 'Hệ thống',
     RESTAURANT: 'Quán ăn',
@@ -66,6 +53,35 @@ const TARGET_LABEL = {
     ORDER: 'Đơn hàng',
     OTHER: 'Khác',
 };
+
+// label cho nhóm DB (issue.category)
+const BASE_CATEGORY_LABEL = {
+    DELIVERY: 'Vấn đề giao hàng',
+    SHIPPER_BEHAVIOR: 'Thái độ shipper',
+    SAFETY: 'An toàn',
+    SYSTEM: 'Hệ thống',
+    OTHER: 'Khác',
+};
+
+// label cho sub-code (issue.otherCategory) mà CustomerIssueCreate sẽ lưu
+const SUBCATEGORY_LABEL = {
+    ACCOUNT_PROBLEM: 'Vấn đề tài khoản',
+    PAYMENT_PROBLEM: 'Vấn đề thanh toán',
+    APP_BUG: 'Lỗi website',
+
+    FOOD_QUALITY: 'Chất lượng món ăn',
+    MISSING_ITEM: 'Thiếu món',
+    WRONG_ITEM: 'Sai món',
+    DAMAGED: 'Hư hỏng hoặc đổ vỡ',
+
+    LATE_DELIVERY: 'Giao trễ',
+    SHIPPER_BEHAVIOR: 'Thái độ shipper',
+
+    ORDER_STATUS_WRONG: 'Trạng thái đơn không đúng',
+    CANNOT_CONTACT: 'Không liên hệ được',
+    DELIVERY_PROBLEM: 'Vấn đề giao nhận khác',
+};
+
 
 const CREATED_BY_ROLE_LABEL = {
     CUSTOMER: 'Customer',
@@ -78,6 +94,14 @@ const DECISION_OPTIONS = [
     { value: 'APPROVED', label: 'Duyệt hoàn / Credit (giả lập DB)' },
     { value: 'REJECTED', label: 'Từ chối hoàn' },
 ];
+
+const isAdminHandledIssue = (it) => {
+    if (!it) return false;
+    if (it.assignedOwnerId != null) return false;
+    const cat = String(it.category || '').toUpperCase();
+    if (['FOOD', 'ITEM', 'RESTAURANT', 'MIXED'].includes(cat)) return false;
+    return true;
+};
 
 const fmtMoney = (n) => {
     if (n == null || n === '') return '—';
@@ -92,9 +116,51 @@ const toStatusTag = (status) => {
 };
 
 const toCategoryText = (cat, otherCategory) => {
-    const base = CATEGORY_LABEL[cat] || cat || '—';
-    if ((cat || '').toUpperCase() === 'OTHER' && otherCategory) return `${base} • ${otherCategory}`;
-    return base;
+    const c = String(cat || '').toUpperCase();
+    const oc = String(otherCategory || '').trim();
+
+    // 1) Nếu otherCategory là sub-code => ưu tiên hiển thị label chi tiết
+    if (oc && SUBCATEGORY_LABEL[oc]) return SUBCATEGORY_LABEL[oc];
+
+    // 2) Nếu category=OTHER và user nhập text => hiển thị "Khác: ..."
+    if (c === 'OTHER' && oc) return `Khác: ${oc}`;
+
+    // 3) Fallback theo nhóm DB
+    return BASE_CATEGORY_LABEL[c] || cat || '—';
+};
+
+const getOrderNumber = (it, orderSummary) => {
+    // Ưu tiên orderSummary (khi mở chi tiết)
+    const n1 = orderSummary?.orderNumber;
+    if (n1) return n1;
+
+    // Ưu tiên field có sẵn trong issue/list
+    const n2 = it?.orderNumber;
+    if (n2) return n2;
+
+    // fallback (nếu backend chưa trả orderNumber)
+    const id = it?.orderId;
+    return id ? `#${id}` : null;
+};
+
+const getCreatedByName = (it, nameMap) => {
+    const direct =
+        it?.createdByName ||
+        it?.createdByFullName ||
+        it?.createdByUsername ||
+        it?.createdByEmail;
+
+    if (direct) return direct;
+
+    const id =
+        it?.createdById ??
+        it?.createdByAccountId ??
+        it?.actorId ??
+        null;
+
+    if (id != null && nameMap && nameMap[id]) return nameMap[id];
+
+    return null;
 };
 
 const AdminIssuesPage = () => {
@@ -102,6 +168,53 @@ const AdminIssuesPage = () => {
 
     const [loading, setLoading] = useState(false);
     const [issues, setIssues] = useState([]);
+
+    const [createdByNameMap, setCreatedByNameMap] = useState({});
+
+    const pickDisplayName = (d) => {
+        return (
+            d?.fullName ||
+            d?.ownerFullName ||   // phòng khi backend trả kiểu owner
+            d?.username ||
+            d?.phone ||
+            d?.email ||
+            null
+        );
+    };
+
+    const getCreatorId = (it) => {
+        return it?.createdById ?? it?.createdByAccountId ?? null;
+    };
+
+    const loadMissingCreatorNames = async (list) => {
+        const ids = Array.from(
+            new Set((list || []).map(getCreatorId).filter((v) => v != null))
+        );
+
+        const toFetch = ids.filter((id) => !createdByNameMap[id]);
+        if (toFetch.length === 0) return;
+
+        const results = await Promise.allSettled(
+            toFetch.map((id) => getAdminUserDetail(id))
+        );
+
+        setCreatedByNameMap((prev) => {
+            const next = { ...prev };
+            results.forEach((r, idx) => {
+                if (r.status === 'fulfilled') {
+                    const name = pickDisplayName(r.value);
+                    if (name) next[toFetch[idx]] = name;
+                }
+            });
+            return next;
+        });
+    };
+
+    useEffect(() => {
+        if (!issues || issues.length === 0) return;
+        loadMissingCreatorNames(issues);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [issues]);
 
     // filters
     const [q, setQ] = useState('');
@@ -114,6 +227,9 @@ const AdminIssuesPage = () => {
     const [detail, setDetail] = useState(null); // { issue, events, orderSummary? }
 
     const issue = detail?.issue || null;
+    const isClosed = useMemo(() => {
+        return String(issue?.status || '').toUpperCase() === 'CLOSED';
+    }, [issue?.status]);
     const events = detail?.events || [];
     const orderSummary = detail?.orderSummary || null;
 
@@ -148,8 +264,11 @@ const AdminIssuesPage = () => {
     }, [user?.id]);
 
     const filtered = useMemo(() => {
+
         const kw = (q || '').trim().toLowerCase();
         return (issues || []).filter((it) => {
+            if (!isAdminHandledIssue(it)) return false;
+
             const okStatus = status === 'ALL' ? true : String(it.status || '') === status;
             const okTarget = targetType === 'ALL' ? true : String(it.targetType || '') === targetType;
 
@@ -160,7 +279,7 @@ const AdminIssuesPage = () => {
                 it.otherCategory,
                 it.targetType,
                 it.createdByRole,
-                String(it.orderId || ''),
+                String(it.orderNumber || it.orderId || ''),
             ]
                 .filter(Boolean)
                 .join(' ')
@@ -259,7 +378,6 @@ const AdminIssuesPage = () => {
         setDetail(data);
     };
 
-    // Reply xong: tự chuyển trạng thái RESOLVED (đúng yêu cầu bạn nói)
     const handleReply = async () => {
         if (!user?.id || !issue?.id) return;
         const content = (replyText || '').trim();
@@ -275,7 +393,7 @@ const AdminIssuesPage = () => {
                 accountId: user.id,
                 message: content,
                 newStatus: 'RESOLVED',
-                statusReason: 'Admin đã phản hồi (giả lập xử lý xong)',
+                statusReason: 'Admin đã phản hồi và chốt xử lý',
             });
 
             message.success('Đã gửi phản hồi và cập nhật trạng thái.');
@@ -405,18 +523,23 @@ const AdminIssuesPage = () => {
             render: (v) => toStatusTag(v),
         },
         {
-            title: 'Order',
-            dataIndex: 'orderId',
-            key: 'orderId',
-            width: 90,
-            render: (v) => (v ? <Text>#{v}</Text> : <Text type="secondary">—</Text>),
-        },
-        {
             title: 'Tạo bởi',
-            dataIndex: 'createdByRole',
-            key: 'createdByRole',
-            width: 120,
-            render: (v) => <Text>{CREATED_BY_ROLE_LABEL[v] || v || '-'}</Text>,
+            key: 'createdBy',
+            width: 200,
+            render: (_, row) => {
+                const name = getCreatedByName(row, createdByNameMap);
+                const role = CREATED_BY_ROLE_LABEL[row.createdByRole] || row.createdByRole;
+                return (
+                    <div>
+                        <Text>{name || '—'}</Text>
+                        {role ? (
+                            <div>
+                                <Text type="secondary" style={{ fontSize: 12 }}>{role}</Text>
+                            </div>
+                        ) : null}
+                    </div>
+                );
+            },
         },
         {
             title: '',
@@ -482,8 +605,7 @@ const AdminIssuesPage = () => {
                         options={[
                             { value: 'ALL', label: 'Tất cả đối tượng' },
                             { value: 'SYSTEM', label: 'Hệ thống' },
-                            { value: 'RESTAURANT', label: 'Quán ăn' },
-                            { value: 'SHIPPER', label: 'Shipper' },
+                            { value: 'SHIPPER', label: 'Shipper và giao hàng' },
                             { value: 'ORDER', label: 'Đơn hàng' },
                             { value: 'OTHER', label: 'Khác' },
                         ]}
@@ -524,10 +646,16 @@ const AdminIssuesPage = () => {
                                 </Descriptions.Item>
 
                                 <Descriptions.Item label="Order">
-                                    {issue.orderId ? `#${issue.orderId}` : '—'}
+                                    {getOrderNumber(issue, orderSummary) || '—'}
                                 </Descriptions.Item>
                                 <Descriptions.Item label="Tạo bởi">
-                                    {CREATED_BY_ROLE_LABEL[issue.createdByRole] || issue.createdByRole || '—'} #{issue.createdById || '—'}
+                                    <>
+                                        <Text>{getCreatedByName(issue, createdByNameMap) || '—'}</Text>
+                                        <Text type="secondary">
+                                            {' '}
+                                            ({CREATED_BY_ROLE_LABEL[issue.createdByRole] || issue.createdByRole || '—'})
+                                        </Text>
+                                    </>
                                 </Descriptions.Item>
 
                                 <Descriptions.Item label="Trạng thái">
@@ -567,6 +695,14 @@ const AdminIssuesPage = () => {
                                             <Text strong>{orderTotal != null ? fmtMoney(orderTotal) : '—'}</Text>
                                         </Descriptions.Item>
                                     </Descriptions>
+                                    {isClosed && (
+                                        <div style={{ marginTop: 12 }}>
+                                            <Tag color="default">Issue đã đóng</Tag>
+                                            <Text type="secondary" style={{ marginLeft: 8 }}>
+                                                Không thể chỉnh sửa / phản hồi / refund sau khi đã CLOSED.
+                                            </Text>
+                                        </div>
+                                    )}
                                 </>
                             )}
 
@@ -591,7 +727,7 @@ const AdminIssuesPage = () => {
                             )}
 
                             {/* ADMIN CREDIT */}
-                            {isAdminCreditAllowed(issue) && (
+                            {!isClosed && isAdminCreditAllowed(issue) && (
                                 <>
                                     <Divider />
                                     <div className="admin-issue-action">
@@ -741,7 +877,7 @@ const AdminIssuesPage = () => {
                             )}
 
                             {/* ADMIN REPLY */}
-                            {isAdminReplyAllowed(issue) && (
+                            {!isClosed && isAdminReplyAllowed(issue) && (
                                 <>
                                     <Divider />
                                     <div className="admin-issue-reply">

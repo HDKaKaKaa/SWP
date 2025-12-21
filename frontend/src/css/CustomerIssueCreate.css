@@ -30,12 +30,6 @@
     gap: 12px;
 }
 
-@media (max-width: 768px) {
-    .issue-create-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
 .issue-create-uploader {
     border-radius: 10px;
 }
@@ -45,4 +39,25 @@
     display: flex;
     justify-content: flex-end;
     gap: 10px;
+}
+
+.issue-create-page .ant-input-textarea textarea {
+    scrollbar-width: thin;              /* Firefox */
+}
+
+.issue-create-page .ant-input-textarea textarea::-webkit-scrollbar {
+    width: 6px;
+}
+.issue-create-page .ant-input-textarea textarea::-webkit-scrollbar-thumb {
+    border-radius: 8px;
+    background: rgba(0,0,0,0.25);
+}
+.issue-create-page .ant-input-textarea textarea::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+@media (max-width: 768px) {
+    .issue-create-grid {
+        grid-template-columns: 1fr;
+    }
 }

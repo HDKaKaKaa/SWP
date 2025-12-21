@@ -1,282 +1,294 @@
-/* ====== NỀN GIỐNG ChangePassword (nền xám nhẹ, không banner, không overlay) ====== */
+/*
+  ProfilePage UI được thiết kế lại theo phong cách của /restaurant-registration
+  (RestaurantRegistration.css) nhưng được scope riêng để KHÔNG ảnh hưởng global.
+*/
 
-.profile-page {
+/* ===== Page container (giống modern-page-container) ===== */
+.profile-modern-page-container {
     min-height: 100vh;
-    background-color: #f5f5f5; /* Giống ChangePassword */
+    background-color: #f9f9f9;
     padding: 40px 20px;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
+    background-image: linear-gradient(to bottom, #ffc1af, #f9f9f9);
+    font-family: Montserrat, sans-serif !important;
 }
 
-/* KHÔNG còn lớp overlay mờ, KHÔNG background ảnh */
-/* Xóa hiệu ứng ::before của bản cũ hoàn toàn */
-.profile-page::before {
-    display: none !important;
+/* ===== Card (giống modern-card) ===== */
+.profile-modern-card {
+    background: #fff;
+    border-radius: 24px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    max-width: 1000px;
+    margin: 0 auto;
+    border: 1px solid rgba(255, 107, 53, 0.1);
 }
 
-/* ====== Card chính ====== */
-
-.profile-wrapper {
-    width: 100%;
-    max-width: 900px;
-    background: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-    padding: 28px 32px;
-    display: flex;
-    flex-direction: column;
+/* ===== Header (giống modern-header nhưng layout ngang) ===== */
+.profile-modern-header {
+    background: linear-gradient(135deg, #ff6b35 0%, #ff9f43 100%);
+    padding: 22px 26px;
+    color: #fff;
 }
 
-/* Nút quay về */
-.profile-back-wrapper {
-    margin-bottom: 12px;
-    display: flex;
-    justify-content: flex-start; /* ép sang bên trái */
-}
-
-.profile-back-btn {
-    padding: 0 12px;
-    height: 36px;
-    font-weight: 500;
-}
-
-
-/* ====== Header ====== */
-
-.profile-header {
+.profile-modern-header-inner {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid #eee;
-    margin-bottom: 20px;
 }
 
-.profile-header-left {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+.profile-modern-title h2 {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 800;
+    color: #fff;
+    text-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
-.profile-page-title {
-    margin: 0 !important;
-    color: #222;
-    font-weight: 600;
+.profile-modern-title p {
+    margin: 6px 0 0;
+    opacity: 0.92;
+    font-size: 14px;
 }
 
-.profile-page-subtitle {
-    font-size: 13px;
-    color: #888 !important;
+.profile-modern-back-btn {
+    border-radius: 12px !important;
+    border: 1px solid rgba(255, 255, 255, 0.75) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #fff !important;
+    font-weight: 600 !important;
+    height: 36px;
+    padding: 0 12px;
 }
 
-.profile-header-right {
+.profile-modern-back-btn:hover {
+    background: rgba(255, 255, 255, 0.16) !important;
+    transform: translateY(-1px);
+}
+
+.profile-modern-user {
     display: flex;
     align-items: center;
     gap: 12px;
 }
 
-.profile-avatar-upload {
-    margin-top: 8px;
+.profile-modern-user-meta {
     display: flex;
     flex-direction: column;
     gap: 6px;
 }
 
-.profile-avatar-hint {
-    font-size: 12px;
-}
-
-.profile-header-info {
+.profile-modern-name-row {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.profile-header-tags {
-    display: flex;
+    align-items: center;
+    gap: 8px;
     flex-wrap: wrap;
-    gap: 6px;
 }
 
-/* ====== Layout 2 cột ====== */
-
-.profile-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(250px, 1fr);
-    gap: 24px;
-    align-items: flex-start;
+.profile-modern-name {
+    font-weight: 800;
+    font-size: 14px;
+    line-height: 1.1;
+    color: #fff;
 }
 
-.profile-main {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.profile-side {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-/* ====== Section ====== */
-
-.profile-section {
-    background: #ffffff;
+.profile-modern-role {
     border-radius: 10px;
-    border: 1px solid #f0f0f0;
+    padding: 3px 10px;
+    font-weight: 700;
+    border: none;
+}
+
+.profile-modern-avatar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.profile-modern-avatar-btn {
+    border-radius: 12px !important;
+    font-weight: 700 !important;
+}
+
+.profile-modern-avatar-hint {
+    font-size: 12px;
+    opacity: 0.9;
+    white-space: nowrap;
+}
+
+/* ===== Body ===== */
+.profile-modern-body {
+    padding: 34px 40px;
+}
+
+/* ===== Sections ===== */
+.profile-modern-section {
+    background: #fff;
+    border-radius: 18px;
+    border: 1px solid #f1f1f1;
     padding: 18px 20px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
+    margin-bottom: 18px;
 }
 
-.profile-section-header {
-    margin-bottom: 12px;
+.profile-modern-section-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
-.profile-section-header h5.ant-typography {
-    margin-bottom: 2px;
-    font-weight: 600;
-    color: #222;
+.profile-modern-section-title::before {
+    content: '';
+    display: block;
+    width: 6px;
+    height: 22px;
+    background: #ff6b35;
+    border-radius: 10px;
 }
 
-.profile-section-header .ant-typography.ant-typography-secondary {
+.profile-modern-section-sub {
+    display: block;
+    margin-top: 8px;
     font-size: 13px;
-    color: #888;
+    color: rgba(0, 0, 0, 0.55) !important;
 }
 
+/* ===== Grid ===== */
 .profile-grid-2 {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px 20px;
 }
 
-/* ====== Input Group ====== */
-
+/* ===== Form group ===== */
 .profile-form-group {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    text-align: left;
 }
 
 .profile-form-group label {
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 700;
     color: #444;
 }
 
-.profile-form-group .ant-input,
-.profile-form-group .ant-input-affix-wrapper {
-    border-radius: 8px !important;
+.profile-label-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
 }
 
-/* ====== Chọn vị trí ====== */
+.profile-count {
+    font-size: 11px;
+    color: #9aa0a6;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+}
 
+/* ===== AntD inputs/buttons (scope trong profile card) ===== */
+.profile-modern-card .ant-input,
+.profile-modern-card .ant-input-affix-wrapper {
+    border-radius: 12px !important;
+    padding: 10px 14px !important;
+    border-color: #eee !important;
+    background-color: #fff !important;
+    transition: all 0.25s !important;
+}
+
+.profile-modern-card .ant-input:hover,
+.profile-modern-card .ant-input:focus,
+.profile-modern-card .ant-input-affix-wrapper:hover,
+.profile-modern-card .ant-input-affix-wrapper-focused {
+    border-color: #ff6b35 !important;
+}
+
+.profile-modern-card .ant-input-prefix {
+    margin-right: 10px;
+    color: #999;
+}
+
+.profile-modern-card .ant-btn-primary {
+    background: #ff6b35 !important;
+    border-color: #ff6b35 !important;
+    border-radius: 12px !important;
+    height: 40px !important;
+    font-weight: 800 !important;
+    box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3) !important;
+}
+
+.profile-modern-card .ant-btn-primary:hover {
+    background: #e55a2b !important;
+    transform: translateY(-1px);
+}
+
+/* ===== Map input ===== */
 .profile-map-input {
     cursor: pointer;
-    background-color: #fafafa;
-    border-radius: 8px;
+    background-color: #fff;
 }
 
-.profile-address-preview {
-    margin-top: 10px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    background: #fafafa;
-    border: 1px dashed #ddd;
-}
-
-.profile-address-text {
-    display: block;
-    margin-top: 4px;
-    font-size: 13px;
-    color: #444;
-}
-
-/* ====== Nút lưu ====== */
+/* ===== Actions ===== */
 .profile-actions {
     display: flex;
     justify-content: flex-end;
-    margin-top: 10px;
+    margin-top: 8px;
 }
 
-/* ====== Summary Card ====== */
-
-.profile-summary-card {
-    background: #ffffff;
-    border-radius: 10px;
-    border: 1px solid #f0f0f0;
-    padding: 16px 18px;
-    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.06);
+.profile-modern-save-btn {
+    min-width: 180px;
 }
 
-.profile-summary-card h5.ant-typography {
-    margin-bottom: 12px;
-    font-weight: 600;
-}
-
-.profile-summary-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 6px 0;
-    border-bottom: 1px dashed #eee;
-    font-size: 13px;
-}
-
-.profile-summary-row:last-child {
-    border-bottom: none;
-}
-
-/* ====== Style chung cho lỗi validate ====== */
-
+/* ===== Error text ===== */
 .profile-error-text {
     margin: 2px 0 0 0 !important;
     padding: 0;
-    color: #ff4d4f !important;      /* đỏ cảnh báo giống antd */
-    font-size: 12px !important;     /* nhỏ gọn */
+    color: #ff4d4f !important;
+    font-size: 12px !important;
     line-height: 1.2;
-    font-weight: 500;
+    font-weight: 600;
 }
 
-/* Nếu muốn nhỏ hơn nữa (option) */
-/*
-.profile-error-text {
-  font-size: 11px !important;
-}
-*/
-
-/* Khi input có lỗi — border đỏ giống AntD */
-.profile-form-group .ant-input,
-.profile-form-group .ant-input-affix-wrapper {
+/* Border đỏ chỉ khi AntD status="error" */
+.profile-modern-card .ant-input-status-error,
+.profile-modern-card .ant-input-affix-wrapper-status-error {
     border-color: #ff4d4f !important;
 }
 
-
-/* ====== Responsive ====== */
-
-@media (max-width: 992px) {
-    .profile-layout {
-        grid-template-columns: 1fr;
-    }
-    .profile-side {
-        order: -1;
+/* ===== Responsive ===== */
+@media (max-width: 900px) {
+    .profile-modern-body {
+        padding: 22px;
     }
 }
 
 @media (max-width: 768px) {
-    .profile-wrapper {
-        padding: 20px 16px;
+    .profile-modern-header-inner {
+        flex-direction: column;
+        align-items: flex-start;
     }
+
+    .profile-modern-user {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
     .profile-grid-2 {
         grid-template-columns: 1fr;
     }
-}
 
-@media (max-width: 480px) {
-    .profile-page {
-        padding: 20px 12px;
+    .profile-actions {
+        justify-content: stretch;
     }
-    .profile-wrapper {
-        padding: 16px 12px;
+
+    .profile-modern-save-btn {
+        width: 100%;
     }
 }

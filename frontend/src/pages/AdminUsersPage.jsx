@@ -1,11 +1,42 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Table, Tag, Button, Space, message, Input, Select, Tabs, Avatar, Modal, Descriptions, Spin, Divider, List, Typography } from 'antd';
-import { LockOutlined, UnlockOutlined, EyeOutlined, ShopOutlined } from '@ant-design/icons';
-import { getAdminCustomers, getAdminOwners, getAdminShippers, deactivateAccount, activateAccount, getAdminUserDetail } from '../services/adminService';
+import {
+    Card,
+    Table,
+    Tag,
+    Button,
+    Space,
+    message,
+    Input,
+    Select,
+    Tabs,
+    Avatar,
+    Modal,
+    Descriptions,
+    Spin,
+    Divider,
+    List,
+    Typography,
+    Badge,
+} from 'antd';
+import {
+    LockOutlined,
+    UnlockOutlined,
+    EyeOutlined,
+    ShopOutlined,
+    ReloadOutlined,
+} from '@ant-design/icons';
+import {
+    getAdminCustomers,
+    getAdminOwners,
+    getAdminShippers,
+    deactivateAccount,
+    activateAccount,
+    getAdminUserDetail,
+} from '../services/adminService';
 import ConfirmModal from '../components/ConfirmModal';
 import '../css/AdminUsersPage.css';
 
-const { Text } = Typography;
+const { Title, Text } = Typography;
 const { Search } = Input;
 const { Option } = Select;
 
@@ -46,6 +77,38 @@ const AdminUsersPage = () => {
     const [detailAccount, setDetailAccount] = useState(null);
     const [detailLoading, setDetailLoading] = useState(false);
 
+    // ============ DEDUPE HELPERS ============
+    const dedupeOwnersByAccountId = (list = []) => {
+        const map = new Map();
+
+        for (const item of list) {
+            const id = item?.accountId;
+            if (id == null) continue;
+
+            const prev = map.get(id);
+
+            if (!prev) {
+                map.set(id, { ...item });
+                continue;
+            }
+
+            // merge an toàn: ưu tiên field nào có giá trị
+            map.set(id, {
+                ...prev,
+                ...item,
+                ownerFullName: prev.ownerFullName || item.ownerFullName,
+                username: prev.username || item.username,
+                email: prev.email || item.email,
+                phone: prev.phone || item.phone,
+                // isActive nên ưu tiên từ account (thường giống nhau), nhưng giữ prev nếu item null
+                isActive: (typeof item.isActive === 'boolean') ? item.isActive : prev.isActive,
+            });
+        }
+
+        // sort ổn định theo ID tăng dần
+        return Array.from(map.values()).sort((a, b) => (Number(a.accountId) || 0) - (Number(b.accountId) || 0));
+    };
+
     // ============ LOAD DATA TỪ BACKEND ============
     const fetchAll = async () => {
         setLoading(true);
@@ -56,7 +119,7 @@ const AdminUsersPage = () => {
                 getAdminShippers(),
             ]);
             setCustomersRaw(cus || []);
-            setOwnersRaw(own || []);
+            setOwnersRaw(dedupeOwnersByAccountId(own || []));
             setShippersRaw(ship || []);
         } catch (err) {
             console.error(err);
@@ -69,6 +132,11 @@ const AdminUsersPage = () => {
     useEffect(() => {
         fetchAll();
     }, []);
+
+    // ============ SORT HELPERS ============
+    const compareText = (a, b) =>
+        (a || '').toString().localeCompare((b || '').toString(), 'vi', { sensitivity: 'base' });
+    const compareNumber = (a, b) => (Number(a) || 0) - (Number(b) || 0);
 
     // ============ FILTER & SEARCH ============
 
@@ -106,30 +174,23 @@ const AdminUsersPage = () => {
             const name = normalize(item.fullName || item.username);
             const phone = normalize(item.phone);
             const license = normalize(item.licensePlate);
-            return (
-                name.includes(q) ||
-                phone.includes(q) ||
-                license.includes(q)
-            );
+            return name.includes(q) || phone.includes(q) || license.includes(q);
         });
     };
 
-    // OWNER: tên quán / chủ quán / SĐT (đã không dùng email)
+    // OWNER: chủ quán / SĐT
     const filterOwners = (list, keyword) => {
         const q = normalize(keyword);
         if (!q) return filterByStatus(list);
 
         return filterByStatus(list).filter((item) => {
-            const restaurantName = normalize(item.restaurantName);
             const ownerName = normalize(item.ownerFullName || item.username);
-            const phone = normalize(item.phone || item.restaurantPhone);
-            return (
-                restaurantName.includes(q) ||
-                ownerName.includes(q) ||
-                phone.includes(q)
-            );
+            const phone = normalize(item.phone);
+            const username = normalize(item.username);
+            return ownerName.includes(q) || phone.includes(q) || username.includes(q);
         });
     };
+
 
     const customers = useMemo(
         () => filterCustomers(customersRaw, searchCustomer),
@@ -161,10 +222,9 @@ const AdminUsersPage = () => {
     };
 
     const openDetailModal = async (record) => {
-        // mở modal trước để phản hồi UI nhanh
         setIsDetailOpen(true);
-        setDetailAccount(record);
         setDetailAccount(null);
+        setDetailLoading(true);
 
         try {
             const data = await getAdminUserDetail(record.accountId);
@@ -197,9 +257,7 @@ const AdminUsersPage = () => {
 
                 const update = (list) =>
                     list.map((item) =>
-                        item.accountId === accountId
-                            ? { ...item, isActive: false }
-                            : item,
+                        item.accountId === accountId ? { ...item, isActive: false } : item,
                     );
                 setCustomersRaw((prev) => update(prev));
                 setOwnersRaw((prev) => update(prev));
@@ -214,9 +272,7 @@ const AdminUsersPage = () => {
 
                 const update = (list) =>
                     list.map((item) =>
-                        item.accountId === accountId
-                            ? { ...item, isActive: true }
-                            : item,
+                        item.accountId === accountId ? { ...item, isActive: true } : item,
                     );
                 setCustomersRaw((prev) => update(prev));
                 setOwnersRaw((prev) => update(prev));
@@ -227,7 +283,7 @@ const AdminUsersPage = () => {
             if (modalAction === 'deactivate') {
                 message.error('Không thể vô hiệu hóa tài khoản');
             } else {
-                message.error('Không thể kích hoạt tài khoản');
+                message.error('Không thể kích hoạt lại tài khoản');
             }
         } finally {
             setActionLoading(false);
@@ -253,70 +309,72 @@ const AdminUsersPage = () => {
         return <Tag color={s.color}>{s.label}</Tag>;
     };
 
+    const renderShipperWorkStatusTag = (status) => {
+        const s = String(status || '').toUpperCase();
+        const map = {
+            OFFLINE: { color: 'default', label: 'Offline' },
+            ONLINE: { color: 'green', label: 'Online' },
+            BUSY: { color: 'gold', label: 'Đang giao' },
+        };
+        const meta = map[s] || { color: 'default', label: status || '—' };
+        return <Tag color={meta.color}>{meta.label}</Tag>;
+    };
 
     const renderStatusTag = (isActive) =>
-        isActive ? (
-            <Tag color="green">Đang hoạt động</Tag>
-        ) : (
-            <Tag color="red">Đã vô hiệu hóa</Tag>
-        );
+        isActive ? <Tag color="green">Đang hoạt động</Tag> : <Tag color="red">Đã vô hiệu hóa</Tag>;
 
     const getRestaurantImageSrc = (value) => {
         if (!value) return null;
 
-        if (value.startsWith('/images/')) return "http://localhost:8080" + value;
+        if (value.startsWith('/images/')) return 'http://localhost:8080' + value;
 
         if (value.startsWith('http://') || value.startsWith('https://')) {
             return value;
         }
         return null;
-    }
-
-    const commonActionButtons = (record) => {
-
-        return (
-            <Space size="small">
-                <Button
-                    icon={<EyeOutlined />}
-                    size="small"
-                    onClick={() => openDetailModal(record)}
-                >
-                    Xem
-                </Button>
-
-                {record.isActive ? (
-                    <Button
-                        danger
-                        icon={<LockOutlined />}
-                        size="small"
-                        onClick={() => openDeactivateModal(record)}
-                    >
-                        Khóa
-                    </Button>
-                ) : (
-                    <Button
-                        type="primary"
-                        icon={<UnlockOutlined />}
-                        size="small"
-                        onClick={() => openActivateModal(record)}
-                    >
-                        Mở khóa
-                    </Button>
-                )}
-            </Space>
-        );
     };
 
-    const customerShipperColumns = [
+    const viewOnlyButtons = (record) => (
+        <Space size="small">
+            <Button icon={<EyeOutlined />} size="small" onClick={() => openDetailModal(record)}>
+                Xem
+            </Button>
+        </Space>
+    );
+
+    const lockableButtons = (record) => (
+        <Space size="small">
+            <Button icon={<EyeOutlined />} size="small" onClick={() => openDetailModal(record)}>
+                Xem
+            </Button>
+
+            {record.isActive ? (
+                <Button danger icon={<LockOutlined />} size="small" onClick={() => openDeactivateModal(record)}>
+                    Khóa
+                </Button>
+            ) : (
+                <Button type="primary" icon={<UnlockOutlined />} size="small" onClick={() => openActivateModal(record)}>
+                    Mở khóa
+                </Button>
+            )}
+        </Space>
+    );
+
+    const customerColumns = [
         {
             title: 'ID',
             dataIndex: 'accountId',
             key: 'accountId',
-            width: 70,
+            width: 90,
+            sorter: (a, b) => compareNumber(a.accountId, b.accountId),
+            sortDirections: ['ascend', 'descend'],
+            defaultSortOrder: 'ascend',
         },
         {
             title: 'Họ tên',
             key: 'fullName',
+            sorter: (a, b) => compareText(a.fullName || a.username, b.fullName || b.username),
+            sortDirections: ['ascend', 'descend'],
             render: (record) => record.fullName || record.username,
         },
         {
@@ -338,8 +396,35 @@ const AdminUsersPage = () => {
         {
             title: 'Thao tác',
             key: 'action',
-            render: (_, record) => commonActionButtons(record),
+            width: 180,
+            render: (_, record) => lockableButtons(record),
         },
+    ];
+
+    // SHIPPER: không hiển thị nút Khóa/Mở (đã có màn khác quản lý)
+    const shipperColumns = [
+        {
+            title: 'ID',
+            dataIndex: 'accountId',
+            key: 'accountId',
+            width: 90,
+            sorter: (a, b) => compareNumber(a.accountId, b.accountId),
+            sortDirections: ['ascend', 'descend'],
+            defaultSortOrder: 'ascend',
+        },
+        {
+            title: 'Họ tên',
+            key: 'fullName',
+            sorter: (a, b) => compareText(a.fullName || a.username, b.fullName || b.username),
+            sortDirections: ['ascend', 'descend'],
+            render: (record) => record.fullName || record.username,
+        },
+        { title: 'SĐT', dataIndex: 'phone', key: 'phone' },
+        { title: 'Biển số', dataIndex: 'licensePlate', key: 'licensePlate', responsive: ['md'] },
+        { title: 'Loại xe', dataIndex: 'vehicleType', key: 'vehicleType', responsive: ['lg'] },
+        { title: 'Trạng thái shipper', dataIndex: 'status', key: 'shipperWorkStatus', render: renderShipperWorkStatusTag, responsive: ['lg'] },
+        { title: 'Tài khoản', dataIndex: 'isActive', key: 'isActive', render: renderStatusTag },
+        { title: 'Thao tác', key: 'action', width: 110, render: (_, record) => viewOnlyButtons(record) },
     ];
 
     const ownerColumns = [
@@ -347,44 +432,28 @@ const AdminUsersPage = () => {
             title: 'ID',
             dataIndex: 'accountId',
             key: 'accountId',
-            width: 70,
-        },
-        {
-            title: 'Ảnh quán',
-            key: 'restaurantImage',
-            width: 130, // rộng hơn để không bị xuống dòng
-            render: (record) => {
-                const imgSrc = getRestaurantImageSrc(record.restaurantCoverImage);
-                console.log(imgSrc, record.restaurantCoverImage);
-                return (
-                    <Avatar
-                        shape="square"
-                        size={70}
-                        src={imgSrc || undefined}
-                        icon={!imgSrc && <ShopOutlined style={{ fontSize: 30 }}/>}
-                        className="admin-users-restaurant-avatar"
-                    />
-                );
-            },
-        },
-        {
-            title: 'Thông tin quán',
-            key: 'restaurantInfo',
-            render: (record) => (
-                <div className="admin-users-restaurant-info">
-                    <div className="admin-users-restaurant-name">
-                        {record.restaurantName || 'Tên quán chưa cập nhật'}
-                    </div>
-                    <div className="admin-users-restaurant-address">
-                        {record.restaurantAddress || ''}
-                    </div>
-                </div>
-            ),
+            width: 90,
+            sorter: (a, b) => compareNumber(a.accountId, b.accountId),
+            sortDirections: ['ascend', 'descend'],
+            defaultSortOrder: 'ascend',
         },
         {
             title: 'Chủ quán',
             key: 'ownerName',
+            sorter: (a, b) => compareText(a.ownerFullName || a.username, b.ownerFullName || b.username),
+            sortDirections: ['ascend', 'descend'],
             render: (record) => record.ownerFullName || record.username,
+        },
+        {
+            title: 'Email',
+            dataIndex: 'email',
+            key: 'email',
+            responsive: ['lg'],
+        },
+        {
+            title: 'SĐT',
+            dataIndex: 'phone',
+            key: 'phone',
         },
         {
             title: 'Trạng thái',
@@ -395,7 +464,8 @@ const AdminUsersPage = () => {
         {
             title: 'Thao tác',
             key: 'action',
-            render: (_, record) => commonActionButtons(record),
+            width: 180,
+            render: (_, record) => lockableButtons(record),
         },
     ];
 
@@ -405,6 +475,7 @@ const AdminUsersPage = () => {
         if (activeRole === 'CUSTOMER') {
             return (
                 <Search
+                    size="large"
                     allowClear
                     placeholder="Tìm khách hàng theo tên / SĐT"
                     className="admin-users-search-input"
@@ -417,8 +488,9 @@ const AdminUsersPage = () => {
         if (activeRole === 'OWNER') {
             return (
                 <Search
+                    size="large"
                     allowClear
-                    placeholder="Tìm chủ nhà hàng theo tên quán / chủ quán / SĐT"
+                    placeholder="Tìm chủ nhà hàng theo tên / SĐT"
                     className="admin-users-search-input"
                     value={searchOwner}
                     onChange={(e) => setSearchOwner(e.target.value)}
@@ -428,6 +500,7 @@ const AdminUsersPage = () => {
         }
         return (
             <Search
+                size="large"
                 allowClear
                 placeholder="Tìm shipper theo tên / SĐT / biển số"
                 className="admin-users-search-input"
@@ -446,7 +519,8 @@ const AdminUsersPage = () => {
 
     const getColumnsForActiveTab = () => {
         if (activeRole === 'OWNER') return ownerColumns;
-        return customerShipperColumns;
+        if (activeRole === 'SHIPPER') return shipperColumns;
+        return customerColumns;
     };
 
     const modalTitle =
@@ -483,6 +557,20 @@ const AdminUsersPage = () => {
         }
 
         if (!detailAccount) return null;
+
+        // Sort restaurants trong modal theo status rồi theo tên
+        const statusOrder = { PENDING: 1, ACTIVE: 2, BLOCKED: 3, REJECTED: 4 };
+
+        const restaurantsSorted = [...(detailAccount.restaurants || [])].sort((a, b) => {
+            const sa = String(a.status || '').toUpperCase();
+            const sb = String(b.status || '').toUpperCase();
+            const oa = statusOrder[sa] || 99;
+            const ob = statusOrder[sb] || 99;
+            if (oa !== ob) return oa - ob;
+
+            // cùng status thì sort theo tên A-Z
+            return (a.name || '').localeCompare((b.name || ''), 'vi', { sensitivity: 'base' });
+        });
 
         const roleCode = detailAccount.role?.toUpperCase();
         const isCustomer = roleCode === 'CUSTOMER';
@@ -573,7 +661,7 @@ const AdminUsersPage = () => {
                 <List
                     bordered
                     locale={{ emptyText: 'Chưa có nhà hàng' }}
-                    dataSource={detailAccount.restaurants || []}
+                    dataSource={restaurantsSorted}
                     renderItem={(r) => {
                         const imgSrc = getRestaurantImageSrc(r.coverImage);
                         return (
@@ -621,47 +709,74 @@ const AdminUsersPage = () => {
 
     return (
         <div className="admin-users-page">
-            <h2 className="admin-users-title">
-                Quản lý tài khoản người dùng
-            </h2>
+            <Card className="admin-users-card">
+                <div className="admin-users-header">
+                    <div>
+                        <Title level={4} className="admin-users-title">
+                            Quản lý tài khoản người dùng
+                        </Title>
+                        <div className="admin-users-subtitle">
+                            Sắp xếp theo từng cột (ID, A→Z, Z→A) bằng icon mũi tên trên tiêu đề.
+                        </div>
+                    </div>
 
-            <Tabs
-                activeKey={activeRole}
-                onChange={setActiveRole}
-                items={ROLE_TABS.map((tab) => ({
-                    key: tab.key,
-                    label: tab.label,
-                }))}
-            />
-
-            <div className="admin-users-filters">
-                <div className="admin-users-search-wrapper">
-                    {renderSearchBox()}
+                    <Space>
+                        <Button icon={<ReloadOutlined />} onClick={fetchAll} loading={loading}>
+                            Tải lại
+                        </Button>
+                    </Space>
                 </div>
 
-                <div className="admin-users-status-filter">
-                    <span className="admin-users-status-label">Trạng thái:</span>
-                    <Select
-                        value={statusFilter}
-                        onChange={setStatusFilter}
-                        className="admin-users-status-select"
-                    >
-                        <Option value={STATUS_FILTER.ALL}>Tất cả</Option>
-                        <Option value={STATUS_FILTER.ACTIVE}>Đang hoạt động</Option>
-                        <Option value={STATUS_FILTER.INACTIVE}>Đã vô hiệu hóa</Option>
-                    </Select>
+                <Tabs
+                    className="admin-users-tabs"
+                    activeKey={activeRole}
+                    onChange={setActiveRole}
+                    items={ROLE_TABS.map((tab) => {
+                        const count =
+                            tab.key === 'CUSTOMER'
+                                ? customers.length
+                                : tab.key === 'OWNER'
+                                    ? owners.length
+                                    : shippers.length;
+                        return {
+                            key: tab.key,
+                            label: (
+                                <span className="admin-users-tab-label">
+                                    {tab.label} <Badge count={count} overflowCount={999} />
+                                </span>
+                            ),
+                        };
+                    })}
+                />
+
+                <div className="admin-users-filters">
+                    <div className="admin-users-search-wrapper">{renderSearchBox()}</div>
+
+                    <div className="admin-users-status-filter">
+                        <span className="admin-users-status-label">Trạng thái:</span>
+                        <Select
+                            size="large"
+                            value={statusFilter}
+                            onChange={setStatusFilter}
+                            className="admin-users-status-select"
+                        >
+                            <Option value={STATUS_FILTER.ALL}>Tất cả</Option>
+                            <Option value={STATUS_FILTER.ACTIVE}>Đang hoạt động</Option>
+                            <Option value={STATUS_FILTER.INACTIVE}>Đã vô hiệu hóa</Option>
+                        </Select>
+                    </div>
                 </div>
-            </div>
 
-            <Table
-                rowKey="accountId"
-                columns={getColumnsForActiveTab()}
-                dataSource={getDataSourceForActiveTab()}
-                loading={loading}
-                pagination={{ pageSize: 10 }}
-            />
+                <Table
+                    className="admin-users-table"
+                    rowKey="accountId"
+                    columns={getColumnsForActiveTab()}
+                    dataSource={getDataSourceForActiveTab()}
+                    loading={loading}
+                    pagination={{ pageSize: 10 }}
+                />
+            </Card>
 
-            {/* Modal xác nhận khóa/mở */}
             <ConfirmModal
                 isOpen={isModalOpen}
                 onClose={() => {
@@ -676,7 +791,6 @@ const AdminUsersPage = () => {
                 isLoading={actionLoading}
             />
 
-            {/* Modal chi tiết tài khoản */}
             <Modal
                 open={isDetailOpen}
                 destroyOnClose
@@ -710,7 +824,8 @@ const AdminUsersPage = () => {
                     const name = detailAccount?.username ? ` - ${detailAccount.username}` : '';
                     return `Chi tiết ${roleLabel}${name}`;
                 })()}
-                width={detailAccount?.role?.toUpperCase() === 'OWNER' ? 720 : 560}
+                className="admin-user-detail-modal"
+                width={detailAccount?.role?.toUpperCase() === 'OWNER' ? 760 : 580}
             >
                 {renderDetailContent()}
             </Modal>

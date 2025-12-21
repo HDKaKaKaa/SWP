@@ -21,6 +21,85 @@ const CartPage = () => {
     const [updating, setUpdating] = useState(false);
     const [error, setError] = useState(null);
     const [note, setNote] = useState('');
+    const [noteError, setNoteError] = useState('');
+
+    // Validate textbox giống CustomerIssueCreate (maxLength + không nhận toàn khoảng trắng)
+    const NOTE_MAX_LENGTH = 300;
+
+
+    const MAX_PER_PRODUCT = 100;
+    const LARGE_ORDER_THRESHOLD = 10;
+
+    const [messageApi, contextHolder] = message.useMessage();
+    const largeOrderWarnedRef = useRef({}); // productId -> true
+    const prevQtyMapRef = useRef({});       // productId -> tổng qty trước đó
+    const initializedQtyRef = useRef(false); // tránh warn ngay khi load lần đầu
+
+    const buildQtyMapFromItems = (items = []) => {
+        const map = {};
+        (items || []).forEach((it) => {
+            if (!it?.productId) return;
+            const pid = String(it.productId);
+            map[pid] = (map[pid] || 0) + (Number(it.quantity) || 0);
+        });
+        return map;
+    };
+
+    const warnIfCrossLargeOrder = (nextQtyMap, allowWarn = true) => {
+        const prev = prevQtyMapRef.current || {};
+        const warned = largeOrderWarnedRef.current || {};
+
+        // reset flag nếu qty <= 10
+        Object.keys(warned).forEach((pid) => {
+            const q = Number(nextQtyMap[pid] ?? 0);
+            if (q <= LARGE_ORDER_THRESHOLD) delete warned[pid];
+        });
+
+        if (allowWarn) {
+            Object.entries(nextQtyMap).forEach(([pid, qRaw]) => {
+                const nextQ = Number(qRaw ?? 0);
+                const prevQ = Number(prev[pid] ?? 0);
+
+                if (prevQ <= LARGE_ORDER_THRESHOLD && nextQ > LARGE_ORDER_THRESHOLD && !warned[pid]) {
+                    warned[pid] = true;
+                    messageApi.open({
+                        type: 'warning',
+                        duration: 6,
+                        content: 'Bạn đang đặt số lượng lớn. Chủ quán sẽ gọi điện xác nhận đơn trước khi chuẩn bị.',
+                    });
+                }
+            });
+        }
+
+        prevQtyMapRef.current = nextQtyMap;
+    };
+
+    const syncCartState = (nextCart, allowWarn = false) => {
+        setCart(nextCart);
+        const nextMap = buildQtyMapFromItems(nextCart?.items || []);
+
+        if (!initializedQtyRef.current) {
+            prevQtyMapRef.current = nextMap;  // lần đầu: chỉ set mốc
+            initializedQtyRef.current = true;
+            return;
+        }
+
+        warnIfCrossLargeOrder(nextMap, allowWarn);
+    };
+
+    const handleNoteChange = (e) => {
+        let v = e.target.value ?? '';
+        if (v.length > NOTE_MAX_LENGTH) v = v.slice(0, NOTE_MAX_LENGTH);
+        setNote(v);
+        if (noteError) setNoteError('');
+    };
+
+    const handleNoteBlur = () => {
+        // nếu user chỉ nhập khoảng trắng => coi như rỗng
+        if ((note || '').trim() === '' && note !== '') {
+            setNote('');
+        }
+    };
 
     const MAX_PER_PRODUCT = 100;
     const LARGE_ORDER_THRESHOLD = 10;
@@ -244,6 +323,13 @@ const CartPage = () => {
             return;
         }
         if (!hasItems) return;
+
+        const safeNote = (note || '').trim();
+        if (safeNote.length > NOTE_MAX_LENGTH) {
+            setNoteError(`Ghi chú không được quá ${NOTE_MAX_LENGTH} ký tự.`);
+            messageApi.error('Vui lòng kiểm tra lại ghi chú cho quán.');
+            return;
+        }
 
         // Flow: Cart -> Checkout -> PayOS
         navigate('/checkout', {
@@ -542,8 +628,24 @@ const CartPage = () => {
                                 rows={3}
                                 placeholder="Ví dụ: Không hành, ít đá, gọi trước khi giao..."
                                 value={note}
-                                onChange={(e) => setNote(e.target.value)}
+                                maxLength={NOTE_MAX_LENGTH}
+                                onChange={handleNoteChange}
+                                onBlur={handleNoteBlur}
                             />
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginTop: 6,
+                                fontSize: 12,
+                            }}>
+                              <span style={{ color: noteError ? '#d32' : '#666' }}>
+                                {noteError || ' '}
+                              </span>
+                              <span style={{ color: '#666' }}>
+                                {note.length}/{NOTE_MAX_LENGTH}
+                              </span>
+                            </div>
                         </section>
                     </aside>
                 </div>
