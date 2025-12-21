@@ -278,3 +278,63 @@
 .avatar-uploader {
   text-align: left !important;
 }
+
+/* --- CUSTOM SEARCH INPUT --- */
+
+/* 1. Ép chiều cao cho Wrapper bao ngoài để tránh lệch layout */
+.custom-search-input.ant-input-search .ant-input-wrapper {
+  height: 40px !important;
+  display: flex !important;
+  align-items: stretch !important; /* Kéo dãn các phần tử con bằng nhau */
+}
+
+/* 2. Tùy chỉnh ô nhập liệu (Input) */
+.custom-search-input .ant-input {
+  border-top-left-radius: 12px !important;
+  border-bottom-left-radius: 12px !important;
+  border-top-right-radius: 0 !important;    /* Vuông góc phải để dính vào button */
+  border-bottom-right-radius: 0 !important; /* Vuông góc phải để dính vào button */
+  border-color: #eee !important;
+  background-color: white !important;
+  height: 32px !important; /* Lấp đầy wrapper 40px */
+  line-height: normal !important; /* Reset line-height để text nằm giữa */
+}
+
+.custom-search-input .ant-input:hover,
+.custom-search-input .ant-input:focus {
+  border-color: #ff6b35 !important;
+  box-shadow: none !important; /* Tắt shadow mặc định ant */
+  border-right-width: 0 !important; /* Xóa viền phải để liền mạch */
+  z-index: 1;
+}
+
+/* 3. Tùy chỉnh Nút tìm kiếm (Button) */
+.custom-search-input .ant-input-search-button {
+  border-top-right-radius: 12px !important;
+  border-bottom-right-radius: 12px !important;
+  border-top-left-radius: 0 !important;    /* Vuông góc trái để dính vào input */
+  border-bottom-left-radius: 0 !important; /* Vuông góc trái để dính vào input */
+  
+  height: 100% !important; /* Lấp đầy wrapper 40px */
+  background: #ff6b35 !important;
+  border-color: #ff6b35 !important;
+  color: white !important;
+  box-shadow: 0 4px 10px rgba(255, 107, 53, 0.2) !important;
+  
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 !important; /* Xóa margin thừa nếu có */
+}
+
+/* Hover hiệu ứng cho nút */
+.custom-search-input .ant-input-search-button:hover {
+  background: #e55a2b !important;
+  border-color: #e55a2b !important;
+  z-index: 2;
+}
+
+/* Icon kính lúp */
+.custom-search-input .ant-input-search-button .anticon {
+  font-size: 20px !important;
+}

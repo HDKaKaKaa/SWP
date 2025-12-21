@@ -8,6 +8,7 @@ import {
   Space,
   Image,
   Tooltip,
+  Input,
 } from 'antd';
 import {
   EditOutlined,
@@ -28,6 +29,7 @@ const MyRegistrations = () => {
   const { user } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState([]);
+  const [searchText, setSearchText] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -176,6 +178,12 @@ const MyRegistrations = () => {
     },
   ];
 
+  const filteredData = data.filter(
+    (item) =>
+      item.name.toLowerCase().includes(searchText.toLowerCase()) ||
+      item.address.toLowerCase().includes(searchText.toLowerCase())
+  );
+
   return (
     <div className="modern-page-container">
       <motion.div
@@ -186,36 +194,53 @@ const MyRegistrations = () => {
       >
         <div
           className="modern-header"
-          style={{ padding: '20px', background: 'white', justifyContent: 'space-between', alignItems: 'center', display: 'flex' }}
+          style={{
+            padding: '20px',
+            background: 'white',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            display: 'flex',
+          }}
         >
           {/* Header riêng cho bảng: nền trắng, chữ cam */}
           <div>
-            <h2 style={{ color: '#ff6b35', fontSize: '24px', textAlign: 'left' }}>
+            <h2
+              style={{ color: '#ff6b35', fontSize: '24px', textAlign: 'left' }}
+            >
               Lịch sử đăng ký quán
             </h2>
             <p style={{ color: '#888', textAlign: 'left', margin: 0 }}>
               Theo dõi trạng thái các quán ăn của bạn
             </p>
           </div>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => navigate('/restaurant-registration')}
-            style={{
-              background: '#ff6b35',
-              borderColor: '#ff6b35',
-              borderRadius: '8px',
-              fontWeight: 'bold',
-              boxShadow: '0 4px 10px rgba(255, 107, 53, 0.3)',
-            }}
-          >
-            ĐĂNG KÝ QUÁN MỚI
-          </Button>
+          <Space>
+            <Input.Search
+              placeholder="Tìm kiếm theo tên quán hoặc địa chỉ"
+              onChange={(e) => setSearchText(e.target.value)}
+              style={{ width: 280 }}
+              enterButton
+              className="custom-search-input"
+            />
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => navigate('/restaurant-registration')}
+              style={{
+                background: '#ff6b35',
+                borderColor: '#ff6b35',
+                borderRadius: '8px',
+                fontWeight: 'bold',
+                boxShadow: '0 4px 10px rgba(255, 107, 53, 0.3)',
+              }}
+            >
+              ĐĂNG KÝ QUÁN MỚI
+            </Button>
+          </Space>
         </div>
         <div style={{ padding: '0 20px 40px 20px' }}>
           <Table
             columns={columns}
-            dataSource={data}
+            dataSource={filteredData}
             rowKey="id"
             loading={loading}
             pagination={{ pageSize: 6 }}
