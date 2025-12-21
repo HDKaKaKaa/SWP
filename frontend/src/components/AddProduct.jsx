@@ -186,7 +186,7 @@ export default function AddProduct({ onProductActionSuccess, restaurants = [] })
     // --- SUBMIT LOGIC (Đồng bộ hoàn toàn) ---
     const onFinish = async (values) => {
         setServerError(null);
-        
+
         // Validation ảnh (Bắt buộc khi thêm mới)
         if (!productImage) {
             setImageError("Vui lòng chọn ảnh sản phẩm.");
@@ -228,9 +228,30 @@ export default function AddProduct({ onProductActionSuccess, restaurants = [] })
             await axios.post(`${API_BASE_URL}/owner/products`, formData);
             onProductActionSuccess(`Thêm sản phẩm "${values.name}" thành công!`);
         } catch (err) {
-            const msg = err.response?.data?.message || err.message || "Lỗi khi tạo sản phẩm.";
-            setServerError(msg);
-            errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            console.error("Full Error Object:", err.response);
+
+            let errorMsg = "";
+
+            // 1. Kiểm tra nếu server có phản hồi (err.response)
+            if (err.response) {
+                const { status, data } = err.response;
+
+                if (status === 409) {
+                    errorMsg = (typeof data === 'string' ? data : data?.message)
+                        || "Tên món ăn đã tồn tại trong nhà hàng này. Vui lòng chọn tên khác!";
+                } else if (status === 400) {
+                    errorMsg = data?.message || "Dữ liệu gửi đi không hợp lệ.";
+                } else {
+                    errorMsg = data?.message || "Lỗi hệ thống khi tạo sản phẩm.";
+                }
+            } else {
+                errorMsg = "Không thể kết nối đến máy chủ.";
+            }
+
+            setServerError(errorMsg);
+            if (errorRef.current) {
+                errorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
         } finally {
             setLoading(false);
         }

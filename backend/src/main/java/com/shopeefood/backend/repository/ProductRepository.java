@@ -14,34 +14,40 @@ import com.shopeefood.backend.entity.Product;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Integer> {
-    // Tìm món theo Category ID
-    List<Product> findByCategoryId(Integer categoryId);
+        // kiểm tra trùng
+        boolean existsByNameIgnoreCaseAndRestaurantId(String name, Integer restaurantId);
 
-    // Tìm món theo Restaurant ID
-    List<Product> findByRestaurantId(Integer restaurantId);
+        // Kiểm tra trùng tên khi cập nhật (trừ chính nó ra)
+        boolean existsByNameIgnoreCaseAndRestaurantIdAndIdNot(String name, Integer restaurantId, Integer id);
 
-    // Tìm món theo Owner ID với phân trang, tìm kiếm và lọc
-    @EntityGraph(attributePaths = { "restaurant", "category", "details", "details.attribute" })
-    @Query("SELECT p FROM Product p JOIN p.restaurant r WHERE r.owner.id = :ownerId " +
-            "AND (:restaurantId IS NULL OR r.id = :restaurantId) " +
-            "AND (:categoryId IS NULL OR p.category.id = :categoryId) " +
-            "AND (:isAvailable IS NULL OR p.isAvailable = :isAvailable) " +
-            "AND (:search IS NULL OR LOWER(CAST(p.name AS string)) LIKE LOWER(CAST(CONCAT('%', :search, '%') AS string)))")
-    Page<Product> findProductsByOwnerIdAndFilters(
-            @Param("ownerId") Integer ownerId,
-            @Param("restaurantId") Integer restaurantId,
-            @Param("categoryId") Integer categoryId,
-            @Param("isAvailable") Boolean isAvailable,
-            @Param("search") String search,
-            Pageable pageable);
+        // Tìm món theo Category ID
+        List<Product> findByCategoryId(Integer categoryId);
 
-    // Thêm 2 hàm mới
-    // Dùng cho màn CHỌN MÓN & CHỈNH SỬA MÓN
-    @EntityGraph(attributePaths = { "details", "details.attribute" })
-    @Query("SELECT p FROM Product p WHERE p.restaurant.id = :restaurantId")
-    List<Product> findByRestaurantIdWithDetails(@Param("restaurantId") Integer restaurantId);
+        // Tìm món theo Restaurant ID
+        List<Product> findByRestaurantId(Integer restaurantId);
 
-    @EntityGraph(attributePaths = { "details", "details.attribute" })
-    @Query("SELECT p FROM Product p WHERE p.category.id = :categoryId")
-    List<Product> findByCategoryIdWithDetails(@Param("categoryId") Integer categoryId);
+        // Tìm món theo Owner ID với phân trang, tìm kiếm và lọc
+        @EntityGraph(attributePaths = { "restaurant", "category", "details", "details.attribute" })
+        @Query("SELECT p FROM Product p JOIN p.restaurant r WHERE r.owner.id = :ownerId " +
+                        "AND (:restaurantId IS NULL OR r.id = :restaurantId) " +
+                        "AND (:categoryId IS NULL OR p.category.id = :categoryId) " +
+                        "AND (:isAvailable IS NULL OR p.isAvailable = :isAvailable) " +
+                        "AND (:search IS NULL OR LOWER(CAST(p.name AS string)) LIKE LOWER(CAST(CONCAT('%', :search, '%') AS string)))")
+        Page<Product> findProductsByOwnerIdAndFilters(
+                        @Param("ownerId") Integer ownerId,
+                        @Param("restaurantId") Integer restaurantId,
+                        @Param("categoryId") Integer categoryId,
+                        @Param("isAvailable") Boolean isAvailable,
+                        @Param("search") String search,
+                        Pageable pageable);
+
+        // Thêm 2 hàm mới
+        // Dùng cho màn CHỌN MÓN & CHỈNH SỬA MÓN
+        @EntityGraph(attributePaths = { "details", "details.attribute" })
+        @Query("SELECT p FROM Product p WHERE p.restaurant.id = :restaurantId")
+        List<Product> findByRestaurantIdWithDetails(@Param("restaurantId") Integer restaurantId);
+
+        @EntityGraph(attributePaths = { "details", "details.attribute" })
+        @Query("SELECT p FROM Product p WHERE p.category.id = :categoryId")
+        List<Product> findByCategoryIdWithDetails(@Param("categoryId") Integer categoryId);
 }
