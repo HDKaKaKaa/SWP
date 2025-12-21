@@ -88,8 +88,10 @@ public class OwnerIssueService {
         event.setIssueId(issueId);
         event.setAccountId(req.getAccountId());
         event.setAccountRole("OWNER");
+
         event.setEventType("MESSAGE");
         event.setContent(req.getContent());
+        event.setCreatedAt(LocalDateTime.now());
 
         issue.setUpdatedAt(LocalDateTime.now());
         issueRepository.save(issue);

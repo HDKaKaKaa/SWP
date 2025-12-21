@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.shopeefood.backend.dto.OrderDTO;
 import com.shopeefood.backend.entity.Order;
+import com.shopeefood.backend.repository.CustomerRepository;
 import com.shopeefood.backend.repository.OrderRepository;
 
 @Service
@@ -25,6 +26,8 @@ public class OrderService {
 
     @Autowired
     private OrderRepository orderRepository;
+    @Autowired
+    private CustomerRepository customerRepository;
 
     public Page<OrderDTO> getOrdersForOwner(Integer ownerId, Integer restaurantId, String status,
             int page, int size, String search,
