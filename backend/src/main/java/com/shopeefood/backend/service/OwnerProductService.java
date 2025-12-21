@@ -77,9 +77,20 @@ public class OwnerProductService {
      */
     @Transactional
     public OwnerProductDTO createProduct(ProductUpdateRequestDTO requestDto, MultipartFile imageFile) {
-        Product product = new Product();
+        // 1. Validate định dạng cơ bản
         validateProductRequest(requestDto);
-        // 1. Xử lý Ảnh
+
+        // 2. Kiểm tra trùng tên trong cùng một nhà hàng
+        if (requestDto.getRestaurantId() != null &&
+                productRepository.existsByNameIgnoreCaseAndRestaurantId(requestDto.getName().trim(),
+                        requestDto.getRestaurantId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Tên món ăn '" + requestDto.getName() + "' đã tồn tại trong nhà hàng này.");
+        }
+
+        Product product = new Product();
+
+        // 3. Xử lý Ảnh
         if (imageFile != null && !imageFile.isEmpty()) {
             try {
                 product.setImage(cloudinaryService.uploadImage(imageFile));
@@ -88,13 +99,13 @@ public class OwnerProductService {
             }
         }
 
-        // 2. Các trường cơ bản
-        product.setName(requestDto.getName());
+        // 4. Các trường cơ bản
+        product.setName(requestDto.getName().trim());
         product.setDescription(requestDto.getDescription());
         product.setPrice(requestDto.getPrice() != null ? requestDto.getPrice().doubleValue() : 0.0);
         product.setIsAvailable(requestDto.getIsAvailable() != null ? requestDto.getIsAvailable() : true);
 
-        // 3. Category & Restaurant
+        // 5. Gán Category & Restaurant
         if (requestDto.getCategoryId() != null) {
             Category category = categoryRepository.findById(requestDto.getCategoryId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
@@ -107,12 +118,12 @@ public class OwnerProductService {
             product.setRestaurant(restaurant);
         }
 
-        // 4. Product Details
+        // 6. Xử lý Product Details (Options)
         if (requestDto.getProductDetails() != null) {
             List<ProductDetail> details = requestDto.getProductDetails().stream().map(detailReq -> {
                 ProductDetail detail = new ProductDetail();
                 detail.setProduct(product);
-                detail.setValue(detailReq.getValue());
+                detail.setValue(detailReq.getValue().trim());
                 detail.setPriceAdjustment(detailReq.getPriceAdjustment());
 
                 CategoryAttribute attr = categoryAttributeRepository.findById(detailReq.getAttributeId())
@@ -129,94 +140,115 @@ public class OwnerProductService {
     /**
      * CẬP NHẬT SẢN PHẨM (PUT)
      */
+    /**
+     * CẬP NHẬT SẢN PHẨM (PUT)
+     */
     @Transactional
     public OwnerProductDTO updateProduct(
             Integer productId,
             ProductUpdateRequestDTO requestDto,
             MultipartFile imageFile) {
-        // 1. Kiểm tra trùng lặp productDetail trong cùng 1 sản phẩm
-        java.util.Set<String> checkSet = new java.util.HashSet<>();
-        //valid trường 
+
+        // 1. Tìm sản phẩm hiện tại (Chỉ gọi 1 lần duy nhất)
+        Product existingProduct = productRepository.findById(productId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sản phẩm không tồn tại."));
+
+        // 2. Kiểm tra trùng tên món ăn trong cùng nhà hàng (trừ chính nó)
+        Integer restaurantId = existingProduct.getRestaurant().getId();
+        String updatedName = requestDto.getName().trim();
+        if (productRepository.existsByNameIgnoreCaseAndRestaurantIdAndIdNot(updatedName, restaurantId, productId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Tên món ăn '" + updatedName + "' đã tồn tại trong nhà hàng này.");
+        }
+
+        // 3. Validate định dạng dữ liệu (Tên, Giá, Mô tả...)
         validateProductRequest(requestDto);
-        for (ProductDetailRequest detail : requestDto.getProductDetails()) {
-            if (detail.getValue() == null || detail.getValue().trim().isEmpty())
-                continue;
 
-            // Tạo key: "ID_Thuoc_Tinh:Gia_Tri" -> VD: "1:Size L"
-            String uniqueKey = detail.getAttributeId() + ":" + detail.getValue().trim().toLowerCase();
-
-            if (!checkSet.add(uniqueKey)) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Tùy chọn '" + detail.getValue() + "' đã tồn tại trong sản phẩm này!");
+        // 4. Kiểm tra trùng lặp Option ngay trong danh sách gửi lên (tránh gửi 2 cái
+        // 'Size M')
+        Set<String> checkSet = new HashSet<>();
+        if (requestDto.getProductDetails() != null) {
+            for (ProductDetailRequest detail : requestDto.getProductDetails()) {
+                if (detail.getValue() == null || detail.getValue().trim().isEmpty())
+                    continue;
+                String uniqueKey = detail.getAttributeId() + ":" + detail.getValue().trim().toLowerCase();
+                if (!checkSet.add(uniqueKey)) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Tùy chọn '" + detail.getValue() + "' bị trùng lặp trong yêu cầu!");
+                }
             }
         }
-        Product existingProduct = productRepository.findById(productId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
 
+        // 5. Xử lý Ảnh (Nếu có file mới thì mới upload)
         if (imageFile != null && !imageFile.isEmpty()) {
             try {
                 existingProduct.setImage(cloudinaryService.uploadImage(imageFile));
             } catch (IOException e) {
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi upload ảnh.");
+                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi upload ảnh lên Cloudinary.");
             }
         }
 
-        existingProduct.setName(requestDto.getName());
+        // 6. Cập nhật các thông tin cơ bản
+        existingProduct.setName(updatedName);
         existingProduct.setDescription(requestDto.getDescription());
-        if (requestDto.getPrice() != null)
+        if (requestDto.getPrice() != null) {
             existingProduct.setPrice(requestDto.getPrice().doubleValue());
+        }
         existingProduct.setIsAvailable(requestDto.getIsAvailable());
 
+        // 7. Cập nhật Category (nếu có thay đổi)
         if (requestDto.getCategoryId() != null) {
             Category category = categoryRepository.findById(requestDto.getCategoryId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Danh mục không tồn tại."));
             existingProduct.setCategory(category);
         }
-        // Bước 1: Lấy danh sách ID details từ Frontend gửi lên
+
+        // 8. LOGIC ĐỒNG BỘ CHI TIẾT (PRODUCT DETAILS)
+
+        // Bước 8.1: Lấy danh sách ID từ request gửi lên
         List<Integer> incomingIds = requestDto.getProductDetails().stream()
                 .map(ProductDetailRequest::getId)
-                .filter(id -> id != null)
+                .filter(java.util.Objects::nonNull)
                 .collect(Collectors.toList());
 
-        // Bước 2: Đánh dấu xoá mềm (isDeleted = true) cho các item trong DB mà KHÔNG có
-        // trong request
+        // Bước 8.2: Đánh dấu xoá mềm (isDeleted = true) cho các item trong DB mà KHÔNG
+        // có trong request
         existingProduct.getDetails().stream()
                 .filter(d -> d.getIsDeleted() == null || !d.getIsDeleted())
                 .filter(d -> !incomingIds.contains(d.getId()))
                 .forEach(d -> d.setIsDeleted(true));
 
-        // Bước 3: Tạo Map để tra cứu nhanh các item hiện có trong DB
+        // Bước 8.3: Tạo Map để tra cứu nhanh các item hiện có
         Map<Integer, ProductDetail> dbDetailsMap = existingProduct.getDetails().stream()
                 .filter(d -> d.getId() != null)
-                .collect(Collectors.toMap(
-                        ProductDetail::getId,
-                        d -> d,
-                        (existing, replacement) -> existing));
-        // Bước 4: Duyệt qua danh sách từ Request để Cập nhật hoặc Thêm mới
-        for (ProductDetailRequest detailReq : requestDto.getProductDetails()) {
-            if (detailReq.getId() != null && dbDetailsMap.containsKey(detailReq.getId())) {
-                // CẬP NHẬT: record đã tồn tại
-                ProductDetail detailToUpdate = dbDetailsMap.get(detailReq.getId());
-                detailToUpdate.setValue(detailReq.getValue());
-                detailToUpdate.setPriceAdjustment(detailReq.getPriceAdjustment());
-                detailToUpdate.setIsDeleted(false); // Đảm bảo record này active
-            } else if (detailReq.getId() == null) {
-                // THÊM MỚI: record chưa có ID
-                ProductDetail newDetail = new ProductDetail();
-                newDetail.setProduct(existingProduct);
-                newDetail.setValue(detailReq.getValue());
-                newDetail.setPriceAdjustment(detailReq.getPriceAdjustment());
-                newDetail.setIsDeleted(false);
+                .collect(Collectors.toMap(ProductDetail::getId, d -> d, (oldV, newV) -> oldV));
 
-                CategoryAttribute attribute = categoryAttributeRepository.findById(detailReq.getAttributeId())
-                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Attribute not found"));
-                newDetail.setAttribute(attribute);
+        // Bước 8.4: Duyệt qua danh sách Request để Cập nhật hoặc Thêm mới
+        if (requestDto.getProductDetails() != null) {
+            for (ProductDetailRequest detailReq : requestDto.getProductDetails()) {
+                if (detailReq.getId() != null && dbDetailsMap.containsKey(detailReq.getId())) {
+                    // CẬP NHẬT record cũ
+                    ProductDetail detailToUpdate = dbDetailsMap.get(detailReq.getId());
+                    detailToUpdate.setValue(detailReq.getValue().trim());
+                    detailToUpdate.setPriceAdjustment(detailReq.getPriceAdjustment());
+                    detailToUpdate.setIsDeleted(false);
+                } else if (detailReq.getId() == null) {
+                    // THÊM MỚI hoàn toàn
+                    ProductDetail newDetail = new ProductDetail();
+                    newDetail.setProduct(existingProduct);
+                    newDetail.setValue(detailReq.getValue().trim());
+                    newDetail.setPriceAdjustment(detailReq.getPriceAdjustment());
+                    newDetail.setIsDeleted(false);
 
-                existingProduct.getDetails().add(newDetail);
+                    CategoryAttribute attribute = categoryAttributeRepository.findById(detailReq.getAttributeId())
+                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                                    "Thuộc tính không tồn tại."));
+                    newDetail.setAttribute(attribute);
+
+                    existingProduct.getDetails().add(newDetail);
+                }
             }
         }
-
         return new OwnerProductDTO(productRepository.save(existingProduct));
     }
 

@@ -237,8 +237,17 @@ export default function UpdateProduct({ onProductActionSuccess, restaurants = []
             await axios.put(`${API_BASE_URL}/owner/products/${productData.id}`, formData);
             onProductActionSuccess(`Cập nhật thành công!`);
         } catch (err) {
-            const msg = err.response?.data?.message || err.message || "Lỗi cập nhật.";
-            setServerError(msg);
+            console.log("Lỗi trả về từ server:", err.response?.data);
+            let errorMsg = err.response?.data?.message || err.response?.data;
+            if (!errorMsg || typeof errorMsg !== 'string') {
+                if (err.response?.status === 409) {
+                    errorMsg = "Tên món ăn đã tồn tại trong nhà hàng này. Vui lòng chọn tên khác!";
+                } else {
+                    errorMsg = "Lỗi hệ thống khi cập nhật sản phẩm.";
+                }
+            }
+
+            setServerError(errorMsg);
             errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         } finally {
             setLoading(false);
@@ -322,7 +331,7 @@ export default function UpdateProduct({ onProductActionSuccess, restaurants = []
                         <Form.Item label="Ảnh sản phẩm (Tối đa 2MB)">
                             <input
                                 type="file"
-                                ref={fileInputRef} 
+                                ref={fileInputRef}
                                 onChange={handleFileChange}
                                 accept="image/*"
                                 className="mb-2"
