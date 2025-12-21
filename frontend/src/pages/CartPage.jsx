@@ -101,66 +101,6 @@ const CartPage = () => {
         }
     };
 
-    const MAX_PER_PRODUCT = 100;
-    const LARGE_ORDER_THRESHOLD = 10;
-
-    const [messageApi, contextHolder] = message.useMessage();
-    const largeOrderWarnedRef = useRef({}); // productId -> true
-    const prevQtyMapRef = useRef({});       // productId -> tổng qty trước đó
-    const initializedQtyRef = useRef(false); // tránh warn ngay khi load lần đầu
-
-    const buildQtyMapFromItems = (items = []) => {
-        const map = {};
-        (items || []).forEach((it) => {
-            if (!it?.productId) return;
-            const pid = String(it.productId);
-            map[pid] = (map[pid] || 0) + (Number(it.quantity) || 0);
-        });
-        return map;
-    };
-
-    const warnIfCrossLargeOrder = (nextQtyMap, allowWarn = true) => {
-        const prev = prevQtyMapRef.current || {};
-        const warned = largeOrderWarnedRef.current || {};
-
-        // reset flag nếu qty <= 10
-        Object.keys(warned).forEach((pid) => {
-            const q = Number(nextQtyMap[pid] ?? 0);
-            if (q <= LARGE_ORDER_THRESHOLD) delete warned[pid];
-        });
-
-        if (allowWarn) {
-            Object.entries(nextQtyMap).forEach(([pid, qRaw]) => {
-                const nextQ = Number(qRaw ?? 0);
-                const prevQ = Number(prev[pid] ?? 0);
-
-                if (prevQ <= LARGE_ORDER_THRESHOLD && nextQ > LARGE_ORDER_THRESHOLD && !warned[pid]) {
-                    warned[pid] = true;
-                    messageApi.open({
-                        type: 'warning',
-                        duration: 6,
-                        content: 'Bạn đang đặt số lượng lớn. Chủ quán sẽ gọi điện xác nhận đơn trước khi chuẩn bị.',
-                    });
-                }
-            });
-        }
-
-        prevQtyMapRef.current = nextQtyMap;
-    };
-
-    const syncCartState = (nextCart, allowWarn = false) => {
-        setCart(nextCart);
-        const nextMap = buildQtyMapFromItems(nextCart?.items || []);
-
-        if (!initializedQtyRef.current) {
-            prevQtyMapRef.current = nextMap;  // lần đầu: chỉ set mốc
-            initializedQtyRef.current = true;
-            return;
-        }
-
-        warnIfCrossLargeOrder(nextMap, allowWarn);
-    };
-
     const formatPrice = (v) => {
         if (v === null || v === undefined) return '0 đ';
         try {
